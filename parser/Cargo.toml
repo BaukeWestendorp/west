@@ -4,3 +4,7 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
+lexer.workspace = true
+ast.workspace = true
+
+miette.workspace = true

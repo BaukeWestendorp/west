@@ -1,7 +1,6 @@
 [package]
-name = "lexer"
+name = "ast"
 version.workspace = true
 edition.workspace = true
 
 [dependencies]
-miette.workspace = true

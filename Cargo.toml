@@ -1,7 +1,12 @@
 [workspace]
-members = ["lexer", "parser"]
+members = ["ast", "lexer", "parser"]
 resolver = "2"
 
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
+
+[workspace.dependencies]
+lexer = { path = "lexer" }
+ast = { path = "ast" }
+miette = { version = "7.4.0", features = ["fancy"] }

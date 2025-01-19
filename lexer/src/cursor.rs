@@ -1,22 +1,20 @@
-use std::str::Chars;
+use std::{ops::Range, str::Chars};
 
-pub struct Cursor<'a> {
-    len_remaining: usize,
-    chars: Chars<'a>,
+pub struct Cursor<'src> {
+    span_start: usize,
+    whole: &'src str,
+    rest: Chars<'src>,
 }
 
 pub(crate) const EOF_CHAR: char = '\0';
 
-impl<'a> Cursor<'a> {
-    pub fn new(input: &'a str) -> Cursor<'a> {
-        Cursor {
-            len_remaining: input.len(),
-            chars: input.chars(),
-        }
+impl<'src> Cursor<'src> {
+    pub fn new(source: &'src str) -> Cursor<'src> {
+        Cursor { span_start: 0, whole: source, rest: source.chars() }
     }
 
-    pub fn as_str(&self) -> &'a str {
-        self.chars.as_str()
+    pub fn whole(&self) -> &'src str {
+        self.whole
     }
 
     /// Peeks the next symbol from the input stream without consuming it.
@@ -25,44 +23,34 @@ impl<'a> Cursor<'a> {
     /// it should be checked with `is_eof` method.
     pub fn first(&self) -> char {
         // `.next()` optimizes better than `.nth(0)`
-        self.chars.clone().next().unwrap_or(EOF_CHAR)
-    }
-
-    /// Peeks the second symbol from the input stream without consuming it.
-    pub fn second(&self) -> char {
-        // `.next()` optimizes better than `.nth(1)`
-        let mut iter = self.chars.clone();
-        iter.next();
-        iter.next().unwrap_or(EOF_CHAR)
-    }
-
-    /// Peeks the third symbol from the input stream without consuming it.
-    pub fn third(&self) -> char {
-        // `.next()` optimizes better than `.nth(1)`
-        let mut iter = self.chars.clone();
-        iter.next();
-        iter.next();
-        iter.next().unwrap_or(EOF_CHAR)
+        self.rest.clone().next().unwrap_or(EOF_CHAR)
     }
 
     /// Checks if there is nothing mroe to consume.
     pub fn is_eof(&self) -> bool {
-        self.chars.as_str().is_empty()
+        self.rest.as_str().is_empty()
     }
 
-    /// Resets the number of bytes consumed to 0.
-    pub fn pos_within_token(&self) -> u32 {
-        (self.len_remaining - self.chars.as_str().len()) as u32
+    /// Resets the position within the current token.
+    pub fn reset_span_start(&mut self) {
+        self.span_start = self.whole.len() - self.rest.as_str().len();
     }
 
-    /// Resets the number of bytes consumed to 0.
-    pub fn reset_pos_within_token(&mut self) {
-        self.len_remaining = self.chars.as_str().len();
+    /// Returns the current span.
+    pub fn current_span(&self) -> Range<usize> {
+        let start = self.span_start;
+        let end = self.whole.len() - self.rest.as_str().len();
+        start..end
+    }
+
+    /// Returns the current token as a string.
+    pub fn current_token_str(&self) -> &'src str {
+        &self.whole()[self.current_span()]
     }
 
     /// Moves to the next character.
     pub fn consume(&mut self) -> Option<char> {
-        self.chars.next()
+        self.rest.next()
     }
 
     /// Consumes the next character as long as the predicate is true or the end of file is reached.
