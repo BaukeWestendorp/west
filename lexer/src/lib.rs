@@ -7,9 +7,14 @@ use token::{Keyword, Literal, Token, TokenKind};
 mod cursor;
 pub mod token;
 
-pub fn lex(input: &str) -> impl Iterator<Item = Result<Token>> + '_ {
-    let mut cursor = Cursor::new(input);
-    std::iter::from_fn(move || cursor.advance_token())
+pub struct Lexer<'src> {
+    cursor: Cursor<'src>,
+}
+
+impl Lexer<'_> {
+    pub fn new(source: &str) -> Lexer {
+        Lexer { cursor: Cursor::new(source) }
+    }
 }
 
 impl<'src> Cursor<'src> {
@@ -115,6 +120,14 @@ impl<'src> Cursor<'src> {
 
         let token = Token::new(token_kind, self.current_span());
         return Some(Ok(token));
+    }
+}
+
+impl Iterator for Lexer<'_> {
+    type Item = Result<Token>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.cursor.advance_token()
     }
 }
 
