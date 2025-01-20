@@ -161,6 +161,6 @@ fn test_invalid_token() {
         Ok(Token { kind: TokenKind::Semi,       span: 0..1 }),
         Ok(Token { kind: TokenKind::OpenParen,  span: 1..2 }),
         Ok(Token { kind: TokenKind::CloseParen, span: 2..3 }),
-        Err("Unknown token: '#'".to_string()),
+        Err("unknown token: '#'".to_string()),
     ]);
 }

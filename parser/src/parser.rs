@@ -8,7 +8,7 @@ use thiserror::Error;
 use crate::session::ParserSession;
 
 #[derive(Diagnostic, Debug, Error)]
-#[error("Unexpected EOF")]
+#[error("unexpected EOF")]
 pub struct Eof;
 
 pub struct Parser<'src> {
@@ -69,7 +69,7 @@ impl<'src> Parser<'src> {
                 kind
             )),
             Some(Err(err)) => Err(err),
-            None => Err(Error::new(Eof)),
+            None => Err(Eof.into()),
         }
     }
 

@@ -112,7 +112,7 @@ impl<'src> Cursor<'src> {
                 let span = self.current_span();
                 return Some(Err(miette::miette! {
                     labels = vec![LabeledSpan::at(span, format!("this '{first_char}'"))],
-                    "Unknown token: '{first_char}'",
+                    "unknown token: '{first_char}'",
                 }
                 .with_source_code(self.whole().to_string())));
             }

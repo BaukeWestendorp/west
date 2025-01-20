@@ -159,7 +159,7 @@ impl FromStr for Keyword {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "fn" => Ok(Keyword::Fn),
-            _ => bail!("Unknown keyword: {}", s),
+            _ => bail!("unknown keyword: {}", s),
         }
     }
 }
