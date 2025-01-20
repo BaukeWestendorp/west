@@ -127,7 +127,12 @@ impl Iterator for Lexer<'_> {
     type Item = Result<Token>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.cursor.advance_token()
+        while let Ok(token) = self.cursor.advance_token()? {
+            if !matches!(token.kind, TokenKind::Whitespace) {
+                return Some(Ok(token));
+            }
+        }
+        None
     }
 }
 

@@ -1,88 +1,111 @@
-use lexer::token::Token;
-use miette::{Context, Error, Result};
+use lexer::{
+    Lexer,
+    token::{Keyword, Token, TokenKind},
+};
+use miette::{Diagnostic, Error, LabeledSpan, Result};
+use thiserror::Error;
 
 use crate::session::ParserSession;
 
+#[derive(Diagnostic, Debug, Error)]
+#[error("Unexpected EOF")]
+pub struct Eof;
+
 pub struct Parser<'src> {
     pub ses: ParserSession<'src>,
-    pub tokens: TokenStream,
+    lexer: std::iter::Peekable<Lexer<'src>>,
 }
 
 impl<'src> Parser<'src> {
     pub fn new(ses: ParserSession) -> Parser {
-        let tokens = lexer::lex(&ses.source);
-        // FIXME: We should not collect the tokens here.
-        Parser { ses, tokens: TokenStream::new(tokens.collect()) }
+        Parser { lexer: Lexer::new(ses.source).peekable(), ses }
     }
 
-    pub fn parse(&'src mut self) -> Result<Vec<ast::Fn<'src>>> {
-        let mut fns = vec![];
-
-        while self.tokens.peek().is_some() {
-            let r#fn = self.try_parse_fn()?;
-            fns.push(r#fn);
+    pub fn parse(mut self) -> Result<ast::File<'src>, Error> {
+        let mut items = Vec::new();
+        while let Some(item) = self.try_parse_item()? {
+            items.push(item);
         }
-
-        Ok(fns)
+        Ok(ast::File { items })
     }
 
-    fn try_parse_fn(&self) -> Result<ast::Fn> {
+    pub fn try_parse_item(&mut self) -> Result<Option<ast::Item<'src>>> {
+        if self.consume_keyword(&Keyword::Fn) {
+            Ok(Some(ast::Item::Fn(self.try_parse_fn()?)))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn try_parse_fn(&mut self) -> Result<ast::Fn<'src>> {
         let name = self.try_parse_ident()?;
-
-        Ok(ast::Fn { name, params: (), body: () })
+        self.try_consume_expected(TokenKind::OpenParen)?;
+        let params = ();
+        self.try_consume_expected(TokenKind::CloseParen)?;
+        let body = self.try_parse_block()?;
+        Ok(ast::Fn { name, params, body })
     }
 
-    fn try_parse_ident(&self) -> Result<ast::Ident> {
-        let token = self.tokens.peek_or_err()?;
-        let ident = match token.ident() {
-            Some(ident) => ident,
-            None => {
-                let err = Error::msg(format!("Expected an ident but found '{}'", token.kind));
-                return Err(err);
-            }
-        };
+    pub fn try_parse_ident(&mut self) -> Result<ast::Ident<'src>> {
+        let ident = self.try_consume_expected(TokenKind::Ident)?;
+        let origin = &self.ses.source[ident.span];
+        Ok(ast::Ident(origin))
+    }
 
-        if ident.is_reserved(self.ses.source) {
-            return Err(());
+    pub fn try_parse_block(&mut self) -> Result<ast::Block> {
+        self.try_consume_expected(TokenKind::OpenBrace)?;
+        self.try_consume_expected(TokenKind::CloseBrace)?;
+        Ok(ast::Block {})
+    }
+
+    fn try_consume_expected(&mut self, expected: TokenKind) -> Result<Token> {
+        let token = self.lexer.next();
+        match token {
+            Some(Ok(token @ Token { kind, .. })) if kind == expected => Ok(token),
+            Some(Ok(Token { kind, span })) => Err(miette::miette!(
+                labels = vec![LabeledSpan::at(span, format!("here"))],
+                "expected '{}', found '{}'",
+                expected,
+                kind
+            )),
+            Some(Err(err)) => Err(err),
+            None => Err(Error::new(Eof)),
         }
+    }
 
-        self.tokens.next();
-
-        Ok(ident)
+    fn consume_keyword(&mut self, keyword: &Keyword) -> bool {
+        match self.lexer.peek() {
+            Some(Ok(Token { kind: TokenKind::Keyword(k), .. })) if k == keyword => {
+                self.lexer.next();
+                true
+            }
+            _ => false,
+        }
     }
 }
 
-struct TokenStream {
-    tokens: Vec<Token>,
-    ix: usize,
-}
-
-impl TokenStream {
-    pub fn new(tokens: Vec<Token>) -> Self {
-        Self { tokens, ix: 0 }
-    }
-
-    pub fn peek(&self) -> Option<&Token> {
-        self.peek_nth(0)
-    }
-
-    pub fn peek_or_err(&self) -> Result<&Token> {
-        self.peek().wrap_err("End of file reached.")
-    }
-
-    pub fn peek_nth(&self, n: usize) -> Option<&Token> {
-        self.tokens.get(self.ix + n)
-    }
-}
-
-impl Iterator for TokenStream {
-    type Item = Token;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        // FIXME: We probably should take the token
-        //        from the Vec somehow instead of copying it.
-        let token = *self.tokens.get(self.ix)?;
-        self.ix += 1;
-        Some(token)
-    }
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Op {
+    Equals,
+    And,
+    Or,
+    LessThan,
+    MoreThan,
+    Bang,
+    Plus,
+    Minus,
+    Star,
+    Slash,
+    EqualsEquals,
+    AndAnd,
+    OrOr,
+    LessThanEquals,
+    MoreThanEquals,
+    BangEquals,
+    PlusEquals,
+    MinusEquals,
+    StarEquals,
+    SlashEquals,
+    AndEquals,
+    OrEquals,
 }

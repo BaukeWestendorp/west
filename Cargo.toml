@@ -10,3 +10,4 @@ edition = "2021"
 lexer = { path = "lexer" }
 ast = { path = "ast" }
 miette = { version = "7.4.0", features = ["fancy"] }
+thiserror = "2.0.11"
