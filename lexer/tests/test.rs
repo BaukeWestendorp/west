@@ -25,17 +25,12 @@ fn smoke_test() {
     "#;
 
     check_lexer(source, vec![
-        Token { kind: TokenKind::Whitespace,           span: 0..9   },
         Token { kind: TokenKind::Keyword(Keyword::Fn), span: 9..11  },
-        Token { kind: TokenKind::Whitespace,           span: 11..12 },
         Token { kind: TokenKind::Ident,                span: 12..16 },
         Token { kind: TokenKind::OpenParen,            span: 16..17 },
         Token { kind: TokenKind::CloseParen,           span: 17..18 },
-        Token { kind: TokenKind::Whitespace,           span: 18..19 },
         Token { kind: TokenKind::OpenBrace,            span: 19..20 },
-        Token { kind: TokenKind::Whitespace,           span: 20..30 },
         Token { kind: TokenKind::CloseBrace,           span: 30..31 },
-        Token { kind: TokenKind::Whitespace,           span: 31..36 },
     ]);
 }
 
@@ -50,7 +45,7 @@ fn test_whitespace() {
     #[rustfmt::skip]
     check_lexer(
         "\u{0009}\u{000A}\u{000B}\u{000C}\u{000D}\u{0020}\u{0085}\u{200E}\u{200F}\u{2028}\u{2029}",
-        vec![Token { kind: TokenKind::Whitespace, span: 0..20 }],
+        vec![],
     );
 }
 
