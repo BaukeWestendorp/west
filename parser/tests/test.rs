@@ -93,3 +93,31 @@ fn fn_long_name() {
     });
     assert_eq!(actual, expected);
 }
+
+#[test]
+fn block_empty() {
+    let actual = new_parser("{}").parse_block().unwrap();
+    let expected = ast::Block {};
+    assert_eq!(actual, expected);
+}
+
+#[test]
+fn block_unexpected_eof() {
+    let actual = new_parser("{").parse_block().unwrap_err();
+    let expected = miette::miette!("unexpected EOF");
+    assert_eq!(actual.to_string(), expected.to_string());
+}
+
+#[test]
+fn ident() {
+    let actual = new_parser("a").parse_ident().unwrap();
+    let expected = ast::Ident("a");
+    assert_eq!(actual, expected);
+}
+
+#[test]
+fn ident_invalid() {
+    let actual = new_parser("1").parse_ident().unwrap_err();
+    let expected = miette::miette!("expected 'ident', found 'int'");
+    assert_eq!(actual.to_string(), expected.to_string());
+}

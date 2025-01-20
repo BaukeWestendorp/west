@@ -8,9 +8,6 @@ pub enum Item<'src> {
     Fn(Fn<'src>),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Ident<'a>(pub &'a str);
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Fn<'src> {
     pub name: Ident<'src>,
@@ -20,3 +17,6 @@ pub struct Fn<'src> {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Block {}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Ident<'a>(pub &'a str);
