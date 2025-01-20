@@ -1,7 +1,7 @@
 use parser::{Parser, session::ParserSession};
 
 fn new_parser(source: &str) -> Parser {
-    let session = ParserSession { source };
+    let session = ParserSession::new(source);
     parser::Parser::new(session)
 }
 

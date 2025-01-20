@@ -2,14 +2,9 @@ use lexer::{
     Lexer,
     token::{Keyword, Token, TokenKind},
 };
-use miette::{Diagnostic, Error, LabeledSpan, Result};
-use thiserror::Error;
+use miette::{Error, LabeledSpan, Result};
 
 use crate::session::ParserSession;
-
-#[derive(Diagnostic, Debug, Error)]
-#[error("unexpected EOF")]
-pub struct Eof;
 
 pub struct Parser<'src> {
     pub ses: ParserSession<'src>,
@@ -40,12 +35,13 @@ impl<'src> Parser<'src> {
             Ok(Some(ast::Item::Fn(self.parse_fn()?)))
         } else {
             match self.lexer.next() {
-                Some(Ok(token)) => miette::bail!(miette::miette!(
+                Some(Ok(token)) => Err(miette::miette!(
                     labels = vec![LabeledSpan::at(token.span, format!("here"))],
                     "expected an item, but found a {}: '{}'",
                     token.kind,
                     &self.ses.source[token.span.clone()]
-                )),
+                )
+                .with_source_code(self.ses.source.to_string())),
                 Some(Err(err)) => Err(err),
                 None => Ok(None),
             }
@@ -82,9 +78,10 @@ impl<'src> Parser<'src> {
                 "expected '{}', found '{}'",
                 expected,
                 kind
-            )),
+            )
+            .with_source_code(self.ses.source.to_string())),
             Some(Err(err)) => Err(err),
-            None => Err(Eof.into()),
+            None => Err(self.err_eof(None)),
         }
     }
 
@@ -104,10 +101,23 @@ impl<'src> Parser<'src> {
                 labels = vec![LabeledSpan::at(token.span, format!("here"))],
                 "expected EOF, found '{}'",
                 token.kind
-            )),
+            )
+            .with_source_code(self.ses.source.to_string())),
             Some(Err(err)) => Err(err),
             None => Ok(()),
         }
+    }
+
+    fn err_eof(&self, token: Option<&Token>) -> Error {
+        let span = match token {
+            Some(token) => token.span.clone(),
+            None => {
+                let end = self.ses.source.len() - 1;
+                end..end
+            }
+        };
+        miette::miette!(labels = vec![LabeledSpan::at(span, "here")], "unexpected EOF")
+            .with_source_code(self.ses.source.to_string())
     }
 }
 
