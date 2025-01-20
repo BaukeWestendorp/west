@@ -47,7 +47,7 @@ fn file_multiple_items() {
 #[test]
 fn file_invalid_first_item() {
     let actual = new_parser("1.0; fn a() {}").parse().unwrap_err();
-    let expected = miette::miette!("invalid item: 'float'");
+    let expected = miette::miette!("expected an item, but found a float: '1.0'");
 
     assert_eq!(actual.to_string(), expected.to_string());
 }
@@ -55,7 +55,7 @@ fn file_invalid_first_item() {
 #[test]
 fn file_invalid_last_item() {
     let actual = new_parser("fn a() {} 1.0").parse().unwrap_err();
-    let expected = miette::miette!("invalid item: 'float'");
+    let expected = miette::miette!("expected an item, but found a float: '1.0'");
 
     assert_eq!(actual.to_string(), expected.to_string());
 }
@@ -63,7 +63,7 @@ fn file_invalid_last_item() {
 #[test]
 fn file_invalid_root() {
     let actual = new_parser("1.0").parse().unwrap_err();
-    let expected = miette::miette!("invalid item: 'float'");
+    let expected = miette::miette!("expected an item, but found a float: '1.0'");
 
     assert_eq!(actual.to_string(), expected.to_string());
 }
@@ -74,6 +74,13 @@ fn fn_item() {
     let expected =
         ast::Item::Fn(ast::Fn { name: ast::Ident("a"), params: (), body: ast::Block {} });
     assert_eq!(actual, expected);
+}
+
+#[test]
+fn fn_item_unexpected_eof() {
+    let actual = new_parser(r#"fn a() {"#).parse_item().unwrap_err();
+    let expected = miette::miette!("unexpected EOF");
+    assert_eq!(actual.to_string(), expected.to_string());
 }
 
 #[test]

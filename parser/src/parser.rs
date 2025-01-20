@@ -30,20 +30,21 @@ impl<'src> Parser<'src> {
             }
         }
 
-        self.expect_eof()?;
+        self.eat_eof()?;
 
         Ok(ast::File { items })
     }
 
     pub fn parse_item(&mut self) -> Result<Option<ast::Item<'src>>> {
-        if self.consume_keyword(&Keyword::Fn) {
-            Ok(Some(ast::Item::Fn(self.try_parse_fn()?)))
+        if self.eat_keyword(&Keyword::Fn) {
+            Ok(Some(ast::Item::Fn(self.parse_fn()?)))
         } else {
             match self.lexer.next() {
                 Some(Ok(token)) => miette::bail!(miette::miette!(
                     labels = vec![LabeledSpan::at(token.span, format!("here"))],
-                    "invalid item: '{}'",
-                    token.kind
+                    "expected an item, but found a {}: '{}'",
+                    token.kind,
+                    &self.ses.source[token.span.clone()]
                 )),
                 Some(Err(err)) => Err(err),
                 None => Ok(None),
@@ -51,28 +52,28 @@ impl<'src> Parser<'src> {
         }
     }
 
-    pub fn try_parse_fn(&mut self) -> Result<ast::Fn<'src>> {
-        let name = self.try_parse_ident()?;
-        self.try_consume_expected(TokenKind::OpenParen)?;
+    pub fn parse_fn(&mut self) -> Result<ast::Fn<'src>> {
+        let name = self.parse_ident()?;
+        self.eat_expected_token(TokenKind::OpenParen)?;
         let params = ();
-        self.try_consume_expected(TokenKind::CloseParen)?;
-        let body = self.try_parse_block()?;
+        self.eat_expected_token(TokenKind::CloseParen)?;
+        let body = self.parse_block()?;
         Ok(ast::Fn { name, params, body })
     }
 
-    pub fn try_parse_ident(&mut self) -> Result<ast::Ident<'src>> {
-        let ident = self.try_consume_expected(TokenKind::Ident)?;
+    pub fn parse_ident(&mut self) -> Result<ast::Ident<'src>> {
+        let ident = self.eat_expected_token(TokenKind::Ident)?;
         let origin = &self.ses.source[ident.span];
         Ok(ast::Ident(origin))
     }
 
-    pub fn try_parse_block(&mut self) -> Result<ast::Block> {
-        self.try_consume_expected(TokenKind::OpenBrace)?;
-        self.try_consume_expected(TokenKind::CloseBrace)?;
+    pub fn parse_block(&mut self) -> Result<ast::Block> {
+        self.eat_expected_token(TokenKind::OpenBrace)?;
+        self.eat_expected_token(TokenKind::CloseBrace)?;
         Ok(ast::Block {})
     }
 
-    fn try_consume_expected(&mut self, expected: TokenKind) -> Result<Token> {
+    fn eat_expected_token(&mut self, expected: TokenKind) -> Result<Token> {
         let token = self.lexer.next();
         match token {
             Some(Ok(token @ Token { kind, .. })) if kind == expected => Ok(token),
@@ -87,7 +88,7 @@ impl<'src> Parser<'src> {
         }
     }
 
-    fn consume_keyword(&mut self, keyword: &Keyword) -> bool {
+    fn eat_keyword(&mut self, keyword: &Keyword) -> bool {
         match self.lexer.peek() {
             Some(Ok(Token { kind: TokenKind::Keyword(k), .. })) if k == keyword => {
                 self.lexer.next();
@@ -97,7 +98,7 @@ impl<'src> Parser<'src> {
         }
     }
 
-    fn expect_eof(&mut self) -> Result<()> {
+    fn eat_eof(&mut self) -> Result<()> {
         match self.lexer.next() {
             Some(Ok(token)) => Err(miette::miette!(
                 labels = vec![LabeledSpan::at(token.span, format!("here"))],
