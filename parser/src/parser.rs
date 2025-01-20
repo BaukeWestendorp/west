@@ -23,17 +23,31 @@ impl<'src> Parser<'src> {
 
     pub fn parse(mut self) -> Result<ast::File<'src>, Error> {
         let mut items = Vec::new();
-        while let Some(item) = self.try_parse_item()? {
-            items.push(item);
+        loop {
+            match self.parse_item()? {
+                Some(item) => items.push(item),
+                None => break,
+            }
         }
+
+        self.expect_eof()?;
+
         Ok(ast::File { items })
     }
 
-    pub fn try_parse_item(&mut self) -> Result<Option<ast::Item<'src>>> {
+    pub fn parse_item(&mut self) -> Result<Option<ast::Item<'src>>> {
         if self.consume_keyword(&Keyword::Fn) {
             Ok(Some(ast::Item::Fn(self.try_parse_fn()?)))
         } else {
-            Ok(None)
+            match self.lexer.next() {
+                Some(Ok(token)) => miette::bail!(miette::miette!(
+                    labels = vec![LabeledSpan::at(token.span, format!("here"))],
+                    "invalid item: '{}'",
+                    token.kind
+                )),
+                Some(Err(err)) => Err(err),
+                None => Ok(None),
+            }
         }
     }
 
@@ -80,6 +94,18 @@ impl<'src> Parser<'src> {
                 true
             }
             _ => false,
+        }
+    }
+
+    fn expect_eof(&mut self) -> Result<()> {
+        match self.lexer.next() {
+            Some(Ok(token)) => Err(miette::miette!(
+                labels = vec![LabeledSpan::at(token.span, format!("here"))],
+                "expected EOF, found '{}'",
+                token.kind
+            )),
+            Some(Err(err)) => Err(err),
+            None => Ok(()),
         }
     }
 }
