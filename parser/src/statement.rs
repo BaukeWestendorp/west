@@ -11,7 +11,7 @@ impl<'src> Parser<'src> {
         Ok(Statement::Expression(expression))
     }
 
-    pub fn can_parse_statement(&self) -> bool {
+    pub fn can_parse_statement(&mut self) -> bool {
         self.can_parse_expression()
     }
 }

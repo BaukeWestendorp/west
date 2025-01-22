@@ -6,7 +6,7 @@ use crate::Parser;
 
 impl<'src> Parser<'src> {
     pub fn parse_item(&mut self) -> Result<Option<Item<'src>>> {
-        if self.eat_keyword(Keyword::Fn) {
+        if self.eat_keyword(&Keyword::Fn) {
             Ok(Some(Item::Fn(self.parse_fn()?)))
         } else {
             match self.eat_or_eof()? {

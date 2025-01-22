@@ -16,10 +16,6 @@ impl Token {
     pub fn to_source_str<'src>(&self, source: &'src str) -> &'src str {
         &source[self.span.clone()]
     }
-
-    pub fn dummy() -> Self {
-        Self::new(TokenKind::Star, usize::MAX..usize::MAX)
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

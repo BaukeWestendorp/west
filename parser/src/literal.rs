@@ -43,7 +43,7 @@ impl<'src> Parser<'src> {
         }
     }
 
-    pub fn can_parse_literal(&self) -> bool {
-        matches!(self.token.kind, TokenKind::Literal(_))
+    pub fn can_parse_literal(&mut self) -> bool {
+        matches!(self.lexer.peek(), Some(Ok(Token { kind: TokenKind::Literal(_), .. })))
     }
 }

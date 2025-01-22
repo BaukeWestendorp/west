@@ -5,7 +5,6 @@ use crate::Parser;
 
 impl<'src> Parser<'src> {
     pub fn parse_expression(&mut self) -> Result<Expression<'src>> {
-        dbg!(&self.token);
         if self.can_parse_ident() {
             let ident = self.parse_ident()?;
             return Ok(Expression::Ident(ident));
@@ -20,7 +19,7 @@ impl<'src> Parser<'src> {
         miette::bail!("failed to parse expression")
     }
 
-    pub fn can_parse_expression(&self) -> bool {
+    pub fn can_parse_expression(&mut self) -> bool {
         self.can_parse_ident() || self.can_parse_literal()
     }
 }

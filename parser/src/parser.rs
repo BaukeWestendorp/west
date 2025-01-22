@@ -10,12 +10,11 @@ use crate::session::ParserSession;
 pub struct Parser<'src> {
     pub ses: ParserSession<'src>,
     pub(crate) lexer: std::iter::Peekable<Lexer<'src>>,
-    pub(crate) token: Token,
 }
 
 impl<'src> Parser<'src> {
     pub fn new(ses: ParserSession) -> Parser {
-        Parser { lexer: Lexer::new(ses.source).peekable(), ses, token: Token::dummy() }
+        Parser { lexer: Lexer::new(ses.source).peekable(), ses }
     }
 
     pub fn parse(mut self) -> Result<File<'src>, Error> {
@@ -34,10 +33,7 @@ impl<'src> Parser<'src> {
 
     pub(crate) fn eat(&mut self) -> Result<Token> {
         match self.lexer.next() {
-            Some(token) => {
-                self.token = token?;
-                Ok(self.token.clone())
-            }
+            Some(token) => token,
             _ => Err(self.err_unexpected_eof(None)),
         }
     }
@@ -55,9 +51,9 @@ impl<'src> Parser<'src> {
         }
     }
 
-    pub(crate) fn eat_keyword(&mut self, keyword: Keyword) -> bool {
-        match self.token {
-            Token { kind: TokenKind::Keyword(k), .. } if k == keyword => {
+    pub(crate) fn eat_keyword(&mut self, keyword: &Keyword) -> bool {
+        match self.lexer.peek() {
+            Some(Ok(Token { kind: TokenKind::Keyword(k), .. })) if k == keyword => {
                 self.eat().expect("checked if token exist in match");
                 true
             }
@@ -67,10 +63,8 @@ impl<'src> Parser<'src> {
 
     pub(crate) fn eat_or_eof(&mut self) -> Result<Option<Token>> {
         match self.lexer.next() {
-            Some(token) => {
-                self.token = token?;
-                Ok(Some(self.token.clone()))
-            }
+            Some(Ok(token)) => Ok(Some(token)),
+            Some(Err(err)) => Err(err),
             _ => Ok(None),
         }
     }

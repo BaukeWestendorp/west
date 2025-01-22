@@ -10,14 +10,14 @@ impl<'src> Parser<'src> {
             Token { kind: TokenKind::Ident, span } => Ok(Ident(&self.ses.source[span.clone()])),
             Token { kind, span, .. } => Err(miette::miette!(
                 labels = vec![LabeledSpan::at(span.clone(), format!("here"))],
-                "expected ident, found '{}'",
+                "expected ident, found {}",
                 kind
             )
             .with_source_code(self.ses.source.to_string())),
         }
     }
 
-    pub fn can_parse_ident(&self) -> bool {
-        self.token.kind == TokenKind::Ident
+    pub fn can_parse_ident(&mut self) -> bool {
+        matches!(self.lexer.peek(), Some(Ok(Token { kind: TokenKind::Ident, .. })))
     }
 }
