@@ -43,7 +43,7 @@ fn file_multiple_items() {
 #[test]
 fn file_invalid_first_item() {
     let actual = new_parser("1.0; fn a() {}").parse().unwrap_err();
-    let expected = miette::miette!("expected an item, but found float: '1.0'");
+    let expected = miette::miette!("expected item, found float: '1.0'");
 
     assert_eq!(actual.to_string(), expected.to_string());
 }
@@ -51,7 +51,7 @@ fn file_invalid_first_item() {
 #[test]
 fn file_invalid_last_item() {
     let actual = new_parser("fn a() {} 1.0").parse().unwrap_err();
-    let expected = miette::miette!("expected an item, but found float: '1.0'");
+    let expected = miette::miette!("expected item, found float: '1.0'");
 
     assert_eq!(actual.to_string(), expected.to_string());
 }
@@ -59,7 +59,7 @@ fn file_invalid_last_item() {
 #[test]
 fn file_invalid_root() {
     let actual = new_parser("1.0").parse().unwrap_err();
-    let expected = miette::miette!("expected an item, but found float: '1.0'");
+    let expected = miette::miette!("expected item, found float: '1.0'");
 
     assert_eq!(actual.to_string(), expected.to_string());
 }
@@ -159,8 +159,8 @@ fn expression_ident() {
 #[test]
 fn literal_int() {
     let test_int = |input: &str, expected: i64| {
-        let actual = new_parser(input).try_parse_literal().unwrap();
-        let expected = Some(Literal::Int(expected));
+        let actual = new_parser(input).parse_literal().unwrap();
+        let expected = Literal::Int(expected);
         assert_eq!(actual, expected);
     };
 
@@ -175,8 +175,8 @@ fn literal_int() {
 #[test]
 fn literal_float() {
     let test_float = |input: &str, expected: f64| {
-        let actual = new_parser(input).try_parse_literal().unwrap();
-        let expected = Some(Literal::Float(expected));
+        let actual = new_parser(input).parse_literal().unwrap();
+        let expected = Literal::Float(expected);
         assert_eq!(actual, expected);
     };
 
@@ -192,26 +192,26 @@ fn literal_float() {
 
 #[test]
 fn literal_str() {
-    let actual = new_parser(r#""hello""#).try_parse_literal().unwrap();
-    let expected = Some(Literal::Str("hello"));
+    let actual = new_parser(r#""hello""#).parse_literal().unwrap();
+    let expected = Literal::Str("hello");
     assert_eq!(actual, expected);
 }
 
 #[test]
 fn literal_bool() {
-    let actual = new_parser("true").try_parse_literal().unwrap();
-    let expected = Some(Literal::Bool(true));
+    let actual = new_parser("true").parse_literal().unwrap();
+    let expected = Literal::Bool(true);
     assert_eq!(actual, expected);
 
-    let actual = new_parser("false").try_parse_literal().unwrap();
-    let expected = Some(Literal::Bool(false));
+    let actual = new_parser("false").parse_literal().unwrap();
+    let expected = Literal::Bool(false);
     assert_eq!(actual, expected);
 }
 
 #[test]
 fn literal_invalid() {
-    let actual = new_parser("hello").try_parse_literal().unwrap_err();
-    let expected = miette::miette!("expected a literal, but found ident: 'hello'");
+    let actual = new_parser("hello").parse_literal().unwrap_err();
+    let expected = miette::miette!("expected literal, found ident: 'hello'");
     assert_eq!(actual.to_string(), expected.to_string());
 }
 
@@ -225,6 +225,6 @@ fn ident() {
 #[test]
 fn ident_invalid() {
     let actual = new_parser("1").parse_ident().unwrap_err();
-    let expected = miette::miette!("expected an ident, but found 'int'");
+    let expected = miette::miette!("expected ident, found int");
     assert_eq!(actual.to_string(), expected.to_string());
 }
