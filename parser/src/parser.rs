@@ -3,9 +3,9 @@ use lexer::{
     Lexer,
     token::{Keyword, Token, TokenKind},
 };
-use miette::{Error, LabeledSpan, Result};
+use miette::{LabeledSpan, Result, SourceSpan};
 
-use crate::session::ParserSession;
+use crate::{error::ErrorKind, session::ParserSession};
 
 pub struct Parser<'src> {
     pub ses: ParserSession<'src>,
@@ -17,7 +17,7 @@ impl<'src> Parser<'src> {
         Parser { lexer: Lexer::new(ses.source).peekable(), ses }
     }
 
-    pub fn parse(mut self) -> Result<File<'src>, Error> {
+    pub fn parse(mut self) -> Result<File<'src>> {
         let mut items = Vec::new();
         loop {
             match self.parse_item()? {
@@ -41,13 +41,10 @@ impl<'src> Parser<'src> {
     pub(crate) fn eat_expected(&mut self, expected: TokenKind) -> Result<Token> {
         match self.eat()? {
             token @ Token { kind, .. } if kind == expected => Ok(token),
-            Token { kind, span } => Err(miette::miette!(
-                labels = vec![LabeledSpan::at(span, format!("here"))],
-                "expected {}, found '{}'",
-                expected,
-                kind
-            )
-            .with_source_code(self.ses.source.to_string())),
+            Token { kind, span } => Err(self.err_here(
+                ErrorKind::ExpectedToken { expected, found: &kind.to_string() },
+                Some(span.into()),
+            )),
         }
     }
 
@@ -69,21 +66,38 @@ impl<'src> Parser<'src> {
         }
     }
 
+    pub(crate) fn err_here(
+        &mut self,
+        kind: crate::error::ErrorKind,
+        span: Option<SourceSpan>,
+    ) -> miette::Error {
+        let span = match span {
+            Some(span) => span,
+            _ => match self.lexer.peek() {
+                Some(Ok(Token { span, .. })) => span.clone().into(),
+                _ => {
+                    let end = self.ses.source.len().saturating_sub(1);
+                    end.into()
+                }
+            },
+        };
+        miette::Error::from(
+            miette::MietteDiagnostic::new(kind.to_string())
+                .with_label(LabeledSpan::at(span, "here")),
+        )
+        .with_source_code(self.ses.source.to_string())
+    }
+
     fn expect_eof(&mut self) -> Result<()> {
         if self.at_eof() {
             return Ok(());
         }
 
         let token = self.eat()?;
-        Err(miette::miette!(
-            labels = vec![LabeledSpan::at(token.span.clone(), format!("here"))],
-            "expected EOF, found {}",
-            token.kind
-        )
-        .with_source_code(self.ses.source.to_string()))
+        Err(self.err_here(ErrorKind::ExpectedEof, Some(token.span.into())))
     }
 
-    fn err_unexpected_eof(&self, token: Option<&Token>) -> Error {
+    fn err_unexpected_eof(&self, token: Option<&Token>) -> miette::Error {
         let span = match token {
             Some(token) => token.span.clone(),
             _ => {
@@ -124,4 +138,73 @@ pub enum Op {
     SlashEquals,
     AndEquals,
     OrEquals,
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::tests::new_parser;
+    use ast::{Block, File, Fn, Ident, Item};
+
+    #[test]
+    fn file_main_fn() {
+        let actual = new_parser(r#"fn main() {}"#).parse().unwrap();
+        let expected = File {
+            items: vec![Item::Fn(Fn {
+                name: Ident("main"),
+                params: (),
+                body: Block { statements: vec![] },
+            })],
+        };
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn empty_file() {
+        let actual = new_parser("").parse().unwrap();
+        let expected = File { items: vec![] };
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn file_multiple_items() {
+        let actual = new_parser(
+            r#"
+                fn a() {}
+                fn b() {}
+            "#,
+        )
+        .parse()
+        .unwrap();
+        let expected = File {
+            items: vec![
+                Item::Fn(Fn { name: Ident("a"), params: (), body: Block { statements: vec![] } }),
+                Item::Fn(Fn { name: Ident("b"), params: (), body: Block { statements: vec![] } }),
+            ],
+        };
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn file_invalid_first_item() {
+        let actual = new_parser("1.0; fn a() {}").parse().unwrap_err();
+        let expected = miette::miette!("expected item");
+
+        assert_eq!(actual.to_string(), expected.to_string());
+    }
+
+    #[test]
+    fn file_invalid_last_item() {
+        let actual = new_parser("fn a() {} 1.0").parse().unwrap_err();
+        let expected = miette::miette!("expected item");
+
+        assert_eq!(actual.to_string(), expected.to_string());
+    }
+
+    #[test]
+    fn file_invalid_root() {
+        let actual = new_parser("1.0").parse().unwrap_err();
+        let expected = miette::miette!("expected item");
+
+        assert_eq!(actual.to_string(), expected.to_string());
+    }
 }

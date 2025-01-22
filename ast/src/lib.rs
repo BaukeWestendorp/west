@@ -1,22 +1,24 @@
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq)]
 pub struct File<'src> {
     pub items: Vec<Item<'src>>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Item<'src> {
     Fn(Fn<'src>),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Fn<'src> {
     pub name: Ident<'src>,
     pub params: (),
-    pub body: Block,
+    pub body: Block<'src>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Block {}
+#[derive(Debug, Clone, PartialEq)]
+pub struct Block<'src> {
+    pub statements: Vec<Statement<'src>>,
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Statement<'src> {
