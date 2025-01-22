@@ -18,5 +18,24 @@ pub struct Fn<'src> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Block {}
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum Statement<'src> {
+    Expression(Expression<'src>),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Expression<'src> {
+    Literal(Literal<'src>),
+    Ident(Ident<'src>),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Literal<'src> {
+    Int(i64),
+    Float(f64),
+    Str(&'src str),
+    Bool(bool),
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Ident<'a>(pub &'a str);
+pub struct Ident<'src>(pub &'src str);
