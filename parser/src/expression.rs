@@ -1,31 +1,34 @@
 use ast::{Expression, Operator};
-use lexer::token::{Token, TokenKind};
+use lexer::token::TokenKind;
 use miette::{Context, Result};
 
 use crate::Parser;
 use crate::error::ErrorKind;
 
 impl<'src> Parser<'src> {
-    pub fn parse_expression(&mut self) -> Result<Expression<'src>> {
+    pub fn parse_expression(&mut self) -> Result<Option<Expression<'src>>> {
         self.parse_expression_bp(0)
     }
 
-    fn parse_expression_bp(&mut self, min_bp: u8) -> Result<Expression<'src>> {
-        let mut lhs = if self.can_parse_ident() {
-            Expression::Ident(self.parse_ident()?)
-        } else if self.can_parse_literal() {
-            Expression::Literal(self.parse_literal()?)
+    fn parse_expression_bp(&mut self, min_bp: u8) -> Result<Option<Expression<'src>>> {
+        let mut lhs = if let Some(ident) = self.parse_ident()? {
+            Expression::Ident(ident)
+        } else if let Some(literal) = self.parse_literal()? {
+            Expression::Literal(literal)
         } else if let Some(expr) = self.parse_prefix_expression()? {
             expr
         } else {
             match self.lexer.peek() {
                 Some(Ok(token)) if token.kind == TokenKind::ParenOpen => {
                     self.eat()?;
-                    let expr = self.parse_expression_bp(0).wrap_err("in parentheses")?;
+                    let expr = self
+                        .parse_expression_bp(0)
+                        .wrap_err("in parentheses")?
+                        .wrap_err("expected an expression")?;
                     self.eat_expected(TokenKind::ParenClose)?;
                     expr
                 }
-                Some(Ok(_)) => return Err(self.err_here(ErrorKind::ExpectedExpression, None)),
+                Some(Ok(_)) => return Ok(None),
                 Some(Err(_)) => {
                     return Err(self.eat().expect_err("should be checked for Err in match"));
                 }
@@ -51,7 +54,7 @@ impl<'src> Parser<'src> {
                 Some(Err(_)) => {
                     return Err(self.eat().expect_err("should be checked for Err in match"));
                 }
-                _ => return Ok(lhs),
+                _ => return Ok(Some(lhs)),
             };
 
             if let Some((l_bp, r_bp)) = infix_binding_power(&op) {
@@ -63,7 +66,8 @@ impl<'src> Parser<'src> {
 
                 let rhs = self
                     .parse_expression_bp(r_bp)
-                    .wrap_err_with(|| format!("on the right-hand side"))?;
+                    .wrap_err("on the right-hand side")?
+                    .wrap_err("expected an expression")?;
 
                 lhs = Expression::BinaryOp { lhs: Box::new(lhs), op, rhs: Box::new(rhs) };
                 continue;
@@ -72,7 +76,7 @@ impl<'src> Parser<'src> {
             break;
         }
 
-        Ok(lhs)
+        Ok(Some(lhs))
     }
 
     fn parse_prefix_expression(&mut self) -> Result<Option<Expression<'src>>> {
@@ -88,12 +92,11 @@ impl<'src> Parser<'src> {
         self.eat().expect("next token should be an operator");
 
         let ((), r_bp) = prefix_binding_power(&op);
-        let rhs = self.parse_expression_bp(r_bp).wrap_err("in right-hand side")?;
+        let rhs = self
+            .parse_expression_bp(r_bp)
+            .wrap_err("in right-hand side")?
+            .wrap_err("expected an expression")?;
         Ok(Some(Expression::UnaryOp { op, rhs: Box::new(rhs) }))
-    }
-
-    pub fn can_parse_expression(&mut self) -> bool {
-        self.can_parse_ident() || self.can_parse_literal()
     }
 }
 
@@ -145,165 +148,164 @@ mod tests {
     #[test]
     fn expression_literal_int() {
         let actual = new_parser("1").parse_expression().unwrap();
-        let expected = Expression::Literal(Literal::Int(1));
+        let expected = Some(Expression::Literal(Literal::Int(1)));
         assert_eq!(actual, expected);
     }
 
     #[test]
     fn expression_literal_str() {
         let actual = new_parser(r#""hello""#).parse_expression().unwrap();
-        let expected = Expression::Literal(Literal::Str("hello"));
+        let expected = Some(Expression::Literal(Literal::Str("hello")));
         assert_eq!(actual, expected);
     }
 
     #[test]
     fn expression_ident() {
         let actual = new_parser("a").parse_expression().unwrap();
-        let expected = Expression::Ident(Ident("a"));
+        let expected = Some(Expression::Ident(Ident("a")));
         assert_eq!(actual, expected);
     }
 
     #[test]
     fn invalid_expression() {
-        let actual = new_parser("*").parse_expression().unwrap_err();
-        let expected = miette::miette!("expected expression");
-        assert_eq!(actual.to_string(), expected.to_string());
+        let actual = new_parser("*").parse_expression().unwrap();
+        assert_eq!(actual, None);
     }
 
     #[test]
     fn prefix_minus() {
         let actual = new_parser("-1").parse_expression().unwrap();
-        let expected = Expression::UnaryOp {
+        let expected = Some(Expression::UnaryOp {
             op: Operator::Minus,
             rhs: Box::new(Expression::Literal(Literal::Int(1))),
-        };
+        });
         assert_eq!(actual, expected);
     }
 
     #[test]
     fn prefix_negate() {
         let actual = new_parser("!true").parse_expression().unwrap();
-        let expected = Expression::UnaryOp {
+        let expected = Some(Expression::UnaryOp {
             op: Operator::Negate,
             rhs: Box::new(Expression::Literal(Literal::Bool(true))),
-        };
+        });
         assert_eq!(actual, expected);
     }
 
     #[test]
     fn infix_add() {
         let actual = new_parser("1 + 2").parse_expression().unwrap();
-        let expected = Expression::BinaryOp {
+        let expected = Some(Expression::BinaryOp {
             lhs: Box::new(Expression::Literal(Literal::Int(1))),
             op: Operator::Add,
             rhs: Box::new(Expression::Literal(Literal::Int(2))),
-        };
+        });
         assert_eq!(actual, expected);
     }
 
     #[test]
     fn infix_subtract() {
         let actual = new_parser("1 - 2").parse_expression().unwrap();
-        let expected = Expression::BinaryOp {
+        let expected = Some(Expression::BinaryOp {
             lhs: Box::new(Expression::Literal(Literal::Int(1))),
             op: Operator::Subtract,
             rhs: Box::new(Expression::Literal(Literal::Int(2))),
-        };
+        });
         assert_eq!(actual, expected);
     }
 
     #[test]
     fn infix_multiply() {
         let actual = new_parser("1 * 2").parse_expression().unwrap();
-        let expected = Expression::BinaryOp {
+        let expected = Some(Expression::BinaryOp {
             lhs: Box::new(Expression::Literal(Literal::Int(1))),
             op: Operator::Multiply,
             rhs: Box::new(Expression::Literal(Literal::Int(2))),
-        };
+        });
         assert_eq!(actual, expected);
     }
 
     #[test]
     fn infix_divide() {
         let actual = new_parser("1 / 2").parse_expression().unwrap();
-        let expected = Expression::BinaryOp {
+        let expected = Some(Expression::BinaryOp {
             lhs: Box::new(Expression::Literal(Literal::Int(1))),
             op: Operator::Divide,
             rhs: Box::new(Expression::Literal(Literal::Int(2))),
-        };
+        });
         assert_eq!(actual, expected);
     }
 
     #[test]
     fn infix_equals() {
         let actual = new_parser("1 == 2").parse_expression().unwrap();
-        let expected = Expression::BinaryOp {
+        let expected = Some(Expression::BinaryOp {
             lhs: Box::new(Expression::Literal(Literal::Int(1))),
             op: Operator::Equals,
             rhs: Box::new(Expression::Literal(Literal::Int(2))),
-        };
+        });
         assert_eq!(actual, expected);
     }
 
     #[test]
     fn infix_and() {
         let actual = new_parser("1 && 2").parse_expression().unwrap();
-        let expected = Expression::BinaryOp {
+        let expected = Some(Expression::BinaryOp {
             lhs: Box::new(Expression::Literal(Literal::Int(1))),
             op: Operator::And,
             rhs: Box::new(Expression::Literal(Literal::Int(2))),
-        };
+        });
         assert_eq!(actual, expected);
     }
 
     #[test]
     fn infix_or() {
         let actual = new_parser("1 || 2").parse_expression().unwrap();
-        let expected = Expression::BinaryOp {
+        let expected = Some(Expression::BinaryOp {
             lhs: Box::new(Expression::Literal(Literal::Int(1))),
             op: Operator::Or,
             rhs: Box::new(Expression::Literal(Literal::Int(2))),
-        };
+        });
         assert_eq!(actual, expected);
     }
 
     #[test]
     fn infix_less_than_equal() {
         let actual = new_parser("1 <= 2").parse_expression().unwrap();
-        let expected = Expression::BinaryOp {
+        let expected = Some(Expression::BinaryOp {
             lhs: Box::new(Expression::Literal(Literal::Int(1))),
             op: Operator::LessThanEqual,
             rhs: Box::new(Expression::Literal(Literal::Int(2))),
-        };
+        });
         assert_eq!(actual, expected);
     }
 
     #[test]
     fn infix_more_than_equal() {
         let actual = new_parser("1 >= 2").parse_expression().unwrap();
-        let expected = Expression::BinaryOp {
+        let expected = Some(Expression::BinaryOp {
             lhs: Box::new(Expression::Literal(Literal::Int(1))),
             op: Operator::MoreThanEqual,
             rhs: Box::new(Expression::Literal(Literal::Int(2))),
-        };
+        });
         assert_eq!(actual, expected);
     }
 
     #[test]
     fn infix_not_equal() {
         let actual = new_parser("1 != 2").parse_expression().unwrap();
-        let expected = Expression::BinaryOp {
+        let expected = Some(Expression::BinaryOp {
             lhs: Box::new(Expression::Literal(Literal::Int(1))),
             op: Operator::NotEqual,
             rhs: Box::new(Expression::Literal(Literal::Int(2))),
-        };
+        });
         assert_eq!(actual, expected);
     }
 
     #[test]
     fn infix_complicated() {
         let actual = new_parser("1 + 2 * 3 - 4 / 5").parse_expression().unwrap();
-        let expected = Expression::BinaryOp {
+        let expected = Some(Expression::BinaryOp {
             lhs: Box::new(Expression::BinaryOp {
                 lhs: Box::new(Expression::Literal(Literal::Int(1))),
                 op: Operator::Add,
@@ -319,14 +321,14 @@ mod tests {
                 op: Operator::Divide,
                 rhs: Box::new(Expression::Literal(Literal::Int(5))),
             }),
-        };
+        });
         assert_eq!(actual, expected);
     }
 
     #[test]
     fn infix_complicated_parens() {
         let actual = new_parser("(1 + 2) * (3 - 4)").parse_expression().unwrap();
-        let expected = Expression::BinaryOp {
+        let expected = Some(Expression::BinaryOp {
             lhs: Box::new(Expression::BinaryOp {
                 lhs: Box::new(Expression::Literal(Literal::Int(1))),
                 op: Operator::Add,
@@ -338,7 +340,7 @@ mod tests {
                 op: Operator::Subtract,
                 rhs: Box::new(Expression::Literal(Literal::Int(4))),
             }),
-        };
+        });
         assert_eq!(actual, expected);
     }
 }

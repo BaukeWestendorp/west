@@ -18,21 +18,9 @@ pub enum ErrorKind<'src> {
     #[diagnostic(code(west::failed_to_parse_expression))]
     ExpectedExpression,
 
-    #[error("expected ident")]
-    #[diagnostic(code(west::expected_ident))]
-    ExpectedIdent,
-
     #[error("expected item")]
     #[diagnostic(code(west::expected_item))]
     ExpectedItem,
-
-    #[error("expected literal")]
-    #[diagnostic(code(west::expected_literal))]
-    ExpectedLiteral,
-
-    #[error("expected statement")]
-    #[diagnostic(code(west::expected_statement))]
-    ExpectedStatement,
 
     #[error("expected {expected}, found {found}")]
     ExpectedToken { expected: TokenKind, found: &'src str },

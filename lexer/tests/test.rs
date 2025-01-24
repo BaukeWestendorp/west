@@ -54,9 +54,9 @@ fn test_whitespace() {
 fn test_symbols() {
     check_lexer("==", vec![Token { kind: TokenKind::EqualsEquals,         span: 0..2 }]);
     check_lexer("&&", vec![Token { kind: TokenKind::AmpAmp,               span: 0..2 }]);
-    check_lexer("||", vec![Token { kind: TokenKind::PipePipe,                 span: 0..2 }]);
+    check_lexer("||", vec![Token { kind: TokenKind::PipePipe,             span: 0..2 }]);
     check_lexer("&=", vec![Token { kind: TokenKind::AmpEquals,            span: 0..2 }]);
-    check_lexer("|=", vec![Token { kind: TokenKind::PipeEquals,             span: 0..2 }]);
+    check_lexer("|=", vec![Token { kind: TokenKind::PipeEquals,           span: 0..2 }]);
     check_lexer("<=", vec![Token { kind: TokenKind::LessThanEquals,       span: 0..2 }]);
     check_lexer(">=", vec![Token { kind: TokenKind::MoreThanEquals,       span: 0..2 }]);
     check_lexer("!=", vec![Token { kind: TokenKind::BangEquals,           span: 0..2 }]);
@@ -72,10 +72,10 @@ fn test_symbols() {
     check_lexer(".", vec![Token { kind: TokenKind::Dot,            span: 0..1 }]);
     check_lexer(",", vec![Token { kind: TokenKind::Comma,          span: 0..1 }]);
     check_lexer(":", vec![Token { kind: TokenKind::Colon,          span: 0..1 }]);
-    check_lexer(";", vec![Token { kind: TokenKind::Semicolon,           span: 0..1 }]);
+    check_lexer(";", vec![Token { kind: TokenKind::Semicolon,      span: 0..1 }]);
     check_lexer("=", vec![Token { kind: TokenKind::Equals,         span: 0..1 }]);
-    check_lexer("&", vec![Token { kind: TokenKind::Pipe,            span: 0..1 }]);
-    check_lexer("|", vec![Token { kind: TokenKind::Pipe,             span: 0..1 }]);
+    check_lexer("&", vec![Token { kind: TokenKind::Amp,            span: 0..1 }]);
+    check_lexer("|", vec![Token { kind: TokenKind::Pipe,           span: 0..1 }]);
     check_lexer("<", vec![Token { kind: TokenKind::LessThan,       span: 0..1 }]);
     check_lexer(">", vec![Token { kind: TokenKind::MoreThan,       span: 0..1 }]);
     check_lexer("!", vec![Token { kind: TokenKind::Bang,           span: 0..1 }]);
@@ -153,7 +153,7 @@ fn test_bool_literal() {
 #[rustfmt::skip]
 fn test_invalid_token() {
     check_lexer_with_errors(";()#", vec![
-        Ok(Token { kind: TokenKind::Semicolon,       span: 0..1 }),
+        Ok(Token { kind: TokenKind::Semicolon,  span: 0..1 }),
         Ok(Token { kind: TokenKind::ParenOpen,  span: 1..2 }),
         Ok(Token { kind: TokenKind::ParenClose, span: 2..3 }),
         Err("unknown token: '#'".to_string()),

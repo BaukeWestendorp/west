@@ -1,18 +1,17 @@
 use ast::Statement;
 use lexer::token::TokenKind;
-use miette::{Context, Result};
+use miette::Result;
 
 use crate::Parser;
 
 impl<'src> Parser<'src> {
-    pub fn parse_statement(&mut self) -> Result<Statement<'src>> {
-        let expression = self.parse_expression().wrap_err("no expression found before ';'")?;
-        self.eat_expected(TokenKind::Semicolon)?;
-        Ok(Statement::Expression(expression))
-    }
+    pub fn parse_statement(&mut self) -> Result<Option<Statement<'src>>> {
+        let Some(expression) = self.parse_expression()? else {
+            return Ok(None);
+        };
 
-    pub fn can_parse_statement(&mut self) -> bool {
-        self.can_parse_expression()
+        self.eat_expected(TokenKind::Semicolon)?;
+        Ok(Some(Statement::Expression(expression)))
     }
 }
 
@@ -25,15 +24,14 @@ mod tests {
     #[test]
     fn statement() {
         let actual = new_parser("1;").parse_statement().unwrap();
-        let expected = Statement::Expression(Expression::Literal(Literal::Int(1)));
+        let expected = Some(Statement::Expression(Expression::Literal(Literal::Int(1))));
         assert_eq!(actual, expected);
     }
 
     #[test]
     fn statement_no_expression() {
-        let actual = new_parser(";").parse_statement().unwrap_err();
-        let expected = miette::miette!("no expression found before ';'");
-        assert_eq!(actual.to_string(), expected.to_string());
+        let actual = new_parser(";").parse_statement().unwrap();
+        assert_eq!(actual, None);
     }
 
     #[test]

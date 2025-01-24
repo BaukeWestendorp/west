@@ -1,16 +1,14 @@
 use ast::Block;
 use lexer::token::TokenKind;
-use miette::{Context, Result};
+use miette::Result;
 
 use crate::Parser;
-use crate::error::ErrorKind;
 
 impl<'src> Parser<'src> {
     pub fn parse_block(&mut self) -> Result<Block<'src>> {
         self.eat_expected(TokenKind::BraceOpen)?;
         let mut statements = Vec::new();
-        while self.can_parse_statement() {
-            let statement = self.parse_statement().wrap_err(ErrorKind::ExpectedStatement)?;
+        while let Some(statement) = self.parse_statement()? {
             statements.push(statement);
         }
         self.eat_expected(TokenKind::BraceClose)?;

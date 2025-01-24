@@ -2,37 +2,37 @@ use ast::Ident;
 use lexer::token::{Token, TokenKind};
 use miette::Result;
 
-use crate::{Parser, error::ErrorKind};
+use crate::Parser;
 
 impl<'src> Parser<'src> {
-    pub fn parse_ident(&mut self) -> Result<Ident<'src>> {
-        match self.eat()? {
-            Token { kind: TokenKind::Ident, span } => Ok(Ident(&self.ses.source[span])),
-            Token { span, .. } => Err(self.err_here(ErrorKind::ExpectedIdent, Some(span.into()))),
+    pub fn parse_ident(&mut self) -> Result<Option<Ident<'src>>> {
+        match self.lexer.peek() {
+            Some(Ok(Token { kind: TokenKind::Ident, .. })) => {
+                let span = self.eat()?.span;
+                Ok(Some(Ident(&self.ses.source[span])))
+            }
+            _ => Ok(None),
         }
-    }
-
-    pub fn can_parse_ident(&mut self) -> bool {
-        matches!(self.lexer.peek(), Some(Ok(Token { kind: TokenKind::Ident, .. })))
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::tests::new_parser;
     use ast::Ident;
+
+    use crate::tests::new_parser;
 
     #[test]
     fn ident() {
         let actual = new_parser("a").parse_ident().unwrap();
-        let expected = Ident("a");
+        let expected = Some(Ident("a"));
         assert_eq!(actual, expected);
     }
 
     #[test]
     fn ident_invalid() {
-        let actual = new_parser("1").parse_ident().unwrap_err();
-        let expected = miette::miette!("expected ident");
-        assert_eq!(actual.to_string(), expected.to_string());
+        let actual = new_parser("1").parse_ident().unwrap();
+        let expected = None;
+        assert_eq!(actual, expected);
     }
 }

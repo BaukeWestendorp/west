@@ -2,13 +2,16 @@ use ast::Literal;
 use lexer::token::{Token, TokenKind};
 use miette::Result;
 
-use crate::{Parser, error::ErrorKind};
+use crate::Parser;
 
 impl<'src> Parser<'src> {
-    pub fn parse_literal(&mut self) -> Result<Literal<'src>> {
-        match self.eat()? {
-            Token { kind: TokenKind::Literal(literal), span } => {
-                let origin = &self.ses.source[span.clone()];
+    pub fn parse_literal(&mut self) -> Result<Option<Literal<'src>>> {
+        match self.lexer.peek() {
+            Some(Ok(Token { kind: TokenKind::Literal(literal), .. })) => {
+                let literal = *literal;
+                let span = self.eat()?.span;
+
+                let origin = &self.ses.source[span];
                 let literal = match literal {
                     lexer::token::Literal::Int => {
                         let int = origin.parse().unwrap();
@@ -29,27 +32,24 @@ impl<'src> Parser<'src> {
                     }
                 };
 
-                Ok(literal)
+                Ok(Some(literal))
             }
-            token => Err(self.err_here(ErrorKind::ExpectedLiteral, Some(token.span.into()))),
+            _ => Ok(None),
         }
-    }
-
-    pub fn can_parse_literal(&mut self) -> bool {
-        matches!(self.lexer.peek(), Some(Ok(Token { kind: TokenKind::Literal(_), .. })))
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::tests::new_parser;
     use ast::Literal;
+
+    use crate::tests::new_parser;
 
     #[test]
     fn literal_int() {
         let test_int = |input: &str, expected: i64| {
             let actual = new_parser(input).parse_literal().unwrap();
-            let expected = Literal::Int(expected);
+            let expected = Some(Literal::Int(expected));
             assert_eq!(actual, expected);
         };
 
@@ -65,7 +65,7 @@ mod tests {
     fn literal_float() {
         let test_float = |input: &str, expected: f64| {
             let actual = new_parser(input).parse_literal().unwrap();
-            let expected = Literal::Float(expected);
+            let expected = Some(Literal::Float(expected));
             assert_eq!(actual, expected);
         };
 
@@ -82,25 +82,24 @@ mod tests {
     #[test]
     fn literal_str() {
         let actual = new_parser(r#""hello""#).parse_literal().unwrap();
-        let expected = Literal::Str("hello");
+        let expected = Some(Literal::Str("hello"));
         assert_eq!(actual, expected);
     }
 
     #[test]
     fn literal_bool() {
         let actual = new_parser("true").parse_literal().unwrap();
-        let expected = Literal::Bool(true);
+        let expected = Some(Literal::Bool(true));
         assert_eq!(actual, expected);
 
         let actual = new_parser("false").parse_literal().unwrap();
-        let expected = Literal::Bool(false);
+        let expected = Some(Literal::Bool(false));
         assert_eq!(actual, expected);
     }
 
     #[test]
     fn literal_invalid() {
-        let actual = new_parser("hello").parse_literal().unwrap_err();
-        let expected = miette::miette!("expected literal");
-        assert_eq!(actual.to_string(), expected.to_string());
+        let actual = new_parser("hello").parse_literal().unwrap();
+        assert_eq!(actual, None);
     }
 }
