@@ -1,4 +1,5 @@
-use std::{io::Read, path::PathBuf};
+use std::io::Read;
+use std::path::PathBuf;
 
 use clap::Parser as ClapParser;
 
@@ -14,11 +15,13 @@ struct Args {
 fn main() {
     let args = Args::parse();
 
+    let file_name = args.file.canonicalize().unwrap().to_string_lossy().to_string();
+
     let mut source_file = std::fs::File::open(args.file).expect("file should exist");
     let mut source = String::new();
     source_file.read_to_string(&mut source).expect("file should be readable");
 
-    let session = parser::session::ParserSession::new(&source);
+    let session = parser::session::ParserSession::new(file_name, &source);
     let file = parser::Parser::new(session).parse();
 
     match file {

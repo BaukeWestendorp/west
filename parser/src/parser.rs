@@ -1,11 +1,10 @@
 use ast::File;
-use lexer::{
-    Lexer,
-    token::{Keyword, Token, TokenKind},
-};
-use miette::{LabeledSpan, Result, SourceSpan};
+use lexer::Lexer;
+use lexer::token::{Keyword, Token, TokenKind};
+use miette::{LabeledSpan, NamedSource, Result, SourceSpan};
 
-use crate::{error::ErrorKind, session::ParserSession};
+use crate::error::ErrorKind;
+use crate::session::ParserSession;
 
 pub struct Parser<'src> {
     pub ses: ParserSession<'src>,
@@ -85,7 +84,7 @@ impl<'src> Parser<'src> {
             miette::MietteDiagnostic::new(kind.to_string())
                 .with_label(LabeledSpan::at(span, "here")),
         )
-        .with_source_code(self.ses.source.to_string())
+        .with_source_code(NamedSource::new(self.ses.file_name.clone(), self.ses.source.to_string()))
     }
 
     fn expect_eof(&mut self) -> Result<()> {
@@ -116,8 +115,9 @@ impl<'src> Parser<'src> {
 
 #[cfg(test)]
 mod tests {
-    use crate::tests::new_parser;
     use ast::{Block, File, Fn, Ident, Item};
+
+    use crate::tests::new_parser;
 
     #[test]
     fn file_main_fn() {
