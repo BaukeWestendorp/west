@@ -31,6 +31,7 @@ pub enum Expression<'src> {
     Ident(Ident<'src>),
     UnaryOp { op: Operator, rhs: Box<Expression<'src>> },
     BinaryOp { lhs: Box<Expression<'src>>, op: Operator, rhs: Box<Expression<'src>> },
+    FnCall { callee: Box<Expression<'src>>, args: Vec<Expression<'src>> },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

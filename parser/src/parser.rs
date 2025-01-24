@@ -37,6 +37,13 @@ impl<'src> Parser<'src> {
         }
     }
 
+    pub(crate) fn try_eat(&mut self, expected: TokenKind) -> Option<Token> {
+        match self.lexer.peek() {
+            Some(Ok(Token { kind, .. })) if kind == &expected => self.eat().ok(),
+            _ => None,
+        }
+    }
+
     pub(crate) fn eat_expected(&mut self, expected: TokenKind) -> Result<Token> {
         match self.eat()? {
             token @ Token { kind, .. } if kind == expected => Ok(token),
@@ -47,9 +54,9 @@ impl<'src> Parser<'src> {
         }
     }
 
-    pub(crate) fn eat_keyword(&mut self, keyword: &Keyword) -> bool {
+    pub(crate) fn eat_keyword(&mut self, keyword: Keyword) -> bool {
         match self.lexer.peek() {
-            Some(Ok(Token { kind: TokenKind::Keyword(k), .. })) if k == keyword => {
+            Some(Ok(Token { kind: TokenKind::Keyword(k), .. })) if k == &keyword => {
                 self.eat().expect("checked if token exist in match");
                 true
             }

@@ -36,6 +36,13 @@ impl<'src> Parser<'src> {
             }
         };
 
+        match self.lexer.peek() {
+            Some(Ok(token)) if token.kind == TokenKind::ParenOpen => {
+                lhs = self.parse_fn_call(lhs)?;
+            }
+            _ => {}
+        }
+
         loop {
             let op = match self.lexer.peek() {
                 Some(Ok(token)) => match token.kind {
@@ -77,6 +84,22 @@ impl<'src> Parser<'src> {
         }
 
         Ok(Some(lhs))
+    }
+
+    fn parse_fn_call(&mut self, callee: Expression<'src>) -> Result<Expression<'src>> {
+        self.eat()?;
+        let mut args = Vec::new();
+        while let Some(expression) = self.parse_expression()? {
+            args.push(expression);
+            if self.try_eat(TokenKind::Comma).is_none() {
+                // A single trailing comma is allowed.
+                break;
+            } else {
+            }
+        }
+        self.eat_expected(TokenKind::ParenClose)?;
+
+        Ok(Expression::FnCall { callee: Box::new(callee), args })
     }
 
     fn parse_prefix_expression(&mut self) -> Result<Option<Expression<'src>>> {
@@ -340,6 +363,80 @@ mod tests {
                 op: Operator::Subtract,
                 rhs: Box::new(Expression::Literal(Literal::Int(4))),
             }),
+        });
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn fn_call_no_args() {
+        let actual = new_parser("add()").parse_expression().unwrap();
+        let expected = Some(Expression::FnCall {
+            callee: Box::new(Expression::Ident(Ident("add"))),
+            args: vec![],
+        });
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn fn_call_single_arg() {
+        let actual = new_parser("add(1)").parse_expression().unwrap();
+        let expected = Some(Expression::FnCall {
+            callee: Box::new(Expression::Ident(Ident("add"))),
+            args: vec![Expression::Literal(Literal::Int(1))],
+        });
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn fn_call_multiple_args() {
+        let actual = new_parser("add(1, 2, 3)").parse_expression().unwrap();
+        let expected = Some(Expression::FnCall {
+            callee: Box::new(Expression::Ident(Ident("add"))),
+            args: vec![
+                Expression::Literal(Literal::Int(1)),
+                Expression::Literal(Literal::Int(2)),
+                Expression::Literal(Literal::Int(3)),
+            ],
+        });
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn fn_call_trailing_comma() {
+        let actual = new_parser("add(1, 2, 3,)").parse_expression().unwrap();
+        let expected = Some(Expression::FnCall {
+            callee: Box::new(Expression::Ident(Ident("add"))),
+            args: vec![
+                Expression::Literal(Literal::Int(1)),
+                Expression::Literal(Literal::Int(2)),
+                Expression::Literal(Literal::Int(3)),
+            ],
+        });
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn fn_call_double_trailing_comma() {
+        let actual = new_parser("add(1, 2, 3,,)").parse_expression().unwrap_err();
+        let expected = miette::miette!("expected ), found ,");
+        assert_eq!(actual.to_string(), expected.to_string());
+    }
+
+    #[test]
+    fn fn_call_nested() {
+        let actual = new_parser("add(sub(1, 2), 3)").parse_expression().unwrap();
+        let expected = Some(Expression::FnCall {
+            callee: Box::new(Expression::Ident(Ident("add"))),
+            args: vec![
+                Expression::FnCall {
+                    callee: Box::new(Expression::Ident(Ident("sub"))),
+                    args: vec![
+                        Expression::Literal(Literal::Int(1)),
+                        Expression::Literal(Literal::Int(2)),
+                    ],
+                },
+                Expression::Literal(Literal::Int(3)),
+            ],
         });
         assert_eq!(actual, expected);
     }
