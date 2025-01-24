@@ -40,24 +40,24 @@ impl<'src> Cursor<'src> {
             '&' => match self.first() {
                 '=' => {
                     self.consume();
-                    TokenKind::AndEquals
+                    TokenKind::AmpEquals
                 }
                 '&' => {
                     self.consume();
-                    TokenKind::AndAnd
+                    TokenKind::AmpAmp
                 }
-                _ => TokenKind::And,
+                _ => TokenKind::Amp,
             },
             '|' => match self.first() {
                 '=' => {
                     self.consume();
-                    TokenKind::OrEquals
+                    TokenKind::PipeEquals
                 }
                 '|' => {
                     self.consume();
-                    TokenKind::OrOr
+                    TokenKind::PipePipe
                 }
-                _ => TokenKind::Or,
+                _ => TokenKind::Pipe,
             },
             '<' => maybe_eq_kind(TokenKind::LessThan, TokenKind::LessThanEquals),
             '>' => maybe_eq_kind(TokenKind::MoreThan, TokenKind::MoreThanEquals),
@@ -67,11 +67,11 @@ impl<'src> Cursor<'src> {
             '*' => maybe_eq_kind(TokenKind::Star, TokenKind::StarEquals),
             '/' => maybe_eq_kind(TokenKind::Slash, TokenKind::SlashEquals),
 
-            ';' => TokenKind::Semi,
-            '(' => TokenKind::OpenParen,
-            ')' => TokenKind::CloseParen,
-            '{' => TokenKind::OpenBrace,
-            '}' => TokenKind::CloseBrace,
+            ';' => TokenKind::Semicolon,
+            '(' => TokenKind::ParenOpen,
+            ')' => TokenKind::ParenClose,
+            '{' => TokenKind::BraceOpen,
+            '}' => TokenKind::BraceClose,
             '.' => TokenKind::Dot,
             ',' => TokenKind::Comma,
             ':' => TokenKind::Colon,

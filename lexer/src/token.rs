@@ -1,4 +1,6 @@
-use std::{fmt::Display, ops::Range, str::FromStr};
+use std::fmt::Display;
+use std::ops::Range;
+use std::str::FromStr;
 
 use miette::{Error, Result, bail};
 
@@ -31,13 +33,13 @@ pub enum TokenKind {
     Whitespace,
 
     /// `(`
-    OpenParen,
+    ParenOpen,
     /// `)`
-    CloseParen,
+    ParenClose,
     /// `{`
-    OpenBrace,
+    BraceOpen,
     /// `}`
-    CloseBrace,
+    BraceClose,
     /// `.`
     Dot,
     /// `,`
@@ -45,14 +47,14 @@ pub enum TokenKind {
     /// `:`
     Colon,
     /// `;
-    Semi,
+    Semicolon,
 
     /// `=`
     Equals,
     /// `&`
-    And,
+    Amp,
     /// `|`
-    Or,
+    Pipe,
     /// `<`
     LessThan,
     /// `>`
@@ -71,9 +73,9 @@ pub enum TokenKind {
     /// `==`
     EqualsEquals,
     /// `&&`
-    AndAnd,
+    AmpAmp,
     /// `||`
-    OrOr,
+    PipePipe,
     /// `<=`
     LessThanEquals,
     /// `>=`
@@ -90,9 +92,9 @@ pub enum TokenKind {
     /// `/=`
     SlashEquals,
     /// `&=`
-    AndEquals,
+    AmpEquals,
     /// `|=`
-    OrEquals,
+    PipeEquals,
 }
 
 impl std::fmt::Display for TokenKind {
@@ -104,18 +106,18 @@ impl std::fmt::Display for TokenKind {
 
             TokenKind::Whitespace => write!(f, "whitespace"),
 
-            TokenKind::OpenParen => write!(f, "("),
-            TokenKind::CloseParen => write!(f, ")"),
-            TokenKind::OpenBrace => write!(f, "{{"),
-            TokenKind::CloseBrace => write!(f, "}}"),
+            TokenKind::ParenOpen => write!(f, "("),
+            TokenKind::ParenClose => write!(f, ")"),
+            TokenKind::BraceOpen => write!(f, "{{"),
+            TokenKind::BraceClose => write!(f, "}}"),
 
-            TokenKind::Semi => write!(f, ";"),
+            TokenKind::Semicolon => write!(f, ";"),
             TokenKind::Dot => write!(f, "."),
             TokenKind::Comma => write!(f, ","),
             TokenKind::Colon => write!(f, ":"),
             TokenKind::Equals => write!(f, "="),
-            TokenKind::And => write!(f, "&"),
-            TokenKind::Or => write!(f, "|"),
+            TokenKind::Amp => write!(f, "&"),
+            TokenKind::Pipe => write!(f, "|"),
             TokenKind::LessThan => write!(f, "<"),
             TokenKind::MoreThan => write!(f, ">"),
             TokenKind::Bang => write!(f, "!"),
@@ -125,8 +127,8 @@ impl std::fmt::Display for TokenKind {
             TokenKind::Slash => write!(f, "/"),
 
             TokenKind::EqualsEquals => write!(f, "=="),
-            TokenKind::AndAnd => write!(f, "&&"),
-            TokenKind::OrOr => write!(f, "||"),
+            TokenKind::AmpAmp => write!(f, "&&"),
+            TokenKind::PipePipe => write!(f, "||"),
             TokenKind::LessThanEquals => write!(f, "<="),
             TokenKind::MoreThanEquals => write!(f, ">="),
             TokenKind::BangEquals => write!(f, "!="),
@@ -134,8 +136,8 @@ impl std::fmt::Display for TokenKind {
             TokenKind::MinusEquals => write!(f, "-="),
             TokenKind::StarEquals => write!(f, "*="),
             TokenKind::SlashEquals => write!(f, "/="),
-            TokenKind::AndEquals => write!(f, "&="),
-            TokenKind::OrEquals => write!(f, "|="),
+            TokenKind::AmpEquals => write!(f, "&="),
+            TokenKind::PipeEquals => write!(f, "|="),
         }
     }
 }

@@ -2,25 +2,27 @@ use ast::Block;
 use lexer::token::TokenKind;
 use miette::{Context, Result};
 
-use crate::{Parser, error::ErrorKind};
+use crate::Parser;
+use crate::error::ErrorKind;
 
 impl<'src> Parser<'src> {
     pub fn parse_block(&mut self) -> Result<Block<'src>> {
-        self.eat_expected(TokenKind::OpenBrace)?;
+        self.eat_expected(TokenKind::BraceOpen)?;
         let mut statements = Vec::new();
         while self.can_parse_statement() {
             let statement = self.parse_statement().wrap_err(ErrorKind::ExpectedStatement)?;
             statements.push(statement);
         }
-        self.eat_expected(TokenKind::CloseBrace)?;
+        self.eat_expected(TokenKind::BraceClose)?;
         Ok(Block { statements })
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::tests::new_parser;
     use ast::{Block, Expression, Literal, Statement};
+
+    use crate::tests::new_parser;
 
     #[test]
     fn block_empty() {

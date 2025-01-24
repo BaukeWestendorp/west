@@ -40,4 +40,8 @@ pub enum ErrorKind<'src> {
     #[error("expected EOF")]
     #[diagnostic(code(west::expected_eof))]
     ExpectedEof,
+
+    #[error("unexpected EOF")]
+    #[diagnostic(code(west::unexpected_eof))]
+    UnexpectedEof,
 }

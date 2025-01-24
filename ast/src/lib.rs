@@ -29,6 +29,35 @@ pub enum Statement<'src> {
 pub enum Expression<'src> {
     Literal(Literal<'src>),
     Ident(Ident<'src>),
+    UnaryOp { op: Operator, rhs: Box<Expression<'src>> },
+    BinaryOp { lhs: Box<Expression<'src>>, op: Operator, rhs: Box<Expression<'src>> },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Operator {
+    Assign,
+    AddAssign,
+    SubtractAssign,
+    MultiplyAssign,
+    DivideAssign,
+    BitAndAssign,
+    BitOrAssign,
+    BitAnd,
+    BitOr,
+    LessThan,
+    MoreThan,
+    Minus,
+    Negate,
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
+    Equals,
+    And,
+    Or,
+    LessThanEqual,
+    MoreThanEqual,
+    NotEqual,
 }
 
 #[derive(Debug, Clone, PartialEq)]

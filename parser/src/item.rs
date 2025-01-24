@@ -2,7 +2,8 @@ use ast::Item;
 use lexer::token::{Keyword, TokenKind};
 use miette::Result;
 
-use crate::{Parser, error::ErrorKind};
+use crate::Parser;
+use crate::error::ErrorKind;
 
 impl<'src> Parser<'src> {
     pub fn parse_item(&mut self) -> Result<Option<Item<'src>>> {
@@ -19,9 +20,9 @@ impl<'src> Parser<'src> {
     pub fn parse_fn(&mut self) -> Result<ast::Fn<'src>> {
         // FIXME: Make error better.
         let name = self.parse_ident()?;
-        self.eat_expected(TokenKind::OpenParen)?;
+        self.eat_expected(TokenKind::ParenOpen)?;
         let params = ();
-        self.eat_expected(TokenKind::CloseParen)?;
+        self.eat_expected(TokenKind::ParenClose)?;
         let body = self.parse_block()?;
         Ok(ast::Fn { name, params, body })
     }
@@ -29,8 +30,9 @@ impl<'src> Parser<'src> {
 
 #[cfg(test)]
 mod tests {
-    use crate::tests::new_parser;
     use ast::{Block, Fn, Ident, Item};
+
+    use crate::tests::new_parser;
 
     #[test]
     fn fn_item() {

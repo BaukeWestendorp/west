@@ -114,32 +114,6 @@ impl<'src> Parser<'src> {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Op {
-    Equals,
-    And,
-    Or,
-    LessThan,
-    MoreThan,
-    Bang,
-    Plus,
-    Minus,
-    Star,
-    Slash,
-    EqualsEquals,
-    AndAnd,
-    OrOr,
-    LessThanEquals,
-    MoreThanEquals,
-    BangEquals,
-    PlusEquals,
-    MinusEquals,
-    StarEquals,
-    SlashEquals,
-    AndEquals,
-    OrEquals,
-}
-
 #[cfg(test)]
 mod tests {
     use crate::tests::new_parser;

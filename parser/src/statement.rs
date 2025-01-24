@@ -1,13 +1,13 @@
-use crate::Parser;
-
 use ast::Statement;
 use lexer::token::TokenKind;
 use miette::{Context, Result};
 
+use crate::Parser;
+
 impl<'src> Parser<'src> {
     pub fn parse_statement(&mut self) -> Result<Statement<'src>> {
         let expression = self.parse_expression().wrap_err("no expression found before ';'")?;
-        self.eat_expected(TokenKind::Semi)?;
+        self.eat_expected(TokenKind::Semicolon)?;
         Ok(Statement::Expression(expression))
     }
 
@@ -18,8 +18,9 @@ impl<'src> Parser<'src> {
 
 #[cfg(test)]
 mod tests {
-    use crate::tests::new_parser;
     use ast::{Expression, Literal, Statement};
+
+    use crate::tests::new_parser;
 
     #[test]
     fn statement() {
