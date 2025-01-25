@@ -1,13 +1,11 @@
 [package]
-name = "west"
+name = "compiler"
 version.workspace = true
 edition.workspace = true
 
 [dependencies]
-vm.workspace = true
+ast.workspace = true
 parser.workspace = true
-compiler.workspace = true
+vm.workspace = true
 
 miette.workspace = true
-
-clap = { version = "4.5.26", features = ["derive"] }

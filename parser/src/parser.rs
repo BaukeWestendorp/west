@@ -16,7 +16,7 @@ impl<'src> Parser<'src> {
         Parser { lexer: Lexer::new(ses.source).peekable(), ses }
     }
 
-    pub fn parse(mut self) -> Result<File<'src>> {
+    pub fn parse(&mut self) -> Result<File<'src>> {
         let mut items = Vec::new();
         loop {
             match self.parse_item()? {

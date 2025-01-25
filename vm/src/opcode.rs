@@ -1,8 +1,9 @@
 pub type ConstantIx = usize;
 
+#[derive(Clone)]
 pub enum Opcode {
     /// Pushes a constant onto the stack
-    PushConstant(usize),
+    Value(f64),
 
     /// Negates the top value on the stack
     /// `-x`

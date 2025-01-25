@@ -5,7 +5,7 @@ use crate::opcode::Opcode;
 
 pub struct Vm {
     chunks: VecDeque<Chunk>,
-    stack: Vec<f32>,
+    stack: Vec<f64>,
 }
 
 impl Vm {
@@ -26,11 +26,9 @@ impl Vm {
     pub fn run_chunk(&mut self, chunk: Chunk) {
         for opcode in chunk.opcodes() {
             match opcode {
-                Opcode::PushConstant(ix) => {
-                    let constant = chunk.get_constant(*ix);
-                    self.stack.push(constant);
+                Opcode::Value(value) => {
+                    self.stack.push(*value);
                 }
-
                 Opcode::Negate => {
                     let value = self.stack.pop().expect("should have a value to negate");
                     self.stack.push(-value);
@@ -85,7 +83,7 @@ mod disassembler {
                 } else {
                     res.push_str(&format!("{offset:04} {:4} ", line));
                 }
-                res.push_str(&opcode.disassemble(self));
+                res.push_str(&opcode.disassemble());
                 res.push_str("\n");
             }
 
@@ -94,20 +92,20 @@ mod disassembler {
     }
 
     impl Opcode {
-        pub fn disassemble(&self, chunk: &Chunk) -> String {
+        pub fn disassemble(&self) -> String {
             match self {
-                Opcode::PushConstant(ix) => {
-                    format!("Push Constant {ix} ({})", chunk.get_constant(*ix))
+                Opcode::Value(value) => {
+                    format!("Value ({value}")
                 }
 
-                Opcode::Negate => format!("Negate"),
+                Opcode::Negate => "Negate".to_string(),
 
-                Opcode::Add => format!("Add"),
-                Opcode::Subtract => format!("Subtract"),
-                Opcode::Multiply => format!("Multiply"),
-                Opcode::Divide => format!("Divide"),
+                Opcode::Add => "Add".to_string(),
+                Opcode::Subtract => "Subtract".to_string(),
+                Opcode::Multiply => "Multiply".to_string(),
+                Opcode::Divide => "Divide".to_string(),
 
-                Opcode::Return => format!("Return"),
+                Opcode::Return => "Return".to_string(),
             }
         }
     }
@@ -119,7 +117,7 @@ mod tests {
     use crate::chunk::Chunk;
     use crate::opcode::Opcode;
 
-    fn test_chunk(chunk: Chunk) -> Option<f32> {
+    fn test_chunk(chunk: Chunk) -> Option<f64> {
         let mut vm = Vm::new();
         vm.push_chunk(chunk);
         vm.run();
@@ -127,18 +125,16 @@ mod tests {
     }
 
     #[test]
-    fn test_push_constant() {
+    fn test_value() {
         let mut chunk = Chunk::new();
-        chunk.add_constant(42.5);
-        chunk.write(Opcode::PushConstant(0), 0);
+        chunk.write(Opcode::Value(42.5), 0);
         assert_eq!(test_chunk(chunk), Some(42.5));
     }
 
     #[test]
     fn test_negate() {
         let mut chunk = Chunk::new();
-        chunk.add_constant(42.5);
-        chunk.write(Opcode::PushConstant(0), 0);
+        chunk.write(Opcode::Value(42.5), 0);
         chunk.write(Opcode::Negate, 0);
         assert_eq!(test_chunk(chunk), Some(-42.5));
     }
@@ -146,10 +142,8 @@ mod tests {
     #[test]
     fn test_add() {
         let mut chunk = Chunk::new();
-        chunk.add_constant(42.5);
-        chunk.add_constant(7.5);
-        chunk.write(Opcode::PushConstant(0), 0);
-        chunk.write(Opcode::PushConstant(1), 0);
+        chunk.write(Opcode::Value(42.5), 0);
+        chunk.write(Opcode::Value(7.5), 0);
         chunk.write(Opcode::Add, 0);
         assert_eq!(test_chunk(chunk), Some(50.0));
     }
@@ -157,10 +151,8 @@ mod tests {
     #[test]
     fn test_subtract() {
         let mut chunk = Chunk::new();
-        chunk.add_constant(42.5);
-        chunk.add_constant(7.5);
-        chunk.write(Opcode::PushConstant(0), 0);
-        chunk.write(Opcode::PushConstant(1), 0);
+        chunk.write(Opcode::Value(42.5), 0);
+        chunk.write(Opcode::Value(7.5), 0);
         chunk.write(Opcode::Subtract, 0);
         assert_eq!(test_chunk(chunk), Some(35.0));
     }
@@ -168,10 +160,8 @@ mod tests {
     #[test]
     fn test_multiply() {
         let mut chunk = Chunk::new();
-        chunk.add_constant(42.5);
-        chunk.add_constant(7.5);
-        chunk.write(Opcode::PushConstant(0), 0);
-        chunk.write(Opcode::PushConstant(1), 0);
+        chunk.write(Opcode::Value(42.5), 0);
+        chunk.write(Opcode::Value(7.5), 0);
         chunk.write(Opcode::Multiply, 0);
         assert_eq!(test_chunk(chunk), Some(318.75));
     }
@@ -179,10 +169,8 @@ mod tests {
     #[test]
     fn test_divide() {
         let mut chunk = Chunk::new();
-        chunk.add_constant(25.0);
-        chunk.add_constant(2.0);
-        chunk.write(Opcode::PushConstant(0), 0);
-        chunk.write(Opcode::PushConstant(1), 0);
+        chunk.write(Opcode::Value(25.0), 0);
+        chunk.write(Opcode::Value(2.0), 0);
         chunk.write(Opcode::Divide, 0);
         assert_eq!(test_chunk(chunk), Some(12.5));
     }
@@ -190,15 +178,11 @@ mod tests {
     #[test]
     fn test_complex() {
         let mut chunk = Chunk::new();
-        chunk.add_constant(1.0);
-        chunk.add_constant(2.0);
-        chunk.add_constant(3.0);
-        chunk.add_constant(4.0);
-        chunk.write(Opcode::PushConstant(0), 0);
-        chunk.write(Opcode::PushConstant(1), 0);
+        chunk.write(Opcode::Value(1.0), 0);
+        chunk.write(Opcode::Value(2.0), 0);
         chunk.write(Opcode::Add, 0);
-        chunk.write(Opcode::PushConstant(2), 0);
-        chunk.write(Opcode::PushConstant(3), 0);
+        chunk.write(Opcode::Value(3.0), 0);
+        chunk.write(Opcode::Value(4.0), 0);
         chunk.write(Opcode::Multiply, 0);
         chunk.write(Opcode::Divide, 0);
         assert_eq!(test_chunk(chunk), Some(0.25));
