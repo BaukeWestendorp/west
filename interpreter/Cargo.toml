@@ -1,12 +1,11 @@
 [package]
-name = "west"
+name = "interpreter"
 version.workspace = true
 edition.workspace = true
 
 [dependencies]
+ast.workspace = true
 parser.workspace = true
-interpreter.workspace = true
 
+thiserror.workspace = true
 miette.workspace = true
-
-clap = { version = "4.5.26", features = ["derive"] }
