@@ -8,6 +8,12 @@ pub struct Vm {
     stack: Vec<f64>,
 }
 
+impl Default for Vm {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Vm {
     pub fn new() -> Self {
         Self { chunks: VecDeque::new(), stack: Vec::with_capacity(256) }
@@ -84,7 +90,7 @@ mod disassembler {
                     res.push_str(&format!("{offset:04} {:4} ", line));
                 }
                 res.push_str(&opcode.disassemble());
-                res.push_str("\n");
+                res.push('\n');
             }
 
             res

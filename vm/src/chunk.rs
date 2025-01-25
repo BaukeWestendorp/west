@@ -6,6 +6,12 @@ pub struct Chunk {
     lines: Vec<usize>,
 }
 
+impl Default for Chunk {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Chunk {
     pub fn new() -> Self {
         Self { opcodes: Vec::new(), lines: Vec::new() }

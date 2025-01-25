@@ -17,11 +17,9 @@ impl<'src> Compiler<'src> {
 
     pub fn compile(&mut self) -> Result<&Chunk> {
         let file = self.parser.parse()?;
-        let main = match file.items.get(0).unwrap() {
-            Item::Fn(f) => f,
-        };
+        let Item::Fn(main) = file.items.first().unwrap();
 
-        let statement = main.body.statements.get(0).unwrap();
+        let statement = main.body.statements.first().unwrap();
         self.compile_statement(statement)?;
 
         // FIXME: We should remove this when we have implemented functions.

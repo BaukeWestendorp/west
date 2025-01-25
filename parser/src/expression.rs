@@ -94,8 +94,7 @@ impl<'src> Parser<'src> {
             if self.try_eat(TokenKind::Comma).is_none() {
                 // A single trailing comma is allowed.
                 break;
-            } else {
-            }
+            } 
         }
         self.eat_expected(TokenKind::ParenClose)?;
 

@@ -17,7 +17,7 @@ impl Lexer<'_> {
     }
 }
 
-impl<'src> Cursor<'src> {
+impl Cursor<'_> {
     pub fn advance_token(&mut self) -> Option<Result<Token>> {
         self.reset_span_start();
         let first_char = self.consume()?;
@@ -77,7 +77,7 @@ impl<'src> Cursor<'src> {
             ':' => TokenKind::Colon,
 
             c if is_ident_start(c) => {
-                self.consume_while(|c| is_ident_continue(c));
+                self.consume_while(is_ident_continue);
 
                 let ident = self.current_token_str();
 
@@ -119,7 +119,7 @@ impl<'src> Cursor<'src> {
         };
 
         let token = Token::new(token_kind, self.current_span());
-        return Some(Ok(token));
+        Some(Ok(token))
     }
 }
 

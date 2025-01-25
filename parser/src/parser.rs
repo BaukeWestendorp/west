@@ -18,11 +18,9 @@ impl<'src> Parser<'src> {
 
     pub fn parse(&mut self) -> Result<File<'src>> {
         let mut items = Vec::new();
-        loop {
-            match self.parse_item()? {
-                Some(item) => items.push(item),
-                _ => break,
-            }
+
+        while let Some(item) = self.parse_item()? {
+            items.push(item);
         }
 
         self.expect_eof()?;
