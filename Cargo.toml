@@ -1,5 +1,5 @@
 [workspace]
-members = ["ast", "interpreter", "lexer", "parser", "west"]
+members = ["ast", "lexer", "parser", "vm", "west"]
 resolver = "2"
 
 [workspace.package]
@@ -7,7 +7,7 @@ version = "0.1.0"
 edition = "2021"
 
 [workspace.dependencies]
-interpreter = { path = "interpreter" }
+vm = { path = "vm" }
 parser = { path = "parser" }
 ast = { path = "ast" }
 lexer = { path = "lexer" }
