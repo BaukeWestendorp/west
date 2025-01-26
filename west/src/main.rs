@@ -3,9 +3,9 @@ use std::path::PathBuf;
 
 use clap::Parser as ClapParser;
 use compiler::Compiler;
-use lexer::source::SourceFile;
 use miette::{Context, Result};
 use parser::Parser;
+use west_error::source::SourceFile;
 
 /// West runner
 #[derive(ClapParser, Debug)]

@@ -42,7 +42,7 @@ mod tests {
 
     #[test]
     fn block_single_statement() {
-        let source = lexer::source::SourceFile::new("tests".to_string(), r#"{ 1; }"#);
+        let source = west_error::source::SourceFile::new("tests".to_string(), r#"{ 1; }"#);
         let mut parser = crate::Parser::new(&source);
 
         let block = parser.parse_block().unwrap();
@@ -55,7 +55,7 @@ mod tests {
 
     #[test]
     fn block_multiple_statements() {
-        let source = lexer::source::SourceFile::new("tests".to_string(), r#"{ 1; 2; }"#);
+        let source = west_error::source::SourceFile::new("tests".to_string(), r#"{ 1; 2; }"#);
         let mut parser = crate::Parser::new(&source);
 
         let block = parser.parse_block().unwrap();

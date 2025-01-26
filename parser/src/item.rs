@@ -1,6 +1,7 @@
 use ast::Item;
 use lexer::token::{Keyword, TokenKind};
 use miette::{Context, Result};
+use west_error::ErrorProducer;
 
 use crate::Parser;
 use crate::error::ErrorKind;
@@ -11,7 +12,7 @@ impl<'src> Parser<'src> {
             Ok(Some(Item::Fn(self.parse_fn()?)))
         } else {
             match self.eat_or_eof()? {
-                Some(token) => Err(self.err_here(ErrorKind::ExpectedItem, Some(token.span.into()))),
+                Some(_) => Err(self.err_here(ErrorKind::ExpectedItem)),
                 _ => Ok(None),
             }
         }

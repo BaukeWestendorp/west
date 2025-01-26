@@ -6,13 +6,16 @@ mod item;
 mod literal;
 mod statement;
 
-pub mod error;
+mod error;
+
+use std::ops::Range;
 
 use ast::Ast;
 use lexer::Lexer;
-use lexer::source::SourceFile;
 use lexer::token::{Keyword, Token, TokenKind};
-use miette::{LabeledSpan, NamedSource, Result, SourceSpan};
+use miette::{LabeledSpan, NamedSource, Result};
+use west_error::ErrorProducer;
+use west_error::source::SourceFile;
 
 use crate::error::ErrorKind;
 
@@ -54,10 +57,9 @@ impl<'src> Parser<'src> {
     pub(crate) fn eat_expected(&mut self, expected: TokenKind) -> Result<Token> {
         match self.eat()? {
             token @ Token { kind, .. } if kind == expected => Ok(token),
-            Token { kind, span } => Err(self.err_here(
-                ErrorKind::ExpectedToken { expected, found: &kind.to_string() },
-                Some(span.into()),
-            )),
+            Token { kind, .. } => {
+                Err(self.err_here(ErrorKind::ExpectedToken { expected, found: kind.to_string() }))
+            }
         }
     }
 
@@ -79,32 +81,12 @@ impl<'src> Parser<'src> {
         }
     }
 
-    pub(crate) fn err_here(
-        &mut self,
-        kind: crate::error::ErrorKind,
-        span: Option<SourceSpan>,
-    ) -> miette::Error {
-        let span = match span {
-            Some(span) => span,
-            _ => match self.lexer.peek() {
-                Some(Ok(Token { span, .. })) => span.clone().into(),
-                _ => self.source.as_str().len().saturating_sub(1).into(),
-            },
-        };
-        miette::Error::from(
-            miette::MietteDiagnostic::new(kind.to_string())
-                .with_label(LabeledSpan::at(span, "here")),
-        )
-        .with_source_code(NamedSource::from(self.source))
-    }
-
     fn expect_eof(&mut self) -> Result<()> {
         if self.at_eof() {
             return Ok(());
         }
 
-        let token = self.eat()?;
-        Err(self.err_here(ErrorKind::ExpectedEof, Some(token.span.into())))
+        Err(self.err_here(ErrorKind::ExpectedEof))
     }
 
     fn err_unexpected_eof(&self, token: Option<&Token>) -> miette::Error {
@@ -124,6 +106,28 @@ impl<'src> Parser<'src> {
     }
 }
 
+impl ErrorProducer for Parser<'_> {
+    type ErrorKind = ErrorKind;
+
+    fn name(&self) -> &str {
+        "parser"
+    }
+
+    fn source(&self) -> &SourceFile {
+        self.source
+    }
+
+    fn current_span(&mut self) -> Range<usize> {
+        match self.lexer.peek() {
+            Some(Ok(Token { span, .. })) => span.clone().into(),
+            _ => {
+                let end = self.source().as_str().len().saturating_sub(1);
+                end..end
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     #[macro_export]
@@ -133,7 +137,7 @@ mod tests {
             fn: $parse_fn:ident,
             expected: $expected:expr
         } => {{
-            let source = lexer::source::SourceFile::new("tests".to_string(), $src);
+            let source = west_error::source::SourceFile::new("tests".to_string(), $src);
             let mut parser = crate::Parser::new(&source);
 
             let actual = parser.$parse_fn().unwrap();
@@ -149,7 +153,7 @@ mod tests {
             fn: $parse_fn:ident,
             expected: $expected:expr
         } => {{
-            let source = lexer::source::SourceFile::new("tests".to_string(), $src);
+            let source = west_error::source::SourceFile::new("tests".to_string(), $src);
             let mut parser = crate::Parser::new(&source);
 
             let actual = parser.$parse_fn().unwrap_err();

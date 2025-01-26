@@ -1,35 +1,29 @@
 use lexer::token::TokenKind;
-use miette::{Diagnostic, NamedSource, SourceSpan};
+use miette::Diagnostic;
 use thiserror::Error;
 
-pub struct ParserError<'src> {
-    pub kind: ErrorKind<'src>,
-    pub source: NamedSource<String>,
-    pub span: SourceSpan,
-}
-
 #[derive(Error, Diagnostic, Debug)]
-pub enum ErrorKind<'src> {
+pub enum ErrorKind {
     #[error("expected block")]
-    #[diagnostic(code(west::expected_block))]
+    #[diagnostic(code(west::parser::expected_block))]
     ExpectedBlock,
 
     #[error("expected expression")]
-    #[diagnostic(code(west::failed_to_parse_expression))]
+    #[diagnostic(code(west::parser::failed_to_parse_expression))]
     ExpectedExpression,
 
     #[error("expected item")]
-    #[diagnostic(code(west::expected_item))]
+    #[diagnostic(code(west::parser::expected_item))]
     ExpectedItem,
 
     #[error("expected {expected}, found {found}")]
-    ExpectedToken { expected: TokenKind, found: &'src str },
+    ExpectedToken { expected: TokenKind, found: String },
 
     #[error("expected EOF")]
-    #[diagnostic(code(west::expected_eof))]
+    #[diagnostic(code(west::parser::expected_eof))]
     ExpectedEof,
 
     #[error("unexpected EOF")]
-    #[diagnostic(code(west::unexpected_eof))]
+    #[diagnostic(code(west::parser::unexpected_eof))]
     UnexpectedEof,
 }

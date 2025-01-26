@@ -1,6 +1,7 @@
 use ast::{Expression, ExpressionId, Operator};
 use lexer::token::TokenKind;
 use miette::{Context, Result};
+use west_error::ErrorProducer;
 
 use crate::Parser;
 use crate::error::ErrorKind;
@@ -36,7 +37,7 @@ impl<'src> Parser<'src> {
                 Some(Err(_)) => {
                     return Err(self.eat().expect_err("should be checked for Err in match"));
                 }
-                _ => return Err(self.err_here(ErrorKind::UnexpectedEof, None)),
+                _ => return Err(self.err_here(ErrorKind::UnexpectedEof)),
             }
         };
 
@@ -174,7 +175,7 @@ mod tests {
     use ast::{Expression, Ident, Literal, Operator};
 
     fn check_simple(source: &str, expected: Option<&Expression>) {
-        let source = lexer::source::SourceFile::new("tests".to_string(), source);
+        let source = west_error::source::SourceFile::new("tests".to_string(), source);
         let mut parser = crate::Parser::new(&source);
 
         let expr_id = parser.parse_expression().unwrap();
@@ -204,7 +205,7 @@ mod tests {
     }
 
     fn check_prefix_op(source: &str, op: Operator, rhs: &Expression) {
-        let source = lexer::source::SourceFile::new("tests".to_string(), source);
+        let source = west_error::source::SourceFile::new("tests".to_string(), source);
         let mut parser = crate::Parser::new(&source);
 
         let expr_id = parser.parse_expression().unwrap();
@@ -232,7 +233,7 @@ mod tests {
     }
 
     fn check_infix_op(source: &str, op: Operator, lhs: &Expression, rhs: &Expression) {
-        let source = lexer::source::SourceFile::new("tests".to_string(), source);
+        let source = west_error::source::SourceFile::new("tests".to_string(), source);
         let mut parser = crate::Parser::new(&source);
 
         let expr_id = parser.parse_expression().unwrap();
@@ -353,7 +354,7 @@ mod tests {
     }
 
     fn check_call(source: &str, callee: &Expression, args: Vec<&Expression>) {
-        let source = lexer::source::SourceFile::new("tests".to_string(), source);
+        let source = west_error::source::SourceFile::new("tests".to_string(), source);
         let mut parser = crate::Parser::new(&source);
 
         let expr_id = parser.parse_expression().unwrap();
@@ -404,7 +405,7 @@ mod tests {
 
     #[test]
     fn fn_call_double_trailing_comma() {
-        let source = lexer::source::SourceFile::new("tests".to_string(), r#"add(1, 2, 3,,)"#);
+        let source = west_error::source::SourceFile::new("tests".to_string(), r#"add(1, 2, 3,,)"#);
         let mut parser = crate::Parser::new(&source);
 
         let actual = parser.parse_expression().unwrap_err();

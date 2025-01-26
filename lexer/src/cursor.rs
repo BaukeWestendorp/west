@@ -1,9 +1,8 @@
 use std::ops::Range;
 use std::str::Chars;
 
-use miette::{Error, LabeledSpan, NamedSource};
-
-use crate::source::SourceFile;
+use west_error::ErrorProducer;
+use west_error::source::SourceFile;
 
 pub struct Cursor<'src> {
     source: &'src SourceFile<'src>,
@@ -38,15 +37,8 @@ impl<'src> Cursor<'src> {
         self.span_start = self.source.as_str().len() - self.rest.as_str().len();
     }
 
-    /// Returns the current span.
-    pub fn current_span(&self) -> Range<usize> {
-        let start = self.span_start;
-        let end = self.source.as_str().len() - self.rest.as_str().len();
-        start..end
-    }
-
     /// Returns the current token as a string.
-    pub fn current_token_str(&self) -> &'src str {
+    pub fn current_token_str(&mut self) -> &'src str {
         &self.source.as_str()[self.current_span()]
     }
 
@@ -61,12 +53,22 @@ impl<'src> Cursor<'src> {
             self.consume();
         }
     }
+}
 
-    pub(crate) fn err_here(&self, msg: String) -> Error {
-        miette::Error::from(
-            miette::MietteDiagnostic::new(msg)
-                .with_label(LabeledSpan::at(self.current_span(), "here")),
-        )
-        .with_source_code(NamedSource::from(self.source))
+impl ErrorProducer for Cursor<'_> {
+    type ErrorKind = crate::error::ErrorKind;
+
+    fn name(&self) -> &str {
+        "lexer"
+    }
+
+    fn source(&self) -> &SourceFile {
+        self.source
+    }
+
+    fn current_span(&mut self) -> Range<usize> {
+        let start = self.span_start;
+        let end = self.source.as_str().len() - self.rest.as_str().len();
+        start..end
     }
 }

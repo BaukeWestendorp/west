@@ -1,6 +1,6 @@
 use lexer::Lexer;
-use lexer::source::SourceFile;
 use lexer::token::{Keyword, Literal, Token, TokenKind};
+use west_error::source::SourceFile;
 
 fn check_lexer(src: &str, expect: Vec<Token>) {
     let source = SourceFile::new("tests".to_string(), src);

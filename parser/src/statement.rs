@@ -23,7 +23,7 @@ mod tests {
 
     #[test]
     fn statement() {
-        let source = lexer::source::SourceFile::new("tests".to_string(), r#"1;"#);
+        let source = west_error::source::SourceFile::new("tests".to_string(), r#"1;"#);
         let mut parser = crate::Parser::new(&source);
 
         let expr_id = parser.parse_expression().unwrap();

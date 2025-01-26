@@ -1,5 +1,11 @@
+use std::ops::Range;
+
 use ast::Ast;
-use lexer::source::SourceFile;
+use error::ErrorKind;
+use west_error::ErrorProducer;
+use west_error::source::SourceFile;
+
+mod error;
 
 pub struct TypeId(pub usize);
 
@@ -15,5 +21,21 @@ impl<'src> Typechecker<'src> {
 
     pub fn typecheck(&mut self) {
         todo!();
+    }
+}
+
+impl ErrorProducer for Typechecker<'_> {
+    type ErrorKind = ErrorKind;
+
+    fn name(&self) -> &str {
+        "typechecker"
+    }
+
+    fn source(&self) -> &SourceFile {
+        self.source
+    }
+
+    fn current_span(&mut self) -> Range<usize> {
+        todo!()
     }
 }

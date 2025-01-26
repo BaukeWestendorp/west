@@ -4,10 +4,10 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-lexer.workspace = true
-typechecker.workspace = true
+west_error.workspace = true
 ast.workspace = true
 parser.workspace = true
 vm.workspace = true
 
 miette.workspace = true
+thiserror.workspace = true

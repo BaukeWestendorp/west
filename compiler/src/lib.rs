@@ -1,18 +1,24 @@
 use ast::{Ast, Expression, ExpressionId, Item, Literal, Operator, Statement};
-use lexer::source::SourceFile;
+use error::ErrorKind;
 use miette::Result;
 use vm::chunk::Chunk;
 use vm::opcode::Opcode;
+use west_error::ErrorProducer;
+use west_error::source::SourceFile;
+
+mod error;
 
 pub struct Compiler<'src> {
+    source: &'src SourceFile<'src>,
+
     ast: &'src Ast<'src>,
 
     current_chunk: Chunk,
 }
 
 impl<'src> Compiler<'src> {
-    pub fn new(ast: &'src Ast<'src>, _source: &'src SourceFile<'src>) -> Compiler<'src> {
-        Compiler { ast, current_chunk: Chunk::new() }
+    pub fn new(ast: &'src Ast<'src>, source: &'src SourceFile<'src>) -> Compiler<'src> {
+        Compiler { source, ast, current_chunk: Chunk::new() }
     }
 
     pub fn compile(&mut self) -> Result<&Chunk> {
@@ -58,5 +64,21 @@ impl<'src> Compiler<'src> {
             _ => unimplemented!(),
         }
         Ok(())
+    }
+}
+
+impl ErrorProducer for Compiler<'_> {
+    type ErrorKind = ErrorKind;
+
+    fn name(&self) -> &str {
+        "compiler"
+    }
+
+    fn source(&self) -> &SourceFile {
+        self.source
+    }
+
+    fn current_span(&mut self) -> std::ops::Range<usize> {
+        todo!()
     }
 }

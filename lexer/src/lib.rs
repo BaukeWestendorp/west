@@ -1,12 +1,14 @@
 use std::str::FromStr;
 
 use cursor::Cursor;
+use error::ErrorKind;
 use miette::Result;
-use source::SourceFile;
 use token::{Keyword, Literal, Token, TokenKind};
+use west_error::ErrorProducer;
+use west_error::source::SourceFile;
 
 mod cursor;
-pub mod source;
+mod error;
 pub mod token;
 
 pub struct Lexer<'src> {
@@ -111,7 +113,7 @@ impl Cursor<'_> {
             }
 
             _ => {
-                return Some(Err(self.err_here(format!("unknown token: '{first_char}'"))));
+                return Some(Err(self.err_here(ErrorKind::UnknownChar(first_char))));
             }
         };
 

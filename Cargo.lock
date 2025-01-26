@@ -158,11 +158,11 @@ name = "compiler"
 version = "0.1.0"
 dependencies = [
  "ast",
- "lexer",
  "miette",
  "parser",
- "typechecker",
+ "thiserror 2.0.11",
  "vm",
+ "west_error",
 ]
 
 [[package]]
@@ -204,6 +204,8 @@ name = "lexer"
 version = "0.1.0"
 dependencies = [
  "miette",
+ "thiserror 2.0.11",
+ "west_error",
 ]
 
 [[package]]
@@ -293,6 +295,7 @@ dependencies = [
  "lexer",
  "miette",
  "thiserror 2.0.11",
+ "west_error",
 ]
 
 [[package]]
@@ -435,8 +438,10 @@ name = "typechecker"
 version = "0.1.0"
 dependencies = [
  "ast",
- "lexer",
+ "miette",
  "parser",
+ "thiserror 2.0.11",
+ "west_error",
 ]
 
 [[package]]
@@ -473,10 +478,17 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "compiler",
- "lexer",
  "miette",
  "parser",
  "vm",
+ "west_error",
+]
+
+[[package]]
+name = "west_error"
+version = "0.1.0"
+dependencies = [
+ "miette",
 ]
 
 [[package]]
