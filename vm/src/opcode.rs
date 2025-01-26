@@ -14,9 +14,9 @@ pub enum Opcode {
     /// `x`
     GetLocal(usize),
 
-    /// Negates the top value on the stack
+    /// Inverts the sign of the top value on the stack
     /// `-x`
-    Negate,
+    Minus,
 
     /// Adds the top two values on the stack
     /// `x + y`

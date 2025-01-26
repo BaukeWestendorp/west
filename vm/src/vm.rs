@@ -48,7 +48,7 @@ impl Vm {
                     self.stack.push(value);
                 }
 
-                Opcode::Negate => {
+                Opcode::Minus => {
                     let value = self.stack.pop().expect("should have a value to negate");
                     self.stack.push(-value);
                 }
@@ -117,19 +117,13 @@ mod disassembler {
     impl Opcode {
         pub fn disassemble(&self) -> String {
             match self {
-                Opcode::Push(value) => {
-                    format!("Value ({value}")
-                }
+                Opcode::Push(value) => format!("Value ({value})"),
                 Opcode::Pop => "Pop".to_string(),
 
-                Opcode::GetLocal(depth) => {
-                    format!("GetLocal ({depth})")
-                }
-                Opcode::SetLocal => {
-                    format!("SetLocal")
-                }
+                Opcode::GetLocal(depth) => format!("GetLocal ({depth})"),
+                Opcode::SetLocal => format!("SetLocal"),
 
-                Opcode::Negate => "Negate".to_string(),
+                Opcode::Minus => "Minus".to_string(),
 
                 Opcode::Add => "Add".to_string(),
                 Opcode::Subtract => "Subtract".to_string(),
@@ -181,10 +175,19 @@ mod tests {
     }
 
     #[test]
+    fn set_local() {
+        let mut chunk = Chunk::new();
+        chunk.write(Opcode::Push(42.5), 0);
+        chunk.write(Opcode::SetLocal, 0);
+        chunk.write(Opcode::GetLocal(0), 0);
+        assert_eq!(test_chunk(chunk), Some(42.5));
+    }
+
+    #[test]
     fn negate() {
         let mut chunk = Chunk::new();
         chunk.write(Opcode::Push(42.5), 0);
-        chunk.write(Opcode::Negate, 0);
+        chunk.write(Opcode::Minus, 0);
         assert_eq!(test_chunk(chunk), Some(-42.5));
     }
 

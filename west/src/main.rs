@@ -32,6 +32,7 @@ fn main() -> Result<()> {
     let mut compiler = Compiler::new(&ast, &source);
 
     let chunk = compiler.compile()?;
+    print!("{}", chunk.disassemble());
 
     let mut vm = vm::Vm::new();
     vm.push_chunk(chunk.clone());
