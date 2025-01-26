@@ -480,6 +480,7 @@ dependencies = [
  "compiler",
  "miette",
  "parser",
+ "typechecker",
  "vm",
  "west_error",
 ]

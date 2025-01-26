@@ -5,6 +5,7 @@ use clap::Parser as ClapParser;
 use compiler::Compiler;
 use miette::{Context, Result};
 use parser::Parser;
+use typechecker::Typechecker;
 use west_error::source::SourceFile;
 
 /// West runner
@@ -27,6 +28,7 @@ fn main() -> Result<()> {
 
     let source = SourceFile::new(file_name, &source);
     let ast = Parser::new(&source).parse().wrap_err("failed to parse file")?;
+    Typechecker::new(&ast, &source).check()?;
     let mut compiler = Compiler::new(&ast, &source);
 
     let chunk = compiler.compile()?;
