@@ -35,9 +35,6 @@ impl<'src> Compiler<'src> {
 
         self.compile_block(&main.body)?;
 
-        // FIXME: We should remove this when we have implemented functions.
-        self.current_chunk.write(Opcode::Return, 0);
-
         Ok(&self.current_chunk)
     }
 
@@ -53,6 +50,7 @@ impl<'src> Compiler<'src> {
     fn compile_statement(&mut self, statement: &Statement<'src>) -> Result<()> {
         match statement {
             Statement::Let { name, value } => self.compile_statement_let(name, value)?,
+            Statement::Print { value } => self.compile_statement_print(value)?,
         }
         Ok(())
     }
@@ -61,6 +59,12 @@ impl<'src> Compiler<'src> {
         self.compile_expression(value)?;
         self.add_local(*name);
         self.current_chunk.write(Opcode::SetLocal, 0);
+        Ok(())
+    }
+
+    fn compile_statement_print(&mut self, value: &ExpressionId) -> Result<()> {
+        self.compile_expression(value)?;
+        self.current_chunk.write(Opcode::Print, 0);
         Ok(())
     }
 

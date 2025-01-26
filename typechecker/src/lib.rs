@@ -80,6 +80,9 @@ impl<'src> Typechecker<'src> {
                 let ty = self.check_expression(value)?;
                 self.locals.push(Local { name: *name, ty, depth: self.depth });
             }
+            Statement::Print { value } => {
+                self.check_expression(value)?;
+            }
         }
 
         Ok(())

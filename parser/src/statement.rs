@@ -8,6 +8,8 @@ impl<'src> Parser<'src> {
     pub fn parse_statement(&mut self) -> Result<Option<Statement<'src>>> {
         if let Some(let_statement) = self.parse_statement_let()? {
             return Ok(Some(let_statement));
+        } else if let Some(print_statement) = self.parse_statement_print()? {
+            return Ok(Some(print_statement));
         } else {
             return Ok(None);
         }
@@ -23,6 +25,16 @@ impl<'src> Parser<'src> {
         let value = self.parse_expression()?.wrap_err("expected expression")?;
         self.eat_expected(TokenKind::Semicolon)?;
         Ok(Some(Statement::Let { name, value }))
+    }
+
+    pub fn parse_statement_print(&mut self) -> Result<Option<Statement<'src>>> {
+        if !self.try_eat_keyword(Keyword::Print) {
+            return Ok(None);
+        }
+
+        let value = self.parse_expression()?.wrap_err("expected expression")?;
+        self.eat_expected(TokenKind::Semicolon)?;
+        Ok(Some(Statement::Print { value }))
     }
 }
 
@@ -43,7 +55,7 @@ mod tests {
     }
 
     #[test]
-    fn statement_no_semicolon() {
+    fn no_semicolon() {
         check_parser_error! {
             source: "1",
             fn: parse_statement,
@@ -52,16 +64,33 @@ mod tests {
     }
 
     #[test]
-    fn let_statement() {
+    fn r#let() {
         let source = SourceFile::new("tests".to_string(), r#"let x = 1;"#);
         let mut parser = crate::Parser::new(&source);
 
         let statement = parser.parse_statement().unwrap().unwrap();
 
-        let Statement::Let { name, value } = statement;
+        let Statement::Let { name, value } = statement else {
+            panic!();
+        };
         let value = parser.ast.get_expression(&value);
 
         assert_eq!(name, Ident("x"));
+        assert_eq!(value, &Expression::Literal(Literal::Int(1)));
+    }
+
+    #[test]
+    fn print() {
+        let source = SourceFile::new("tests".to_string(), r#"print 1;"#);
+        let mut parser = crate::Parser::new(&source);
+
+        let statement = parser.parse_statement().unwrap().unwrap();
+
+        let Statement::Print { value } = statement else {
+            panic!();
+        };
+        let value = parser.ast.get_expression(&value);
+
         assert_eq!(value, &Expression::Literal(Literal::Int(1)));
     }
 }

@@ -48,7 +48,9 @@ mod tests {
 
         let block = parser.parse_block().unwrap();
 
-        let Statement::Let { value, .. } = &block.statements[0];
+        let Statement::Let { value, .. } = &block.statements[0] else {
+            panic!();
+        };
         let value = parser.ast.get_expression(&value);
 
         assert_eq!(value, &Expression::Literal(Literal::Int(1)));
@@ -61,11 +63,15 @@ mod tests {
 
         let block = parser.parse_block().unwrap();
 
-        let Statement::Let { value: value_1, .. } = &block.statements[0];
+        let Statement::Let { value: value_1, .. } = &block.statements[0] else {
+            panic!();
+        };
         let value_1 = parser.ast.get_expression(&value_1);
         assert_eq!(value_1, &Expression::Literal(Literal::Int(1)));
 
-        let Statement::Let { value: value_2, .. } = &block.statements[1];
+        let Statement::Let { value: value_2, .. } = &block.statements[1] else {
+            panic!();
+        };
         let value_2 = parser.ast.get_expression(&value_2);
         assert_eq!(value_2, &Expression::Literal(Literal::Int(2)));
     }

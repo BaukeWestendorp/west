@@ -146,6 +146,7 @@ impl std::fmt::Display for TokenKind {
 pub enum Keyword {
     Fn,
     Let,
+    Print,
 }
 
 impl Display for Keyword {
@@ -153,6 +154,7 @@ impl Display for Keyword {
         match self {
             Keyword::Fn => write!(f, "fn"),
             Keyword::Let => write!(f, "let"),
+            Keyword::Print => write!(f, "print"),
         }
     }
 }
@@ -164,6 +166,7 @@ impl FromStr for Keyword {
         match s {
             "fn" => Ok(Keyword::Fn),
             "let" => Ok(Keyword::Let),
+            "print" => Ok(Keyword::Print),
             // FIXME: Use lexer's error kind.
             _ => bail!("unknown keyword: {}", s),
         }

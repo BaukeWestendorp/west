@@ -34,4 +34,7 @@ pub enum Opcode {
     /// Returns the top value on the stack
     /// `return x`
     Return,
+
+    /// Prints the top value on the stack
+    Print,
 }

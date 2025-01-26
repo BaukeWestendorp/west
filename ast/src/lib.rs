@@ -48,6 +48,7 @@ pub struct Block<'src> {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Statement<'src> {
     Let { name: Ident<'src>, value: ExpressionId },
+    Print { value: ExpressionId },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

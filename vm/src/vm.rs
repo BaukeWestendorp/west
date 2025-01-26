@@ -78,8 +78,12 @@ impl Vm {
                 }
 
                 Opcode::Return => {
-                    let value = self.stack.pop().expect("should have a value to be returned");
-                    println!("return {value}");
+                    todo!();
+                }
+
+                Opcode::Print => {
+                    let value = self.stack.last().expect("should have a value to print");
+                    println!("{value}");
                 }
             }
         }
@@ -133,6 +137,7 @@ mod disassembler {
                 Opcode::Divide => "Divide".to_string(),
 
                 Opcode::Return => "Return".to_string(),
+                Opcode::Print => "Print".to_string(),
             }
         }
     }
