@@ -1,13 +1,9 @@
 [package]
-name = "compiler"
+name = "typechecker"
 version.workspace = true
 edition.workspace = true
 
 [dependencies]
 lexer.workspace = true
-typechecker.workspace = true
-ast.workspace = true
 parser.workspace = true
-vm.workspace = true
-
-miette.workspace = true
+ast.workspace = true

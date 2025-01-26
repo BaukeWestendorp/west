@@ -30,40 +30,43 @@ impl<'src> Parser<'src> {
 
 #[cfg(test)]
 mod tests {
-    use ast::{Block, Fn, Ident, Item};
+    use ast::{Block, Ident, Item};
 
-    use crate::tests::new_parser;
+    use crate::{check_parser, check_parser_error};
 
     #[test]
     fn fn_item() {
-        let actual = new_parser(r#"fn a() {}"#).parse_item().unwrap().unwrap();
-        let expected =
-            Item::Fn(Fn { name: Ident("a"), params: (), body: Block { statements: vec![] } });
-        assert_eq!(actual, expected);
+        check_parser! {
+            source: r#"fn a() {}"#,
+            fn: parse_item,
+            expected: Some(Item::Fn(ast::Fn { name: Ident("a"), params: (), body: Block { statements: vec![] } }))
+        };
     }
 
     #[test]
     fn fn_long_name() {
-        let actual = new_parser(r#"fn a_very_long_name_here() {}"#).parse_item().unwrap().unwrap();
-        let expected = Item::Fn(Fn {
-            name: Ident("a_very_long_name_here"),
-            params: (),
-            body: Block { statements: vec![] },
-        });
-        assert_eq!(actual, expected);
+        check_parser! {
+            source: r#"fn a_very_long_name_here() {}"#,
+            fn: parse_item,
+            expected: Some(Item::Fn(ast::Fn { name: Ident("a_very_long_name_here"), params: (), body: Block { statements: vec![] } }))
+        };
     }
 
     #[test]
     fn fn_item_unexpected_eof() {
-        let actual = new_parser(r#"fn a() {"#).parse_item().unwrap_err();
-        let expected = miette::miette!("unexpected EOF");
-        assert_eq!(actual.to_string(), expected.to_string());
+        check_parser_error! {
+            source: r#"fn a() {"#,
+            fn: parse_item,
+            expected: "unexpected EOF"
+        };
     }
 
     #[test]
     fn fn_no_name() {
-        let actual = new_parser(r#"fn () {}"#).parse_item().unwrap_err();
-        let expected = miette::miette!("expected function name");
-        assert_eq!(actual.to_string(), expected.to_string());
+        check_parser_error! {
+            source: r#"fn () {}"#,
+            fn: parse_item,
+            expected: "expected function name"
+        };
     }
 }

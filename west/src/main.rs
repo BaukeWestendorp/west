@@ -2,7 +2,10 @@ use std::io::Read;
 use std::path::PathBuf;
 
 use clap::Parser as ClapParser;
-use miette::Result;
+use compiler::Compiler;
+use lexer::source::SourceFile;
+use miette::{Context, Result};
+use parser::Parser;
 
 /// West runner
 #[derive(ClapParser, Debug)]
@@ -22,8 +25,9 @@ fn main() -> Result<()> {
     let mut source = String::new();
     source_file.read_to_string(&mut source).expect("file should be readable");
 
-    let session = parser::session::ParserSession::new(file_name, &source);
-    let mut compiler = compiler::Compiler::new(session);
+    let source = SourceFile::new(file_name, &source);
+    let ast = Parser::new(&source).parse().wrap_err("failed to parse file")?;
+    let mut compiler = Compiler::new(&ast, &source);
 
     let chunk = compiler.compile()?;
 

@@ -158,8 +158,10 @@ name = "compiler"
 version = "0.1.0"
 dependencies = [
  "ast",
+ "lexer",
  "miette",
  "parser",
+ "typechecker",
  "vm",
 ]
 
@@ -429,6 +431,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "typechecker"
+version = "0.1.0"
+dependencies = [
+ "ast",
+ "lexer",
+ "parser",
+]
+
+[[package]]
 name = "unicode-ident"
 version = "1.0.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -462,6 +473,7 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "compiler",
+ "lexer",
  "miette",
  "parser",
  "vm",

@@ -1,20 +1,22 @@
-use std::{ops::Range, str::Chars};
+use std::ops::Range;
+use std::str::Chars;
+
+use miette::{Error, LabeledSpan, NamedSource};
+
+use crate::source::SourceFile;
 
 pub struct Cursor<'src> {
+    source: &'src SourceFile<'src>,
+
     span_start: usize,
-    whole: &'src str,
     rest: Chars<'src>,
 }
 
 pub(crate) const EOF_CHAR: char = '\0';
 
 impl<'src> Cursor<'src> {
-    pub fn new(source: &'src str) -> Cursor<'src> {
-        Cursor { span_start: 0, whole: source, rest: source.chars() }
-    }
-
-    pub fn whole(&self) -> &'src str {
-        self.whole
+    pub fn new(source: &'src SourceFile<'src>) -> Cursor<'src> {
+        Cursor { rest: source.as_str().chars(), source, span_start: 0 }
     }
 
     /// Peeks the next symbol from the input stream without consuming it.
@@ -33,19 +35,19 @@ impl<'src> Cursor<'src> {
 
     /// Resets the position within the current token.
     pub fn reset_span_start(&mut self) {
-        self.span_start = self.whole.len() - self.rest.as_str().len();
+        self.span_start = self.source.as_str().len() - self.rest.as_str().len();
     }
 
     /// Returns the current span.
     pub fn current_span(&self) -> Range<usize> {
         let start = self.span_start;
-        let end = self.whole.len() - self.rest.as_str().len();
+        let end = self.source.as_str().len() - self.rest.as_str().len();
         start..end
     }
 
     /// Returns the current token as a string.
     pub fn current_token_str(&self) -> &'src str {
-        &self.whole()[self.current_span()]
+        &self.source.as_str()[self.current_span()]
     }
 
     /// Moves to the next character.
@@ -58,5 +60,13 @@ impl<'src> Cursor<'src> {
         while predicate(self.first()) && !self.is_eof() {
             self.consume();
         }
+    }
+
+    pub(crate) fn err_here(&self, msg: String) -> Error {
+        miette::Error::from(
+            miette::MietteDiagnostic::new(msg)
+                .with_label(LabeledSpan::at(self.current_span(), "here")),
+        )
+        .with_source_code(NamedSource::from(self.source))
     }
 }

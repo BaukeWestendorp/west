@@ -1,18 +1,20 @@
 use std::str::FromStr;
 
 use cursor::Cursor;
-use miette::{LabeledSpan, Result};
+use miette::Result;
+use source::SourceFile;
 use token::{Keyword, Literal, Token, TokenKind};
 
 mod cursor;
+pub mod source;
 pub mod token;
 
 pub struct Lexer<'src> {
     cursor: Cursor<'src>,
 }
 
-impl Lexer<'_> {
-    pub fn new(source: &str) -> Lexer {
+impl<'src> Lexer<'src> {
+    pub fn new(source: &'src SourceFile) -> Lexer<'src> {
         Lexer { cursor: Cursor::new(source) }
     }
 }
@@ -109,12 +111,7 @@ impl Cursor<'_> {
             }
 
             _ => {
-                let span = self.current_span();
-                return Some(Err(miette::miette! {
-                    labels = vec![LabeledSpan::at(span, format!("this '{first_char}'"))],
-                    "unknown token: '{first_char}'",
-                }
-                .with_source_code(self.whole().to_string())));
+                return Some(Err(self.err_here(format!("unknown token: '{first_char}'"))));
             }
         };
 

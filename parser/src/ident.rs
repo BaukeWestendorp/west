@@ -9,7 +9,7 @@ impl<'src> Parser<'src> {
         match self.lexer.peek() {
             Some(Ok(Token { kind: TokenKind::Ident, .. })) => {
                 let span = self.eat()?.span;
-                Ok(Some(Ident(&self.ses.source[span])))
+                Ok(Some(Ident(&self.source.as_str()[span])))
             }
             _ => Ok(None),
         }
@@ -20,19 +20,23 @@ impl<'src> Parser<'src> {
 mod tests {
     use ast::Ident;
 
-    use crate::tests::new_parser;
+    use crate::check_parser;
 
     #[test]
     fn ident() {
-        let actual = new_parser("a").parse_ident().unwrap();
-        let expected = Some(Ident("a"));
-        assert_eq!(actual, expected);
+        check_parser! {
+            source: "a",
+            fn: parse_ident,
+            expected: Some(Ident("a"))
+        };
     }
 
     #[test]
     fn ident_invalid() {
-        let actual = new_parser("1").parse_ident().unwrap();
-        let expected = None;
-        assert_eq!(actual, expected);
+        check_parser! {
+            source: "1",
+            fn: parse_ident,
+            expected: None
+        };
     }
 }

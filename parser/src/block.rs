@@ -5,7 +5,7 @@ use miette::Result;
 use crate::Parser;
 
 impl<'src> Parser<'src> {
-    pub fn parse_block(&mut self) -> Result<Block<'src>> {
+    pub fn parse_block(&mut self) -> Result<Block> {
         self.eat_expected(TokenKind::BraceOpen)?;
         let mut statements = Vec::new();
         while let Some(statement) = self.parse_statement()? {
@@ -20,39 +20,52 @@ impl<'src> Parser<'src> {
 mod tests {
     use ast::{Block, Expression, Literal, Statement};
 
-    use crate::tests::new_parser;
+    use crate::{check_parser, check_parser_error};
 
     #[test]
     fn block_empty() {
-        let actual = new_parser("{}").parse_block().unwrap();
-        let expected = Block { statements: vec![] };
-        assert_eq!(actual, expected);
+        check_parser! {
+            source: r#"{}"#,
+            fn: parse_block,
+            expected: Block { statements: vec![] }
+        }
     }
 
     #[test]
     fn block_unexpected_eof() {
-        let actual = new_parser("{").parse_block().unwrap_err();
-        let expected = miette::miette!("unexpected EOF");
-        assert_eq!(actual.to_string(), expected.to_string());
+        check_parser_error! {
+            source: r#"{"#,
+            fn: parse_block,
+            expected: "unexpected EOF"
+        }
     }
 
     #[test]
     fn block_single_statement() {
-        let actual = new_parser("{ 1; }").parse_block().unwrap();
-        let expected =
-            Block { statements: vec![Statement::Expression(Expression::Literal(Literal::Int(1)))] };
-        assert_eq!(actual, expected);
+        let source = lexer::source::SourceFile::new("tests".to_string(), r#"{ 1; }"#);
+        let mut parser = crate::Parser::new(&source);
+
+        let block = parser.parse_block().unwrap();
+
+        let Statement::Expression(expr_id) = block.statements[0];
+        let stmt_expr = parser.ast.get_expression(&expr_id);
+
+        assert_eq!(stmt_expr, &Expression::Literal(Literal::Int(1)));
     }
 
     #[test]
     fn block_multiple_statements() {
-        let actual = new_parser("{ 1; 2; }").parse_block().unwrap();
-        let expected = Block {
-            statements: vec![
-                Statement::Expression(Expression::Literal(Literal::Int(1))),
-                Statement::Expression(Expression::Literal(Literal::Int(2))),
-            ],
-        };
-        assert_eq!(actual, expected);
+        let source = lexer::source::SourceFile::new("tests".to_string(), r#"{ 1; 2; }"#);
+        let mut parser = crate::Parser::new(&source);
+
+        let block = parser.parse_block().unwrap();
+
+        let Statement::Expression(expr_id_1) = block.statements[0];
+        let stmt_expr_1 = parser.ast.get_expression(&expr_id_1);
+        assert_eq!(stmt_expr_1, &Expression::Literal(Literal::Int(1)));
+
+        let Statement::Expression(expr_id_2) = block.statements[1];
+        let stmt_expr_2 = parser.ast.get_expression(&expr_id_2);
+        assert_eq!(stmt_expr_2, &Expression::Literal(Literal::Int(2)));
     }
 }

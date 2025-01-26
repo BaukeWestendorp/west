@@ -11,7 +11,7 @@ impl<'src> Parser<'src> {
                 let literal = *literal;
                 let span = self.eat()?.span;
 
-                let origin = &self.ses.source[span];
+                let origin = &self.source.as_str()[span];
                 let literal = match literal {
                     lexer::token::Literal::Int => {
                         let int = origin.parse().unwrap();
@@ -43,14 +43,16 @@ impl<'src> Parser<'src> {
 mod tests {
     use ast::Literal;
 
-    use crate::tests::new_parser;
+    use crate::check_parser;
 
     #[test]
     fn literal_int() {
         let test_int = |input: &str, expected: i64| {
-            let actual = new_parser(input).parse_literal().unwrap();
-            let expected = Some(Literal::Int(expected));
-            assert_eq!(actual, expected);
+            check_parser! {
+                source: input,
+                fn: parse_literal,
+                expected: Some(ast::Literal::Int(expected))
+            };
         };
 
         test_int("1", 1);
@@ -64,9 +66,11 @@ mod tests {
     #[test]
     fn literal_float() {
         let test_float = |input: &str, expected: f64| {
-            let actual = new_parser(input).parse_literal().unwrap();
-            let expected = Some(Literal::Float(expected));
-            assert_eq!(actual, expected);
+            check_parser! {
+                source: input,
+                fn: parse_literal,
+                expected: Some(ast::Literal::Float(expected))
+            };
         };
 
         test_float("1.0", 1.0);
@@ -81,25 +85,34 @@ mod tests {
 
     #[test]
     fn literal_str() {
-        let actual = new_parser(r#""hello""#).parse_literal().unwrap();
-        let expected = Some(Literal::Str("hello"));
-        assert_eq!(actual, expected);
+        check_parser! {
+            source: r#""hello""#,
+            fn: parse_literal,
+            expected: Some(Literal::Str("hello"))
+        }
     }
 
     #[test]
     fn literal_bool() {
-        let actual = new_parser("true").parse_literal().unwrap();
-        let expected = Some(Literal::Bool(true));
-        assert_eq!(actual, expected);
+        check_parser! {
+            source: "true",
+            fn: parse_literal,
+            expected: Some(Literal::Bool(true))
+        }
 
-        let actual = new_parser("false").parse_literal().unwrap();
-        let expected = Some(Literal::Bool(false));
-        assert_eq!(actual, expected);
+        check_parser! {
+            source: "false",
+            fn: parse_literal,
+            expected: Some(Literal::Bool(false))
+        }
     }
 
     #[test]
     fn literal_invalid() {
-        let actual = new_parser("hello").parse_literal().unwrap();
-        assert_eq!(actual, None);
+        check_parser! {
+            source: "hello",
+            fn: parse_literal,
+            expected: None
+        }
     }
 }

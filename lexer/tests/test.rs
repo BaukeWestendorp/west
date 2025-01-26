@@ -1,12 +1,16 @@
+use lexer::Lexer;
+use lexer::source::SourceFile;
 use lexer::token::{Keyword, Literal, Token, TokenKind};
 
 fn check_lexer(src: &str, expect: Vec<Token>) {
-    let actual = lexer::Lexer::new(src).map(Result::unwrap).collect::<Vec<_>>();
+    let source = SourceFile::new("tests".to_string(), src);
+    let actual = Lexer::new(&source).map(Result::unwrap).collect::<Vec<_>>();
     assert_eq!(actual, expect);
 }
 
 fn check_lexer_with_errors(src: &str, expect: Vec<Result<Token, String>>) {
-    let actual = lexer::Lexer::new(src)
+    let source = SourceFile::new("tests".to_string(), src);
+    let actual = Lexer::new(&source)
         .map(|token| match token {
             Ok(token) => Ok(token),
             Err(err) => Err(err.to_string()),

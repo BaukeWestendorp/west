@@ -1,5 +1,5 @@
 [workspace]
-members = ["ast", "compiler", "lexer", "parser", "vm", "west"]
+members = ["ast", "compiler", "lexer", "parser", "typechecker", "vm", "west"]
 resolver = "2"
 
 [workspace.package]
@@ -7,10 +7,11 @@ version = "0.1.0"
 edition = "2021"
 
 [workspace.dependencies]
-compiler = { path = "compiler" }
 vm = { path = "vm" }
-parser = { path = "parser" }
+compiler = { path = "compiler" }
+typechecker = { path = "typechecker" }
 ast = { path = "ast" }
+parser = { path = "parser" }
 lexer = { path = "lexer" }
 
 thiserror = { version = "2" }

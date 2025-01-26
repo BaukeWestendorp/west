@@ -1,23 +1,22 @@
-use ast::{Expression, Item, Literal, Operator, Statement};
+use ast::{Ast, Expression, ExpressionId, Item, Literal, Operator, Statement};
+use lexer::source::SourceFile;
 use miette::Result;
-use parser::Parser;
-use parser::session::ParserSession;
 use vm::chunk::Chunk;
 use vm::opcode::Opcode;
 
 pub struct Compiler<'src> {
-    parser: Parser<'src>,
+    ast: &'src Ast<'src>,
+
     current_chunk: Chunk,
 }
 
 impl<'src> Compiler<'src> {
-    pub fn new(session: ParserSession<'src>) -> Compiler<'src> {
-        Compiler { parser: Parser::new(session), current_chunk: Chunk::new() }
+    pub fn new(ast: &'src Ast<'src>, _source: &'src SourceFile<'src>) -> Compiler<'src> {
+        Compiler { ast, current_chunk: Chunk::new() }
     }
 
     pub fn compile(&mut self) -> Result<&Chunk> {
-        let file = self.parser.parse()?;
-        let Item::Fn(main) = file.items.first().unwrap();
+        let Item::Fn(main) = self.ast.files[0].items.first().unwrap();
 
         let statement = main.body.statements.first().unwrap();
         self.compile_statement(statement)?;
@@ -28,15 +27,15 @@ impl<'src> Compiler<'src> {
         Ok(&self.current_chunk)
     }
 
-    fn compile_statement(&mut self, statement: &Statement<'src>) -> Result<()> {
+    fn compile_statement(&mut self, statement: &Statement) -> Result<()> {
         match statement {
             Statement::Expression(expression) => self.compile_expression(expression)?,
         }
         Ok(())
     }
 
-    fn compile_expression(&mut self, expression: &Expression<'src>) -> Result<()> {
-        match expression {
+    fn compile_expression(&mut self, expression: &ExpressionId) -> Result<()> {
+        match self.ast.get_expression(expression) {
             Expression::Literal(literal) => {
                 let float = match literal {
                     Literal::Float(float) => float,
@@ -46,8 +45,8 @@ impl<'src> Compiler<'src> {
                 self.current_chunk.write(Opcode::Value(*float), 0);
             }
             Expression::BinaryOp { lhs, op, rhs } => {
-                self.compile_expression(lhs)?;
-                self.compile_expression(rhs)?;
+                self.compile_expression(&lhs)?;
+                self.compile_expression(&rhs)?;
                 match op {
                     Operator::Add => self.current_chunk.write(Opcode::Add, 0),
                     Operator::Subtract => self.current_chunk.write(Opcode::Subtract, 0),
