@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Ast<'src> {
     pub files: Vec<File<'src>>,
 
@@ -23,37 +23,37 @@ impl<'src> Ast<'src> {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct File<'src> {
     pub items: Vec<Item<'src>>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Item<'src> {
     Fn(Fn<'src>),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Fn<'src> {
     pub name: Ident<'src>,
     pub params: (),
-    pub body: Block,
+    pub body: Block<'src>,
 }
 
-#[derive(Debug, PartialEq)]
-pub struct Block {
-    pub statements: Vec<Statement>,
+#[derive(Debug, Clone, PartialEq)]
+pub struct Block<'src> {
+    pub statements: Vec<Statement<'src>>,
 }
 
-#[derive(Debug, PartialEq)]
-pub enum Statement {
-    Expression(ExpressionId),
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Statement<'src> {
+    Let { name: Ident<'src>, value: ExpressionId },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ExpressionId(pub usize);
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Expression<'src> {
     Literal(Literal<'src>),
     Ident(Ident<'src>),
@@ -89,7 +89,7 @@ pub enum Operator {
     NotEqual,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Literal<'src> {
     Int(i64),
     Float(f64),
@@ -97,5 +97,5 @@ pub enum Literal<'src> {
     Bool(bool),
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Ident<'src>(pub &'src str);

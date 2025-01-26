@@ -32,9 +32,22 @@ impl Vm {
     pub fn run_chunk(&mut self, chunk: Chunk) {
         for opcode in chunk.opcodes() {
             match opcode {
-                Opcode::Value(value) => {
+                Opcode::Push(value) => {
                     self.stack.push(*value);
                 }
+                Opcode::Pop => {
+                    self.stack.pop().expect("should have a value to pop");
+                }
+
+                Opcode::GetLocal(slot) => {
+                    let value = self.stack[*slot];
+                    self.stack.push(value);
+                }
+                Opcode::SetLocal => {
+                    let value = self.stack.pop().expect("should have a value to set");
+                    self.stack.push(value);
+                }
+
                 Opcode::Negate => {
                     let value = self.stack.pop().expect("should have a value to negate");
                     self.stack.push(-value);
@@ -100,8 +113,16 @@ mod disassembler {
     impl Opcode {
         pub fn disassemble(&self) -> String {
             match self {
-                Opcode::Value(value) => {
+                Opcode::Push(value) => {
                     format!("Value ({value}")
+                }
+                Opcode::Pop => "Pop".to_string(),
+
+                Opcode::GetLocal(depth) => {
+                    format!("GetLocal ({depth})")
+                }
+                Opcode::SetLocal => {
+                    format!("SetLocal")
                 }
 
                 Opcode::Negate => "Negate".to_string(),
@@ -131,64 +152,81 @@ mod tests {
     }
 
     #[test]
-    fn test_value() {
+    fn push() {
         let mut chunk = Chunk::new();
-        chunk.write(Opcode::Value(42.5), 0);
+        chunk.write(Opcode::Push(42.5), 0);
         assert_eq!(test_chunk(chunk), Some(42.5));
     }
 
     #[test]
-    fn test_negate() {
+    fn pop() {
         let mut chunk = Chunk::new();
-        chunk.write(Opcode::Value(42.5), 0);
+        chunk.write(Opcode::Push(42.5), 0);
+        chunk.write(Opcode::Pop, 0);
+        assert_eq!(test_chunk(chunk), None);
+    }
+
+    #[test]
+    fn get_local() {
+        let mut chunk = Chunk::new();
+        chunk.write(Opcode::Push(42.5), 0);
+        chunk.write(Opcode::Push(22.5), 0);
+        chunk.write(Opcode::GetLocal(1), 0);
+        assert_eq!(test_chunk(chunk), Some(22.5));
+    }
+
+    #[test]
+    fn negate() {
+        let mut chunk = Chunk::new();
+        chunk.write(Opcode::Push(42.5), 0);
         chunk.write(Opcode::Negate, 0);
         assert_eq!(test_chunk(chunk), Some(-42.5));
     }
 
     #[test]
-    fn test_add() {
+    fn add() {
         let mut chunk = Chunk::new();
-        chunk.write(Opcode::Value(42.5), 0);
-        chunk.write(Opcode::Value(7.5), 0);
+        chunk.write(Opcode::Push(42.5), 0);
+        chunk.write(Opcode::Push(7.5), 0);
         chunk.write(Opcode::Add, 0);
         assert_eq!(test_chunk(chunk), Some(50.0));
     }
 
     #[test]
-    fn test_subtract() {
+    fn subtract() {
         let mut chunk = Chunk::new();
-        chunk.write(Opcode::Value(42.5), 0);
-        chunk.write(Opcode::Value(7.5), 0);
+        chunk.write(Opcode::Push(42.5), 0);
+        chunk.write(Opcode::Push(7.5), 0);
         chunk.write(Opcode::Subtract, 0);
         assert_eq!(test_chunk(chunk), Some(35.0));
     }
 
     #[test]
-    fn test_multiply() {
+    fn multiply() {
         let mut chunk = Chunk::new();
-        chunk.write(Opcode::Value(42.5), 0);
-        chunk.write(Opcode::Value(7.5), 0);
+        chunk.write(Opcode::Push(42.5), 0);
+        chunk.write(Opcode::Push(7.5), 0);
         chunk.write(Opcode::Multiply, 0);
         assert_eq!(test_chunk(chunk), Some(318.75));
     }
 
     #[test]
-    fn test_divide() {
+    fn divide() {
         let mut chunk = Chunk::new();
-        chunk.write(Opcode::Value(25.0), 0);
-        chunk.write(Opcode::Value(2.0), 0);
+        chunk.write(Opcode::Push(25.0), 0);
+        chunk.write(Opcode::Push(2.0), 0);
         chunk.write(Opcode::Divide, 0);
         assert_eq!(test_chunk(chunk), Some(12.5));
     }
 
     #[test]
-    fn test_complex() {
+    fn complex() {
         let mut chunk = Chunk::new();
-        chunk.write(Opcode::Value(1.0), 0);
-        chunk.write(Opcode::Value(2.0), 0);
+        chunk.write(Opcode::Push(1.0), 0);
+        chunk.write(Opcode::Push(2.0), 0);
         chunk.write(Opcode::Add, 0);
-        chunk.write(Opcode::Value(3.0), 0);
-        chunk.write(Opcode::Value(4.0), 0);
+        chunk.write(Opcode::Push(3.0), 0);
+        chunk.write(Opcode::Push(4.0), 0);
         chunk.write(Opcode::Multiply, 0);
         chunk.write(Opcode::Divide, 0);
         assert_eq!(test_chunk(chunk), Some(0.25));

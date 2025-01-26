@@ -3,7 +3,16 @@ pub type ConstantIx = usize;
 #[derive(Clone)]
 pub enum Opcode {
     /// Pushes a constant onto the stack
-    Value(f64),
+    Push(f64),
+    /// Pop the top value off the stack
+    Pop,
+
+    /// Set the value of a local variable
+    /// `x = y`
+    SetLocal,
+    /// Get the value of a local variable
+    /// `x`
+    GetLocal(usize),
 
     /// Negates the top value on the stack
     /// `-x`

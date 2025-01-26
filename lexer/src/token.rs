@@ -145,12 +145,14 @@ impl std::fmt::Display for TokenKind {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Keyword {
     Fn,
+    Let,
 }
 
 impl Display for Keyword {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Keyword::Fn => write!(f, "fn"),
+            Keyword::Let => write!(f, "let"),
         }
     }
 }
@@ -161,6 +163,8 @@ impl FromStr for Keyword {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "fn" => Ok(Keyword::Fn),
+            "let" => Ok(Keyword::Let),
+            // FIXME: Use lexer's error kind.
             _ => bail!("unknown keyword: {}", s),
         }
     }

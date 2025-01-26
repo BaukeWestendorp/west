@@ -105,6 +105,7 @@ fn test_ident() {
 #[rustfmt::skip]
 fn test_keywords() {
     check_lexer("fn", vec![Token { kind: TokenKind::Keyword(Keyword::Fn), span: 0..2 }]);
+    check_lexer("let", vec![Token { kind: TokenKind::Keyword(Keyword::Let), span: 0..3 }]);
 }
 
 #[test]

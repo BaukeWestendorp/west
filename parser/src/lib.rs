@@ -10,7 +10,7 @@ mod error;
 
 use std::ops::Range;
 
-use ast::Ast;
+use ast::{Ast, Ident};
 use lexer::Lexer;
 use lexer::token::{Keyword, Token, TokenKind};
 use miette::{LabeledSpan, NamedSource, Result};
@@ -54,6 +54,16 @@ impl<'src> Parser<'src> {
         }
     }
 
+    pub(crate) fn try_eat_keyword(&mut self, keyword: Keyword) -> bool {
+        match self.lexer.peek() {
+            Some(Ok(Token { kind: TokenKind::Keyword(k), .. })) if k == &keyword => {
+                self.eat().expect("checked if token exist in match");
+                true
+            }
+            _ => false,
+        }
+    }
+
     pub(crate) fn eat_expected(&mut self, expected: TokenKind) -> Result<Token> {
         match self.eat()? {
             token @ Token { kind, .. } if kind == expected => Ok(token),
@@ -63,13 +73,12 @@ impl<'src> Parser<'src> {
         }
     }
 
-    pub(crate) fn eat_keyword(&mut self, keyword: Keyword) -> bool {
-        match self.lexer.peek() {
-            Some(Ok(Token { kind: TokenKind::Keyword(k), .. })) if k == &keyword => {
-                self.eat().expect("checked if token exist in match");
-                true
+    pub(crate) fn eat_ident(&mut self, expected: TokenKind) -> Result<Ident<'src>> {
+        match self.eat()? {
+            Token { kind: TokenKind::Ident, span } => Ok(Ident(&self.source.as_str()[span])),
+            Token { kind, .. } => {
+                Err(self.err_here(ErrorKind::ExpectedToken { expected, found: kind.to_string() }))
             }
-            _ => false,
         }
     }
 

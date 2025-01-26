@@ -1,7 +1,6 @@
-use std::collections::HashMap;
 use std::ops::Range;
 
-use ast::{Ast, Expression, ExpressionId, File, Item, Literal, Operator, Statement};
+use ast::{Ast, Expression, ExpressionId, File, Ident, Item, Literal, Operator, Statement};
 use error::ErrorKind;
 use miette::Result;
 use west_error::ErrorProducer;
@@ -17,16 +16,24 @@ pub enum Ty {
     Bool,
 }
 
+struct Local<'src> {
+    name: Ident<'src>,
+    ty: Ty,
+    depth: usize,
+}
+
 pub struct Typechecker<'src> {
     source: &'src SourceFile<'src>,
     ast: &'src Ast<'src>,
 
-    _type_ids: HashMap<ExpressionId, Ty>,
+    depth: usize,
+
+    locals: Vec<Local<'src>>,
 }
 
 impl<'src> Typechecker<'src> {
     pub fn new(ast: &'src Ast<'src>, source: &'src SourceFile<'src>) -> Self {
-        Self { ast, source, _type_ids: HashMap::new() }
+        Self { ast, source, depth: 0, locals: Vec::new() }
     }
 
     pub fn check(&mut self) -> Result<()> {
@@ -52,17 +59,26 @@ impl<'src> Typechecker<'src> {
     }
 
     pub fn check_fn_item(&mut self, f: &ast::Fn<'src>) -> Result<()> {
-        for statement in &f.body.statements {
-            self.check_statement(statement)?;
-        }
+        self.check_block(&f.body)?;
 
         Ok(())
     }
 
-    pub fn check_statement(&mut self, statement: &Statement) -> Result<()> {
+    pub fn check_block(&mut self, block: &ast::Block<'src>) -> Result<()> {
+        self.enter_scope();
+        for statement in &block.statements {
+            self.check_statement(statement)?;
+        }
+        self.exit_scope();
+
+        Ok(())
+    }
+
+    pub fn check_statement(&mut self, statement: &Statement<'src>) -> Result<()> {
         match statement {
-            Statement::Expression(expression) => {
-                self.check_expression(expression)?;
+            Statement::Let { name, value } => {
+                let ty = self.check_expression(value)?;
+                self.locals.push(Local { name: *name, ty, depth: self.depth });
             }
         }
 
@@ -79,7 +95,15 @@ impl<'src> Typechecker<'src> {
                 Literal::Str(_) => Ty::Str,
                 Literal::Bool(_) => Ty::Bool,
             },
-            Expression::Ident(_) => todo!(),
+            Expression::Ident(ident) => {
+                for local in self.locals.iter().rev() {
+                    if local.name == *ident {
+                        return Ok(local.ty);
+                    }
+                }
+
+                return Err(self.err_here(ErrorKind::UnknownVariable { ident: *ident }));
+            }
             Expression::UnaryOp { op, rhs } => {
                 let rhs_ty = self.check_expression(rhs)?;
 
@@ -166,10 +190,20 @@ impl<'src> Typechecker<'src> {
 
         Ok(ty)
     }
+
+    fn enter_scope(&mut self) {
+        self.depth += 1;
+    }
+
+    fn exit_scope(&mut self) {
+        self.depth -= 1;
+
+        self.locals.retain(|local| local.depth <= self.depth);
+    }
 }
 
-impl ErrorProducer for Typechecker<'_> {
-    type ErrorKind = ErrorKind;
+impl<'src> ErrorProducer for Typechecker<'src> {
+    type ErrorKind = ErrorKind<'src>;
 
     fn name(&self) -> &str {
         "typechecker"
