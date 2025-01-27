@@ -8,13 +8,17 @@ use parser::Parser;
 use typechecker::Typechecker;
 use west_error::source::SourceFile;
 
-/// West runner
+/// West compiler
 #[derive(ClapParser, Debug)]
 #[command(version, about, long_about = None)]
 struct Args {
-    /// File to run
+    /// File to compile
     #[arg(short, long)]
     file: PathBuf,
+
+    /// Output path
+    #[arg(short, long)]
+    output: PathBuf,
 }
 
 fn main() -> Result<()> {
@@ -30,7 +34,9 @@ fn main() -> Result<()> {
     let ast = Parser::new(&source).parse().wrap_err("failed to parse file")?;
     Typechecker::new(&ast, &source).check()?;
 
-    let mut compiler = Compiler::new(&ast, &source);
+    let ctx = inkwell::context::Context::create();
+    let mut compiler = Compiler::new(&ast, &source, &ctx);
+    compiler.compile().wrap_err("failed to compile")?;
 
     Ok(())
 }

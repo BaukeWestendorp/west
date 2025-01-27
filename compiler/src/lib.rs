@@ -1,26 +1,38 @@
-use ast::{Ast, Block, Expression, ExpressionId, Ident, Item, Literal, Operator, Statement};
+use ast::{Ast, Block, Expression, ExpressionId, Ident, Item, Operator, Statement};
 use error::ErrorKind;
+use inkwell::builder::Builder;
+use inkwell::context::Context;
+use inkwell::module::Module;
 use miette::Result;
 use west_error::ErrorProducer;
 use west_error::source::SourceFile;
 
 mod error;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct Local<'src> {
-    name: Ident<'src>,
-    depth: usize,
+struct CodeGen<'ctx> {
+    ctx: &'ctx Context,
+    module: Module<'ctx>,
+    builder: Builder<'ctx>,
 }
 
-pub struct Compiler<'src> {
+pub struct Compiler<'src, 'ctx> {
     source: &'src SourceFile<'src>,
 
     ast: &'src Ast<'src>,
+
+    codegen: CodeGen<'ctx>,
 }
 
-impl<'src> Compiler<'src> {
-    pub fn new(ast: &'src Ast<'src>, source: &'src SourceFile<'src>) -> Compiler<'src> {
-        Compiler { source, ast }
+impl<'src, 'ctx> Compiler<'src, 'ctx> {
+    pub fn new(
+        ast: &'src Ast<'src>,
+        source: &'src SourceFile<'src>,
+        ctx: &'ctx Context,
+    ) -> Compiler<'src, 'ctx> {
+        let module = ctx.create_module("main");
+        let builder = ctx.create_builder();
+        let codegen = CodeGen { ctx: &ctx, module, builder };
+        Compiler { source, ast, codegen }
     }
 
     pub fn compile(&mut self) -> Result<()> {
@@ -48,20 +60,20 @@ impl<'src> Compiler<'src> {
         Ok(())
     }
 
-    fn compile_statement_let(&mut self, name: &Ident<'src>, value: &ExpressionId) -> Result<()> {
+    fn compile_statement_let(&mut self, _name: &Ident<'src>, _value: &ExpressionId) -> Result<()> {
         todo!();
     }
 
-    fn compile_statement_print(&mut self, value: &ExpressionId) -> Result<()> {
+    fn compile_statement_print(&mut self, _value: &ExpressionId) -> Result<()> {
         todo!();
     }
 
     fn compile_expression(&mut self, expression: &ExpressionId) -> Result<()> {
         match self.ast.get_expression(expression) {
-            Expression::Literal(literal) => {
+            Expression::Literal(_literal) => {
                 todo!();
             }
-            Expression::Ident(ident) => {
+            Expression::Ident(_ident) => {
                 todo!();
             }
             Expression::BinaryOp { lhs, op, rhs } => {
@@ -77,19 +89,14 @@ impl<'src> Compiler<'src> {
             }
             _ => unimplemented!(),
         }
-        Ok(())
     }
 
-    fn enter_scope(&mut self) {
-        todo!();
-    }
+    fn enter_scope(&mut self) {}
 
-    fn exit_scope(&mut self) {
-        todo!();
-    }
+    fn exit_scope(&mut self) {}
 }
 
-impl ErrorProducer for Compiler<'_> {
+impl ErrorProducer for Compiler<'_, '_> {
     type ErrorKind = ErrorKind;
 
     fn name(&self) -> &str {

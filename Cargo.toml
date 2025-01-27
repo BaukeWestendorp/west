@@ -22,5 +22,7 @@ ast = { path = "ast" }
 parser = { path = "parser" }
 lexer = { path = "lexer" }
 
+inkwell = { version = "0.5.0", features = ["llvm18-0"] }
+
 thiserror = { version = "2" }
 miette = { version = "7.4.0", features = ["fancy"] }
