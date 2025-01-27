@@ -1,7 +1,0 @@
-[package]
-name = "vm"
-version.workspace = true
-edition.workspace = true
-
-[dependencies]
-miette.workspace = true

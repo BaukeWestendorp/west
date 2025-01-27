@@ -6,7 +6,6 @@ use compiler::Compiler;
 use miette::{Context, Result};
 use parser::Parser;
 use typechecker::Typechecker;
-use vm::Vm;
 use west_error::source::SourceFile;
 
 /// West runner
@@ -30,15 +29,8 @@ fn main() -> Result<()> {
     let source = SourceFile::new(file_name, &source);
     let ast = Parser::new(&source).parse().wrap_err("failed to parse file")?;
     Typechecker::new(&ast, &source).check()?;
+
     let mut compiler = Compiler::new(&ast, &source);
-
-    let chunk = compiler.compile()?;
-    print!("{}", chunk.disassemble());
-
-    let mut stdout = std::io::stdout();
-    let mut vm = Vm::new(&mut stdout);
-    vm.push_chunk(chunk.clone());
-    vm.run().wrap_err("runtime error")?;
 
     Ok(())
 }
