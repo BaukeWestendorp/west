@@ -76,11 +76,11 @@ impl<'src> Compiler<'src> {
                     _ => unimplemented!(),
                 };
 
-                self.current_chunk.write(Opcode::Push(*float), 0);
+                self.current_chunk.write(Opcode::Push { value: *float }, 0);
             }
             Expression::Ident(ident) => {
                 if let Some(slot) = self.resolve_local(ident) {
-                    self.current_chunk.write(Opcode::GetLocal(slot), 0);
+                    self.current_chunk.write(Opcode::GetLocal { slot }, 0);
                 } else {
                     unimplemented!();
                 }

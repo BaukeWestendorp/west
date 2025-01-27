@@ -3,7 +3,7 @@ pub type ConstantIx = usize;
 #[derive(Clone)]
 pub enum Opcode {
     /// Pushes a constant onto the stack
-    Push(f64),
+    Push { value: f64 },
     /// Pop the top value off the stack
     Pop,
 
@@ -12,7 +12,7 @@ pub enum Opcode {
     SetLocal,
     /// Get the value of a local variable
     /// `x`
-    GetLocal(usize),
+    GetLocal { slot: usize },
 
     /// Inverts the sign of the top value on the stack
     /// `-x`
