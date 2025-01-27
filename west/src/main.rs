@@ -6,6 +6,7 @@ use compiler::Compiler;
 use miette::{Context, Result};
 use parser::Parser;
 use typechecker::Typechecker;
+use vm::Vm;
 use west_error::source::SourceFile;
 
 /// West runner
@@ -34,9 +35,10 @@ fn main() -> Result<()> {
     let chunk = compiler.compile()?;
     print!("{}", chunk.disassemble());
 
-    let mut vm = vm::Vm::new();
+    let mut stdout = std::io::stdout();
+    let mut vm = Vm::new(&mut stdout);
     vm.push_chunk(chunk.clone());
-    vm.run();
+    vm.run().wrap_err("runtime error")?;
 
     Ok(())
 }

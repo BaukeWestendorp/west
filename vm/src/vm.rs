@@ -1,35 +1,42 @@
 use std::collections::VecDeque;
+use std::io::Write;
+
+use miette::Result;
 
 use crate::chunk::Chunk;
 use crate::opcode::Opcode;
 
-pub struct Vm {
+pub struct Vm<'w, W>
+where
+    W: Write + 'w,
+{
     chunks: VecDeque<Chunk>,
     stack: Vec<f64>,
+
+    writer: &'w mut W,
 }
 
-impl Default for Vm {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl Vm {
-    pub fn new() -> Self {
-        Self { chunks: VecDeque::new(), stack: Vec::with_capacity(256) }
+impl<'w, W> Vm<'w, W>
+where
+    W: Write + 'w,
+{
+    pub fn new(writer: &'w mut W) -> Self {
+        Self { chunks: VecDeque::new(), stack: Vec::with_capacity(256), writer }
     }
 
     pub fn push_chunk(&mut self, chunk: Chunk) {
         self.chunks.push_back(chunk);
     }
 
-    pub fn run(&mut self) {
+    pub fn run(&mut self) -> Result<()> {
         while let Some(chunk) = self.chunks.pop_front() {
-            self.run_chunk(chunk);
+            self.run_chunk(chunk)?;
         }
+
+        Ok(())
     }
 
-    pub fn run_chunk(&mut self, chunk: Chunk) {
+    pub fn run_chunk(&mut self, chunk: Chunk) -> Result<()> {
         for opcode in chunk.opcodes() {
             match opcode {
                 Opcode::Push(value) => {
@@ -83,10 +90,16 @@ impl Vm {
 
                 Opcode::Print => {
                     let value = self.stack.last().expect("should have a value to print");
-                    println!("{value}");
+                    let res = write!(self.writer, "{value}");
+                    match res {
+                        Ok(_) => (),
+                        Err(err) => miette::bail!("failed to write: {err}"),
+                    }
                 }
             }
         }
+
+        Ok(())
     }
 }
 
@@ -144,9 +157,10 @@ mod tests {
     use crate::opcode::Opcode;
 
     fn test_chunk(chunk: Chunk) -> Option<f64> {
-        let mut vm = Vm::new();
+        let mut output = std::io::stdout();
+        let mut vm = Vm::new(&mut output);
         vm.push_chunk(chunk);
-        vm.run();
+        vm.run().unwrap();
         vm.stack.last().copied()
     }
 
