@@ -1,5 +1,6 @@
 use ast::{Ast, Block, Expression, ExpressionId, Ident, Item, Operator, Statement};
 use error::ErrorKind;
+use inkwell::basic_block::BasicBlock;
 use inkwell::builder::Builder;
 use inkwell::context::Context;
 use inkwell::module::Module;
@@ -9,18 +10,13 @@ use west_error::source::SourceFile;
 
 mod error;
 
-struct CodeGen<'ctx> {
-    ctx: &'ctx Context,
-    module: Module<'ctx>,
-    builder: Builder<'ctx>,
-}
-
 pub struct Compiler<'src, 'ctx> {
     source: &'src SourceFile<'src>,
 
     ast: &'src Ast<'src>,
 
-    codegen: CodeGen<'ctx>,
+    ctx: &'ctx Context,
+    builder: Builder<'ctx>,
 }
 
 impl<'src, 'ctx> Compiler<'src, 'ctx> {
@@ -29,27 +25,49 @@ impl<'src, 'ctx> Compiler<'src, 'ctx> {
         source: &'src SourceFile<'src>,
         ctx: &'ctx Context,
     ) -> Compiler<'src, 'ctx> {
-        let module = ctx.create_module("main");
         let builder = ctx.create_builder();
-        let codegen = CodeGen { ctx: &ctx, module, builder };
-        Compiler { source, ast, codegen }
+        Compiler { source, ast, ctx: &ctx, builder }
     }
 
-    pub fn compile(&mut self) -> Result<()> {
-        let Item::Fn(main) = &self.ast.files[0].items[0];
-
-        self.compile_block(&main.body)?;
-
-        Ok(())
+    pub fn compile(mut self) -> Result<Vec<Module<'ctx>>> {
+        self.ast.mods.iter().map(|m| self.compile_mod(&m)).collect()
     }
 
-    fn compile_block(&mut self, block: &Block<'src>) -> Result<()> {
-        self.enter_scope();
-        for statement in &block.statements {
-            self.compile_statement(statement)?;
+    pub fn compile_mod(&mut self, r#mod: &ast::Mod<'src>) -> Result<Module<'ctx>> {
+        let module = self.ctx.create_module("main");
+
+        for item in &r#mod.items {
+            self.compile_item(item, &module)?;
         }
-        self.exit_scope();
+
+        Ok(module)
+    }
+
+    fn compile_item(&mut self, item: &Item<'src>, module: &Module<'ctx>) -> Result<()> {
+        match item {
+            Item::Fn(f) => self.compile_item_fn(f, module),
+        }
+    }
+
+    fn compile_item_fn(&mut self, f: &ast::Fn<'src>, module: &Module<'ctx>) -> Result<()> {
+        // FIMXE: Actually get function return type
+        let return_type = self.ctx.i32_type();
+
+        // FIXME: Actually get function parameter types
+        let param_types = &[];
+
+        let fn_type = return_type.fn_type(param_types, false);
+        let function = module.add_function(&f.name, fn_type, None);
+        let basic_block = self.ctx.append_basic_block(function, "entry");
+
+        self.builder.position_at_end(basic_block);
+        self.builder.build_return(Some(&self.ctx.i32_type().const_int(42, true))).unwrap();
+
         Ok(())
+    }
+
+    fn compile_block(&mut self, block: &Block<'src>) -> Result<BasicBlock> {
+        todo!();
     }
 
     fn compile_statement(&mut self, statement: &Statement<'src>) -> Result<()> {

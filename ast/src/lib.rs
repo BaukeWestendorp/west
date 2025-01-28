@@ -1,15 +1,16 @@
 use std::collections::HashMap;
+use std::ops::Deref;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Ast<'src> {
-    pub files: Vec<File<'src>>,
+    pub mods: Vec<Mod<'src>>,
 
     pub(crate) expressions: HashMap<ExpressionId, Expression<'src>>,
 }
 
 impl<'src> Ast<'src> {
     pub fn new() -> Self {
-        Self { files: Vec::new(), expressions: HashMap::new() }
+        Self { mods: Vec::new(), expressions: HashMap::new() }
     }
 
     pub fn add_expression(&mut self, expression: Expression<'src>) -> ExpressionId {
@@ -24,7 +25,7 @@ impl<'src> Ast<'src> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct File<'src> {
+pub struct Mod<'src> {
     pub items: Vec<Item<'src>>,
 }
 
@@ -100,3 +101,11 @@ pub enum Literal<'src> {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Ident<'src>(pub &'src str);
+
+impl Deref for Ident<'_> {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        self.0
+    }
+}

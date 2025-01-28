@@ -6,7 +6,7 @@ members = [
     "lexer",
     "parser",
     "typechecker",
-    "west",
+    "westc",
 ]
 resolver = "2"
 

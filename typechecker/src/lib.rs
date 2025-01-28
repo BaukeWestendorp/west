@@ -1,6 +1,6 @@
 use std::ops::Range;
 
-use ast::{Ast, Expression, ExpressionId, File, Ident, Item, Literal, Operator, Statement};
+use ast::{Ast, Expression, ExpressionId, Ident, Item, Literal, Mod, Operator, Statement};
 use error::ErrorKind;
 use miette::Result;
 use west_error::ErrorProducer;
@@ -37,15 +37,15 @@ impl<'src> Typechecker<'src> {
     }
 
     pub fn check(&mut self) -> Result<()> {
-        for file in &self.ast.files {
-            self.check_file(file)?;
+        for module in &self.ast.mods {
+            self.check_module(module)?;
         }
 
         Ok(())
     }
 
-    pub fn check_file(&mut self, file: &File<'src>) -> Result<()> {
-        for item in &file.items {
+    pub fn check_module(&mut self, module: &Mod<'src>) -> Result<()> {
+        for item in &module.items {
             self.check_item(item)?;
         }
 
