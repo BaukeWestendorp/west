@@ -86,8 +86,8 @@ impl<'src> Compiler<'src> {
                 }
             }
             Expression::BinaryOp { lhs, op, rhs } => {
-                self.compile_expression(&lhs)?;
-                self.compile_expression(&rhs)?;
+                self.compile_expression(lhs)?;
+                self.compile_expression(rhs)?;
                 match op {
                     Operator::Add => self.current_chunk.write(Opcode::Add, 0),
                     Operator::Subtract => self.current_chunk.write(Opcode::Subtract, 0),

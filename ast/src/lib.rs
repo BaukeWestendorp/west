@@ -23,6 +23,12 @@ impl<'src> Ast<'src> {
     }
 }
 
+impl<'src> Default for Ast<'src> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Module<'src> {
     pub items: Vec<Item<'src>>,

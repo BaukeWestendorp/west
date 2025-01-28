@@ -134,7 +134,7 @@ mod disassembler {
                 Opcode::Pop => "Pop".to_string(),
 
                 Opcode::GetLocal { slot } => format!("GetLocal        {{ slot = {slot} }}"),
-                Opcode::SetLocal => format!("SetLocal"),
+                Opcode::SetLocal => "SetLocal".to_string(),
 
                 Opcode::Minus => "Minus".to_string(),
 

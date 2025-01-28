@@ -7,11 +7,11 @@ use crate::Parser;
 impl<'src> Parser<'src> {
     pub fn parse_statement(&mut self) -> Result<Option<Statement<'src>>> {
         if let Some(let_statement) = self.parse_statement_let()? {
-            return Ok(Some(let_statement));
+            Ok(Some(let_statement))
         } else if let Some(print_statement) = self.parse_statement_print()? {
-            return Ok(Some(print_statement));
+            Ok(Some(print_statement))
         } else {
-            return Ok(None);
+            Ok(None)
         }
     }
 

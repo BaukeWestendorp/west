@@ -128,7 +128,7 @@ impl ErrorProducer for Parser<'_> {
 
     fn current_span(&mut self) -> Range<usize> {
         match self.lexer.peek() {
-            Some(Ok(Token { span, .. })) => span.clone().into(),
+            Some(Ok(Token { span, .. })) => span.clone(),
             _ => {
                 let end = self.source().as_str().len().saturating_sub(1);
                 end..end
