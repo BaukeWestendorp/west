@@ -113,8 +113,8 @@ impl<'src> Parser<'src> {
     fn parse_prefix_expression(&mut self) -> Result<Option<Expression<'src>>> {
         let op = match self.lexer.peek() {
             Some(Ok(token)) => match token.kind {
-                TokenKind::Minus => Operator::Minus,
-                TokenKind::Bang => Operator::Negate,
+                TokenKind::Minus => Operator::Negate,
+                TokenKind::Bang => Operator::Invert,
                 _ => return Ok(None),
             },
             _ => return Ok(None),
@@ -133,8 +133,8 @@ impl<'src> Parser<'src> {
 
 fn prefix_binding_power(op: &Operator) -> ((), u8) {
     match op {
-        Operator::Minus => ((), 1),
-        Operator::Negate => ((), 11),
+        Operator::Negate => ((), 1),
+        Operator::Invert => ((), 11),
         _ => panic!("unexpected prefix operator: {:?}", op),
     }
 }
@@ -224,12 +224,12 @@ mod tests {
 
     #[test]
     fn prefix_minus() {
-        check_prefix_op(r#"-1"#, Operator::Minus, &Expression::Literal(Literal::Int(1)))
+        check_prefix_op(r#"-1"#, Operator::Negate, &Expression::Literal(Literal::Int(1)))
     }
 
     #[test]
     fn prefix_negate() {
-        check_prefix_op(r#"!true"#, Operator::Negate, &Expression::Literal(Literal::Bool(true)))
+        check_prefix_op(r#"!true"#, Operator::Invert, &Expression::Literal(Literal::Bool(true)))
     }
 
     fn check_infix_op(source: &str, op: Operator, lhs: &Expression, rhs: &Expression) {

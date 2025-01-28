@@ -6,8 +6,8 @@ pub struct SourceFile<'src> {
 }
 
 impl<'src> SourceFile<'src> {
-    pub fn new(name: String, source: &'src str) -> SourceFile<'src> {
-        SourceFile { name, source }
+    pub fn new<S: ToString>(name: S, source: &'src str) -> SourceFile<'src> {
+        SourceFile { name: name.to_string(), source }
     }
 
     pub fn name(&self) -> &str {

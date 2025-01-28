@@ -111,14 +111,14 @@ impl<'src> Typechecker<'src> {
                 let rhs_ty = self.check_expression(rhs)?;
 
                 match op {
-                    Operator::Minus => match rhs_ty {
+                    Operator::Negate => match rhs_ty {
                         Ty::Int => Ty::Int,
                         Ty::Float => Ty::Float,
-                        _ => return Err(self.err_here(ErrorKind::CannotInvertSign)),
-                    },
-                    Operator::Negate => match rhs_ty {
-                        Ty::Bool => Ty::Bool,
                         _ => return Err(self.err_here(ErrorKind::CannotNegate)),
+                    },
+                    Operator::Invert => match rhs_ty {
+                        Ty::Bool => Ty::Bool,
+                        _ => return Err(self.err_here(ErrorKind::CannotInvert)),
                     },
                     // FIXME: find a way to prevent needing a unreachable case
                     _ => unreachable!(),

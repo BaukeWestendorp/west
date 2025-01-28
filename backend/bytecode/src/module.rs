@@ -62,7 +62,7 @@ impl BytecodeModule {
 
 impl std::fmt::Display for BytecodeModule {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut lines = vec![];
+        let mut lines = vec![format!("==== bytecode module ====")];
 
         for label in self.labels.keys() {
             if let Some((path, _)) = self.function_labels.iter().find(|(_, l)| *l == label) {

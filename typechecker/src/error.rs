@@ -8,11 +8,11 @@ use crate::Ty;
 pub enum ErrorKind<'src> {
     #[error("cannot invert sign")]
     #[diagnostic(code(west::typechecker::cannot_invert_sign))]
-    CannotInvertSign,
-
-    #[error("cannot negate")]
-    #[diagnostic(code(west::typechecker::cannot_negate))]
     CannotNegate,
+
+    #[error("cannot invert conditional")]
+    #[diagnostic(code(west::typechecker::cannot_negate))]
+    CannotInvert,
 
     #[error("invalid type combination in operator: {lhs:?} {op:?} {rhs:?}")]
     #[diagnostic(code(west::typechecker::invalid_type_combination_in_operator))]

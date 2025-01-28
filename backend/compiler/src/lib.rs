@@ -1,4 +1,4 @@
-use ast::{Ast, Block, Expression, ExpressionId, Fn, Item, Literal, Module, Statement};
+use ast::{Ast, Block, Expression, ExpressionId, Fn, Item, Literal, Module, Operator, Statement};
 use bytecode::module::{BytecodeModule, Label};
 use bytecode::opcode::Opcode;
 use bytecode::reg::Register;
@@ -100,13 +100,74 @@ impl<'src> ModuleCompiler<'src> {
                 };
 
                 let reg = self.add_register();
-                self.bc_module.push(Opcode::Load { value: float, dest: reg });
+                self.bc_module.push(Opcode::Load { value: float.into(), dest: reg });
 
                 reg
             }
-            Expression::Ident(_ident) => todo!(),
-            Expression::UnaryOp { op: _op, rhs: _rhs } => todo!(),
-            Expression::BinaryOp { lhs: _lhs, op: _op, rhs: _rhs } => todo!(),
+            Expression::Ident(_ident) => {
+                todo!()
+            }
+            Expression::UnaryOp { op, rhs } => {
+                let rhs_reg = self.compile_expression(rhs);
+                let dest_reg = self.add_register();
+
+                match op {
+                    Operator::Negate => {
+                        self.bc_module.push(Opcode::Mul {
+                            left: rhs_reg.into(),
+                            right: (-1.0).into(),
+                            dest: dest_reg,
+                        });
+                    }
+                    Operator::Invert => {
+                        self.bc_module.push(Opcode::Not { value: rhs_reg.into(), dest: dest_reg });
+                    }
+                    // FIXME: Refactor `Operator` to make this `unreachable()` unnecessary.
+                    _ => unreachable!(),
+                }
+
+                dest_reg
+            }
+            Expression::BinaryOp { lhs, op, rhs } => {
+                let lhs_reg = self.compile_expression(lhs);
+                let rhs_reg = self.compile_expression(rhs);
+                let dest_reg = self.add_register();
+
+                match op {
+                    Operator::Add => {
+                        self.bc_module.push(Opcode::Add {
+                            left: lhs_reg.into(),
+                            right: rhs_reg.into(),
+                            dest: dest_reg,
+                        });
+                    }
+                    Operator::Subtract => {
+                        self.bc_module.push(Opcode::Sub {
+                            left: lhs_reg.into(),
+                            right: rhs_reg.into(),
+                            dest: dest_reg,
+                        });
+                    }
+                    Operator::Multiply => {
+                        self.bc_module.push(Opcode::Mul {
+                            left: lhs_reg.into(),
+                            right: rhs_reg.into(),
+                            dest: dest_reg,
+                        });
+                    }
+                    Operator::Divide => {
+                        self.bc_module.push(Opcode::Div {
+                            left: lhs_reg.into(),
+                            right: rhs_reg.into(),
+                            dest: dest_reg,
+                        });
+                    }
+                    // FIXME: Refactor `Operator` to make this `unreachable()` unnecessary.
+                    _ => unreachable!(),
+                }
+
+                dest_reg
+            }
             Expression::FnCall { callee: _callee, args: _args } => todo!(),
         }
     }

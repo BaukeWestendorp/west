@@ -20,3 +20,30 @@ impl std::fmt::Display for Register {
         write!(f, "r{}", self.0)
     }
 }
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum RegOrImm {
+    Register(Register),
+    Immediate(f64),
+}
+
+impl std::fmt::Display for RegOrImm {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            RegOrImm::Register(reg) => write!(f, "{}", reg),
+            RegOrImm::Immediate(imm) => write!(f, "{}", imm),
+        }
+    }
+}
+
+impl From<Register> for RegOrImm {
+    fn from(reg: Register) -> Self {
+        RegOrImm::Register(reg)
+    }
+}
+
+impl From<f64> for RegOrImm {
+    fn from(imm: f64) -> Self {
+        RegOrImm::Immediate(imm)
+    }
+}
