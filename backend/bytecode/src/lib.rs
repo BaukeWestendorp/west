@@ -1,7 +1,3 @@
-pub struct BytecodeModule {}
-
-impl BytecodeModule {
-    pub fn new() -> Self {
-        Self {}
-    }
-}
+pub mod module;
+pub mod opcode;
+pub mod reg;

@@ -106,3 +106,15 @@ pub enum Literal<'src> {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Ident<'src>(pub &'src str);
+
+impl Ident<'_> {
+    pub fn as_str(&self) -> &str {
+        self.0
+    }
+}
+
+impl std::fmt::Display for Ident<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}

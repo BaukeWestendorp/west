@@ -31,7 +31,10 @@ fn main() -> Result<()> {
     Typechecker::new(&ast, &source).check()?;
     let mut compiler = Compiler::new(&ast);
 
-    let _bytecode_module = compiler.compile();
+    let bytecode_modules = compiler.compile();
+
+    println!("{}", bytecode_modules[0]);
+
     // let mut stdout = std::io::stdout();
     // let mut vm = Vm::new(&mut stdout);
     // todo!("run bytecode module");
