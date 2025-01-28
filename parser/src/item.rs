@@ -27,14 +27,20 @@ impl<'src> Parser<'src> {
         self.eat_expected(TokenKind::ParenOpen)?;
         let params = ();
         self.eat_expected(TokenKind::ParenClose)?;
+
+        let mut return_type = None;
+        if self.try_eat(TokenKind::Colon).is_some() {
+            return_type = Some(self.parse_type()?);
+        }
+
         let body = self.parse_block()?;
-        Ok(Some(ast::Fn { name, params, body }))
+        Ok(Some(ast::Fn { name, params, return_type, body }))
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use ast::{Block, Ident, Item};
+    use ast::{Block, Ident, Item, ParsedType};
 
     use crate::{check_parser, check_parser_error};
 
@@ -43,7 +49,7 @@ mod tests {
         check_parser! {
             source: r#"fn a() {}"#,
             fn: parse_item,
-            expected: Some(Item::Fn(ast::Fn { name: Ident("a"), params: (), body: Block { statements: vec![] } }))
+            expected: Some(Item::Fn(ast::Fn { name: Ident("a"), params: (), return_type: None, body: Block { statements: vec![] } }))
         };
     }
 
@@ -52,7 +58,7 @@ mod tests {
         check_parser! {
             source: r#"fn a_very_long_name_here() {}"#,
             fn: parse_item,
-            expected: Some(Item::Fn(ast::Fn { name: Ident("a_very_long_name_here"), params: (), body: Block { statements: vec![] } }))
+            expected: Some(Item::Fn(ast::Fn { name: Ident("a_very_long_name_here"), params: (), return_type: None, body: Block { statements: vec![] } }))
         };
     }
 
@@ -71,6 +77,15 @@ mod tests {
             source: r#"fn () {}"#,
             fn: parse_item,
             expected: "expected function name"
+        };
+    }
+
+    #[test]
+    fn fn_with_type() {
+        check_parser! {
+            source: r#"fn test(): int {}"#,
+            fn: parse_item,
+            expected: Some(Item::Fn(ast::Fn { name: Ident("test"), params: (), return_type: Some(ParsedType { ident: Ident("int"), id: 0 }), body: Block { statements: vec![] } }))
         };
     }
 }

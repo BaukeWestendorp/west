@@ -21,4 +21,8 @@ pub enum ErrorKind<'src> {
     #[error("unknown variable: {ident:?}")]
     #[diagnostic(code(west::typechecker::unknown_variable))]
     UnknownVariable { ident: Ident<'src> },
+
+    #[error("unknown type: {ty:?}")]
+    #[diagnostic(code(west::typechecker::unknown_type))]
+    UnknownType { ty: Ident<'src> },
 }

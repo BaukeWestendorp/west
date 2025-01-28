@@ -1,14 +1,15 @@
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 
-use ast::Ast;
+use ast::{Ast, TypeId};
 use compiler::Compiler;
 use inkwell::context::Context;
 use inkwell::module::Module;
 use miette::{Context as _, Result};
 use parser::Parser;
-use typechecker::Typechecker;
+use typechecker::{Ty, Typechecker};
 use west_error::source::SourceFile;
 
 pub fn generate_modules<'ctx>(input_path: &Path, ctx: &'ctx Context) -> Result<Vec<Module<'ctx>>> {
@@ -28,10 +29,11 @@ pub fn generate_modules<'ctx>(input_path: &Path, ctx: &'ctx Context) -> Result<V
 
     let ast = generate_ast(&source)?;
 
-    typecheck(&ast, &source)?;
+    let types = typecheck(&ast, &source)?;
 
-    let compiler = Compiler::new(&ast, &source, &ctx);
+    let compiler = Compiler::new(&ast, &types, &source, &ctx);
     let modules = compiler.compile().wrap_err("failed to compile")?;
+
     Ok(modules)
 }
 
@@ -47,6 +49,9 @@ pub fn generate_ast<'src>(source: &'src SourceFile<'src>) -> Result<Ast<'src>> {
     Parser::new(&source).parse().wrap_err("failed to parse file")
 }
 
-pub fn typecheck<'src>(ast: &'src Ast<'src>, source: &'src SourceFile<'src>) -> Result<()> {
+pub fn typecheck<'src>(
+    ast: &'src Ast<'src>,
+    source: &'src SourceFile<'src>,
+) -> Result<HashMap<TypeId, Ty>> {
     Typechecker::new(&ast, &source).check()
 }

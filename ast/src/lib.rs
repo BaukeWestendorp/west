@@ -1,16 +1,20 @@
 use std::collections::HashMap;
 use std::ops::Deref;
 
+pub type TypeId = usize;
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Ast<'src> {
     pub mods: Vec<Mod<'src>>,
 
     pub(crate) expressions: HashMap<ExpressionId, Expression<'src>>,
+
+    type_counter: TypeId,
 }
 
 impl<'src> Ast<'src> {
     pub fn new() -> Self {
-        Self { mods: Vec::new(), expressions: HashMap::new() }
+        Self { mods: Vec::new(), expressions: HashMap::new(), type_counter: 0 }
     }
 
     pub fn add_expression(&mut self, expression: Expression<'src>) -> ExpressionId {
@@ -22,11 +26,18 @@ impl<'src> Ast<'src> {
     pub fn get_expression(&self, id: &ExpressionId) -> &Expression<'src> {
         self.expressions.get(id).expect("expression should exist")
     }
+
+    pub fn next_type_id(&mut self) -> TypeId {
+        let id = self.type_counter;
+        self.type_counter += 1;
+        id
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Mod<'src> {
     pub items: Vec<Item<'src>>,
+    pub name: String,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -38,6 +49,7 @@ pub enum Item<'src> {
 pub struct Fn<'src> {
     pub name: Ident<'src>,
     pub params: (),
+    pub return_type: Option<ParsedType<'src>>,
     pub body: Block<'src>,
 }
 
@@ -108,4 +120,10 @@ impl Deref for Ident<'_> {
     fn deref(&self) -> &Self::Target {
         self.0
     }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ParsedType<'src> {
+    pub ident: Ident<'src>,
+    pub id: TypeId,
 }

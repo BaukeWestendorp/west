@@ -5,6 +5,7 @@ mod item;
 mod literal;
 mod module;
 mod statement;
+mod ty;
 
 mod error;
 
@@ -33,9 +34,9 @@ impl<'src> Parser<'src> {
     }
 
     pub fn parse(mut self) -> Result<Ast<'src>> {
-        let file = self.parse_mod()?;
+        let r#mod = self.parse_mod("module_name".to_string())?;
 
-        self.ast.mods.push(file);
+        self.ast.mods.push(r#mod);
 
         Ok(self.ast)
     }

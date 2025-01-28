@@ -177,6 +177,7 @@ dependencies = [
  "miette",
  "parser",
  "thiserror 2.0.11",
+ "typechecker",
  "west_error",
 ]
 

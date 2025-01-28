@@ -1,6 +1,7 @@
+use std::collections::HashMap;
 use std::ops::Range;
 
-use ast::{Ast, Expression, ExpressionId, Ident, Item, Literal, Mod, Operator, Statement};
+use ast::{Ast, Expression, ExpressionId, Ident, Item, Literal, Mod, Operator, Statement, TypeId};
 use error::ErrorKind;
 use miette::Result;
 use west_error::ErrorProducer;
@@ -26,6 +27,8 @@ pub struct Typechecker<'src> {
     source: &'src SourceFile<'src>,
     ast: &'src Ast<'src>,
 
+    types: HashMap<TypeId, Ty>,
+
     depth: usize,
 
     locals: Vec<Local<'src>>,
@@ -33,18 +36,18 @@ pub struct Typechecker<'src> {
 
 impl<'src> Typechecker<'src> {
     pub fn new(ast: &'src Ast<'src>, source: &'src SourceFile<'src>) -> Self {
-        Self { ast, source, depth: 0, locals: Vec::new() }
+        Self { ast, source, types: HashMap::new(), depth: 0, locals: Vec::new() }
     }
 
-    pub fn check(&mut self) -> Result<()> {
+    pub fn check(mut self) -> Result<HashMap<TypeId, Ty>> {
         for module in &self.ast.mods {
             self.check_module(module)?;
         }
 
-        Ok(())
+        Ok(self.types)
     }
 
-    pub fn check_module(&mut self, module: &Mod<'src>) -> Result<()> {
+    fn check_module(&mut self, module: &Mod<'src>) -> Result<()> {
         for item in &module.items {
             self.check_item(item)?;
         }
@@ -52,19 +55,24 @@ impl<'src> Typechecker<'src> {
         Ok(())
     }
 
-    pub fn check_item(&mut self, item: &Item<'src>) -> Result<()> {
+    fn check_item(&mut self, item: &Item<'src>) -> Result<()> {
         match item {
             Item::Fn(f) => self.check_fn_item(f),
         }
     }
 
-    pub fn check_fn_item(&mut self, f: &ast::Fn<'src>) -> Result<()> {
+    fn check_fn_item(&mut self, f: &ast::Fn<'src>) -> Result<()> {
+        if let Some(return_type) = &f.return_type {
+            let ty = self.check_type(&return_type)?;
+            self.types.insert(return_type.id, ty);
+        }
+
         self.check_block(&f.body)?;
 
         Ok(())
     }
 
-    pub fn check_block(&mut self, block: &ast::Block<'src>) -> Result<()> {
+    fn check_block(&mut self, block: &ast::Block<'src>) -> Result<()> {
         self.enter_scope();
         for statement in &block.statements {
             self.check_statement(statement)?;
@@ -74,7 +82,7 @@ impl<'src> Typechecker<'src> {
         Ok(())
     }
 
-    pub fn check_statement(&mut self, statement: &Statement<'src>) -> Result<()> {
+    fn check_statement(&mut self, statement: &Statement<'src>) -> Result<()> {
         match statement {
             Statement::Let { name, value } => {
                 let ty = self.check_expression(value)?;
@@ -88,7 +96,7 @@ impl<'src> Typechecker<'src> {
         Ok(())
     }
 
-    pub fn check_expression(&mut self, expr_id: &ExpressionId) -> Result<Ty> {
+    fn check_expression(&mut self, expr_id: &ExpressionId) -> Result<Ty> {
         let expr = self.ast.get_expression(expr_id);
 
         let ty = match expr {
@@ -192,6 +200,16 @@ impl<'src> Typechecker<'src> {
         };
 
         Ok(ty)
+    }
+
+    fn check_type(&mut self, ty: &ast::ParsedType<'src>) -> Result<Ty> {
+        match ty.ident {
+            Ident("int") => Ok(Ty::Int),
+            Ident("float") => Ok(Ty::Float),
+            Ident("str") => Ok(Ty::Str),
+            Ident("bool") => Ok(Ty::Bool),
+            _ => Err(self.err_here(ErrorKind::UnknownType { ty: ty.ident })),
+        }
     }
 
     fn enter_scope(&mut self) {

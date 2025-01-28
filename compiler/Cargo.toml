@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
+typechecker.workspace = true
 west_error.workspace = true
 ast.workspace = true
 parser.workspace = true
