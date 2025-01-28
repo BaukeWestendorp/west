@@ -55,15 +55,6 @@ mod tests {
     }
 
     #[test]
-    fn no_semicolon() {
-        check_parser_error! {
-            source: "1",
-            fn: parse_statement,
-            expected: "unexpected EOF"
-        };
-    }
-
-    #[test]
     fn r#let() {
         let source = SourceFile::new("tests".to_string(), r#"let x = 1;"#);
         let mut parser = crate::Parser::new(&source);

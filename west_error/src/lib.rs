@@ -26,6 +26,5 @@ pub trait ErrorProducer {
                 .with_label(LabeledSpan::at(self.current_span(), "here")),
         )
         .with_source_code(NamedSource::from(self.source()))
-        .wrap_err(format!("error in {}", self.name()))
     }
 }
