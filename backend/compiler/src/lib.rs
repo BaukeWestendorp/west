@@ -4,6 +4,7 @@ use ast::{Ast, Block, Expression, ExpressionId, Fn, Item, Literal, Module, Opera
 use bytecode::module::{BytecodeModule, Label};
 use bytecode::opcode::Opcode;
 use bytecode::reg::Register;
+use bytecode::value::Value;
 
 pub struct Compiler<'src> {
     ast: &'src Ast<'src>,
@@ -105,13 +106,15 @@ impl<'src> ModuleCompiler<'src> {
         let expression = &self.ast.get_expression(expression);
         match expression {
             Expression::Literal(literal) => {
-                let float = match literal {
-                    Literal::Float(float) => *float,
-                    _ => todo!(),
+                let value = match literal {
+                    Literal::Int(value) => Value::Int(*value),
+                    Literal::Float(value) => Value::Float(*value),
+                    Literal::Str(value) => Value::Str(value.to_string()),
+                    Literal::Bool(value) => Value::Bool(*value),
                 };
 
                 let reg = self.add_register();
-                self.bc_module.push(Opcode::Load { value: float.into(), dest: reg });
+                self.bc_module.push(Opcode::Load { value: value.into(), dest: reg });
 
                 reg
             }
@@ -126,7 +129,7 @@ impl<'src> ModuleCompiler<'src> {
                     Operator::Negate => {
                         self.bc_module.push(Opcode::Mul {
                             left: rhs_reg.into(),
-                            right: (-1.0).into(),
+                            right: Value::Float(-1.0).into(),
                             dest: dest_reg,
                         });
                     }

@@ -16,6 +16,17 @@ pub enum Ty {
     Bool,
 }
 
+impl std::fmt::Display for Ty {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Ty::Int => write!(f, "<int>"),
+            Ty::Float => write!(f, "<float>"),
+            Ty::Str => write!(f, "<str>"),
+            Ty::Bool => write!(f, "<bool>"),
+        }
+    }
+}
+
 struct Local<'src> {
     name: Ident<'src>,
     ty: Ty,
@@ -130,18 +141,18 @@ impl<'src> Typechecker<'src> {
 
                 match op {
                     Operator::Add | Operator::Subtract | Operator::Multiply | Operator::Divide => {
-                        if lhs_ty == Ty::Int && rhs_ty == Ty::Int {
-                            Ty::Int
-                        } else if lhs_ty == Ty::Float && rhs_ty == Ty::Float {
-                            Ty::Float
-                        } else {
-                            return Err(self.err_here(
-                                ErrorKind::InvalidTypeCombinationInOperator {
-                                    lhs: lhs_ty,
-                                    op: *op,
-                                    rhs: rhs_ty,
-                                },
-                            ));
+                        match (lhs_ty, rhs_ty) {
+                            (Ty::Int, Ty::Int) => Ty::Int,
+                            (Ty::Float, Ty::Float) => Ty::Float,
+                            _ => {
+                                return Err(self.err_here(
+                                    ErrorKind::InvalidTypeCombinationInOperator {
+                                        lhs: lhs_ty,
+                                        op: *op,
+                                        rhs: rhs_ty,
+                                    },
+                                ));
+                            }
                         }
                     }
                     Operator::Equals

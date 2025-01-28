@@ -14,7 +14,7 @@ pub enum ErrorKind<'src> {
     #[diagnostic(code(west::typechecker::cannot_negate))]
     CannotInvert,
 
-    #[error("invalid type combination in operator: {lhs:?} {op:?} {rhs:?}")]
+    #[error("invalid type combination in operator: {lhs} {op} {rhs}")]
     #[diagnostic(code(west::typechecker::invalid_type_combination_in_operator))]
     InvalidTypeCombinationInOperator { lhs: Ty, op: Operator, rhs: Ty },
 

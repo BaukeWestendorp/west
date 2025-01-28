@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use lexer::token::TokenKind;
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Ast<'src> {
     pub modules: Vec<Module<'src>>,
@@ -94,6 +96,37 @@ pub enum Operator {
     LessThanEqual,
     MoreThanEqual,
     NotEqual,
+}
+
+impl std::fmt::Display for Operator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let token = match self {
+            Operator::Assign => TokenKind::Equals,
+            Operator::AddAssign => TokenKind::PlusEquals,
+            Operator::SubtractAssign => TokenKind::MinusEquals,
+            Operator::MultiplyAssign => TokenKind::StarEquals,
+            Operator::DivideAssign => TokenKind::SlashEquals,
+            Operator::BitAndAssign => TokenKind::AmpEquals,
+            Operator::BitOrAssign => TokenKind::PipeEquals,
+            Operator::BitAnd => TokenKind::Amp,
+            Operator::BitOr => TokenKind::Pipe,
+            Operator::LessThan => TokenKind::LessThan,
+            Operator::MoreThan => TokenKind::MoreThan,
+            Operator::Negate => TokenKind::Minus,
+            Operator::Invert => TokenKind::Bang,
+            Operator::Add => TokenKind::Plus,
+            Operator::Subtract => TokenKind::Minus,
+            Operator::Multiply => TokenKind::Star,
+            Operator::Divide => TokenKind::Slash,
+            Operator::Equals => TokenKind::EqualsEquals,
+            Operator::And => TokenKind::AmpAmp,
+            Operator::Or => TokenKind::PipePipe,
+            Operator::LessThanEqual => TokenKind::LessThanEquals,
+            Operator::MoreThanEqual => TokenKind::MoreThanEquals,
+            Operator::NotEqual => TokenKind::BangEquals,
+        };
+        write!(f, "{token}")
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]

@@ -70,6 +70,9 @@ dependencies = [
 [[package]]
 name = "ast"
 version = "0.1.0"
+dependencies = [
+ "lexer",
+]
 
 [[package]]
 name = "backtrace"

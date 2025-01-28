@@ -1,3 +1,5 @@
+use crate::value::Value;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Register(u32);
 
@@ -21,17 +23,17 @@ impl std::fmt::Display for Register {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum RegOrImm {
     Register(Register),
-    Immediate(f64),
+    Immediate(Value),
 }
 
 impl std::fmt::Display for RegOrImm {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             RegOrImm::Register(reg) => write!(f, "{}", reg),
-            RegOrImm::Immediate(imm) => write!(f, "{}", imm),
+            RegOrImm::Immediate(imm) => write!(f, "{:?}", imm),
         }
     }
 }
@@ -42,8 +44,8 @@ impl From<Register> for RegOrImm {
     }
 }
 
-impl From<f64> for RegOrImm {
-    fn from(imm: f64) -> Self {
+impl From<Value> for RegOrImm {
+    fn from(imm: Value) -> Self {
         RegOrImm::Immediate(imm)
     }
 }
