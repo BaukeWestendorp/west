@@ -1,13 +1,14 @@
 [workspace]
 members = [
     "ast",
-    "compiler",
     "west_error",
     "lexer",
     "parser",
     "typechecker",
-    "vm",
     "west",
+    "backend/compiler",
+    "backend/vm",
+    "backend/bytecode",
 ]
 resolver = "2"
 
@@ -17,12 +18,14 @@ edition = "2021"
 
 [workspace.dependencies]
 west_error = { path = "west_error" }
-vm = { path = "vm" }
-compiler = { path = "compiler" }
 typechecker = { path = "typechecker" }
 ast = { path = "ast" }
 parser = { path = "parser" }
 lexer = { path = "lexer" }
+
+compiler = { path = "backend/compiler" }
+vm = { path = "backend/vm" }
+bytecode = { path = "backend/bytecode" }
 
 thiserror = { version = "2" }
 miette = { version = "7.4.0", features = ["fancy"] }

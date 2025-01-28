@@ -102,6 +102,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8f68f53c83ab957f72c32642f3868eec03eb974d1fb82e453128456482613d36"
 
 [[package]]
+name = "bytecode"
+version = "0.1.0"
+
+[[package]]
 name = "cfg-if"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -158,11 +162,9 @@ name = "compiler"
 version = "0.1.0"
 dependencies = [
  "ast",
+ "bytecode",
  "miette",
- "parser",
  "thiserror 2.0.11",
- "vm",
- "west_error",
 ]
 
 [[package]]

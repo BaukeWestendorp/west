@@ -43,7 +43,7 @@ mod tests {
     use ast::{Expression, Ident, Literal, Statement};
     use west_error::source::SourceFile;
 
-    use crate::{check_parser, check_parser_error};
+    use crate::check_parser;
 
     #[test]
     fn semicolon_only() {
