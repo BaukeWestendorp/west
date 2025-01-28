@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use ast::{Ast, Block, Expression, ExpressionId, Fn, Item, Literal, Module, Operator, Statement};
 use bytecode::module::{BytecodeModule, Label};
 use bytecode::opcode::Opcode;
@@ -26,6 +28,9 @@ struct ModuleCompiler<'src> {
     module: &'src Module<'src>,
     bc_module: BytecodeModule,
 
+    locals: HashMap<(usize, &'src str), Register>,
+    depth: usize,
+
     label_counter: usize,
     reg_counter: u32,
     ip: usize,
@@ -37,6 +42,10 @@ impl<'src> ModuleCompiler<'src> {
             ast,
             module,
             bc_module: BytecodeModule::new(),
+
+            locals: HashMap::new(),
+            depth: 0,
+
             ip: 0,
             label_counter: 0,
             reg_counter: 0,
@@ -72,9 +81,11 @@ impl<'src> ModuleCompiler<'src> {
     }
 
     fn compile_block(&mut self, block: &Block<'src>) {
+        self.enter_scope();
         for statement in &block.statements {
             self.compile_statement(statement);
         }
+        self.exit_scope();
     }
 
     fn compile_statement(&mut self, statement: &Statement<'src>) {
@@ -85,7 +96,7 @@ impl<'src> ModuleCompiler<'src> {
             }
             Statement::Let { name, value } => {
                 let value_reg = self.compile_expression(value);
-                self.bc_module.push(Opcode::Store { name: name.to_string(), value: value_reg });
+                self.locals.insert((self.depth, name.as_str()), value_reg);
             }
         }
     }
@@ -104,8 +115,8 @@ impl<'src> ModuleCompiler<'src> {
 
                 reg
             }
-            Expression::Ident(_ident) => {
-                todo!()
+            Expression::Ident(ident) => {
+                *self.locals.get(&(self.depth, ident.as_str())).expect("local should exist")
             }
             Expression::UnaryOp { op, rhs } => {
                 let rhs_reg = self.compile_expression(rhs);
@@ -170,5 +181,13 @@ impl<'src> ModuleCompiler<'src> {
             }
             Expression::FnCall { callee: _callee, args: _args } => todo!(),
         }
+    }
+
+    fn enter_scope(&mut self) {
+        self.depth += 1;
+    }
+
+    fn exit_scope(&mut self) {
+        self.depth -= 1;
     }
 }

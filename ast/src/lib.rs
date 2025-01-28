@@ -107,8 +107,8 @@ pub enum Literal<'src> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Ident<'src>(pub &'src str);
 
-impl Ident<'_> {
-    pub fn as_str(&self) -> &str {
+impl<'src> Ident<'src> {
+    pub fn as_str(&self) -> &'src str {
         self.0
     }
 }

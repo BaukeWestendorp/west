@@ -73,17 +73,10 @@ where
                 let value = *self.read_register(value);
                 writeln!(self.writer, "{}", value).expect("should write to writer");
             }
-            Opcode::Store { name, value } => {
-                todo!();
-            }
         }
     }
 
     fn allocate_register(&mut self, reg: Register, value: f64) {
-        self.registers.insert(reg, value);
-    }
-
-    fn set_register(&mut self, reg: Register, value: f64) {
         self.registers.insert(reg, value);
     }
 

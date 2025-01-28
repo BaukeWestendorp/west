@@ -11,8 +11,6 @@ pub enum Opcode {
     Not { value: RegOrImm, dest: Register },
 
     Print { value: Register },
-
-    Store { name: String, value: Register },
 }
 
 impl std::fmt::Display for Opcode {
@@ -28,7 +26,6 @@ impl std::fmt::Display for Opcode {
             Opcode::Not { value, dest } =>       write!(f, "not   {} {}",    value, dest),
 
             Opcode::Print { value } =>           write!(f, "print {}",      value),
-            Opcode::Store { name, value } =>     write!(f, "store {} {}",   name, value),
         }
     }
 }
