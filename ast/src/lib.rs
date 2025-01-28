@@ -2,14 +2,14 @@ use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Ast<'src> {
-    pub files: Vec<File<'src>>,
+    pub modules: Vec<Module<'src>>,
 
     pub(crate) expressions: HashMap<ExpressionId, Expression<'src>>,
 }
 
 impl<'src> Ast<'src> {
     pub fn new() -> Self {
-        Self { files: Vec::new(), expressions: HashMap::new() }
+        Self { modules: Vec::new(), expressions: HashMap::new() }
     }
 
     pub fn add_expression(&mut self, expression: Expression<'src>) -> ExpressionId {
@@ -24,7 +24,7 @@ impl<'src> Ast<'src> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct File<'src> {
+pub struct Module<'src> {
     pub items: Vec<Item<'src>>,
 }
 

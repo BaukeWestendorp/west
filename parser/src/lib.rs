@@ -1,9 +1,9 @@
 mod block;
 mod expression;
-mod file;
 mod ident;
 mod item;
 mod literal;
+mod module;
 mod statement;
 
 mod error;
@@ -33,9 +33,9 @@ impl<'src> Parser<'src> {
     }
 
     pub fn parse(mut self) -> Result<Ast<'src>> {
-        let file = self.parse_file()?;
+        let module = self.parse_module()?;
 
-        self.ast.files.push(file);
+        self.ast.modules.push(module);
 
         Ok(self.ast)
     }

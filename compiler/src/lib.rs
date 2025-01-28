@@ -31,7 +31,7 @@ impl<'src> Compiler<'src> {
     }
 
     pub fn compile(&mut self) -> Result<&Chunk> {
-        let Item::Fn(main) = &self.ast.files[0].items[0];
+        let Item::Fn(main) = &self.ast.modules[0].items[0];
 
         self.compile_block(&main.body)?;
 
