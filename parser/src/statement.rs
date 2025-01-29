@@ -20,7 +20,7 @@ impl<'src> Parser<'src> {
     pub fn parse_statement_expression(&mut self) -> Result<Option<Statement<'src>>> {
         let expression = self.parse_expression()?;
         if let Some(expression) = expression {
-            self.eat_expected(TokenKind::Semicolon)?;
+            self.eat_expected(TokenKind::Semi)?;
             Ok(Some(Statement::Expression { expression }))
         } else {
             Ok(None)
@@ -33,9 +33,9 @@ impl<'src> Parser<'src> {
         }
 
         let name = self.eat_ident(TokenKind::Ident)?;
-        self.eat_expected(TokenKind::Equals)?;
+        self.eat_expected(TokenKind::Eq)?;
         let value = self.parse_expression()?.wrap_err("expected expression")?;
-        self.eat_expected(TokenKind::Semicolon)?;
+        self.eat_expected(TokenKind::Semi)?;
         Ok(Some(Statement::Let { name, value }))
     }
 
@@ -45,7 +45,7 @@ impl<'src> Parser<'src> {
         }
 
         let value = self.parse_expression()?.wrap_err("expected expression")?;
-        self.eat_expected(TokenKind::Semicolon)?;
+        self.eat_expected(TokenKind::Semi)?;
         Ok(Some(Statement::Print { value }))
     }
 }

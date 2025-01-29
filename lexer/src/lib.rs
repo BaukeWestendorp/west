@@ -40,11 +40,11 @@ impl Cursor<'_> {
                 TokenKind::Whitespace
             }
 
-            '=' => maybe_eq_kind(TokenKind::Equals, TokenKind::EqualsEquals),
+            '=' => maybe_eq_kind(TokenKind::Eq, TokenKind::EqEq),
             '&' => match self.first() {
                 '=' => {
                     self.consume();
-                    TokenKind::AmpEquals
+                    TokenKind::AmpEq
                 }
                 '&' => {
                     self.consume();
@@ -55,7 +55,7 @@ impl Cursor<'_> {
             '|' => match self.first() {
                 '=' => {
                     self.consume();
-                    TokenKind::PipeEquals
+                    TokenKind::PipeEq
                 }
                 '|' => {
                     self.consume();
@@ -63,15 +63,15 @@ impl Cursor<'_> {
                 }
                 _ => TokenKind::Pipe,
             },
-            '<' => maybe_eq_kind(TokenKind::LessThan, TokenKind::LessThanEquals),
-            '>' => maybe_eq_kind(TokenKind::MoreThan, TokenKind::MoreThanEquals),
-            '!' => maybe_eq_kind(TokenKind::Bang, TokenKind::BangEquals),
-            '+' => maybe_eq_kind(TokenKind::Plus, TokenKind::PlusEquals),
-            '-' => maybe_eq_kind(TokenKind::Minus, TokenKind::MinusEquals),
-            '*' => maybe_eq_kind(TokenKind::Star, TokenKind::StarEquals),
-            '/' => maybe_eq_kind(TokenKind::Slash, TokenKind::SlashEquals),
+            '<' => maybe_eq_kind(TokenKind::Lt, TokenKind::LtEq),
+            '>' => maybe_eq_kind(TokenKind::Gt, TokenKind::GtEq),
+            '!' => maybe_eq_kind(TokenKind::Bang, TokenKind::BangEq),
+            '+' => maybe_eq_kind(TokenKind::Plus, TokenKind::PlusEq),
+            '-' => maybe_eq_kind(TokenKind::Minus, TokenKind::MinusEq),
+            '*' => maybe_eq_kind(TokenKind::Star, TokenKind::StarEq),
+            '/' => maybe_eq_kind(TokenKind::Slash, TokenKind::SlashEq),
 
-            ';' => TokenKind::Semicolon,
+            ';' => TokenKind::Semi,
             '(' => TokenKind::ParenOpen,
             ')' => TokenKind::ParenClose,
             '{' => TokenKind::BraceOpen,

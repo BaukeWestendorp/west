@@ -49,18 +49,18 @@ pub enum TokenKind {
     /// `:`
     Colon,
     /// `;
-    Semicolon,
+    Semi,
 
     /// `=`
-    Equals,
+    Eq,
     /// `&`
     Amp,
     /// `|`
     Pipe,
     /// `<`
-    LessThan,
+    Lt,
     /// `>`
-    MoreThan,
+    Gt,
     /// `!`
     Bang,
     /// `+`
@@ -73,30 +73,30 @@ pub enum TokenKind {
     Slash,
 
     /// `==`
-    EqualsEquals,
+    EqEq,
     /// `&&`
     AmpAmp,
     /// `||`
     PipePipe,
     /// `<=`
-    LessThanEquals,
+    LtEq,
     /// `>=`
-    MoreThanEquals,
+    GtEq,
     /// `!=`
-    BangEquals,
+    BangEq,
 
     /// `+=`
-    PlusEquals,
+    PlusEq,
     /// `-=`
-    MinusEquals,
+    MinusEq,
     /// `*=`
-    StarEquals,
+    StarEq,
     /// `/=`
-    SlashEquals,
+    SlashEq,
     /// `&=`
-    AmpEquals,
+    AmpEq,
     /// `|=`
-    PipeEquals,
+    PipeEq,
 }
 
 impl std::fmt::Display for TokenKind {
@@ -113,33 +113,33 @@ impl std::fmt::Display for TokenKind {
             TokenKind::BraceOpen => write!(f, "{{"),
             TokenKind::BraceClose => write!(f, "}}"),
 
-            TokenKind::Semicolon => write!(f, ";"),
+            TokenKind::Semi => write!(f, ";"),
             TokenKind::Dot => write!(f, "."),
             TokenKind::Comma => write!(f, ","),
             TokenKind::Colon => write!(f, ":"),
-            TokenKind::Equals => write!(f, "="),
+            TokenKind::Eq => write!(f, "="),
             TokenKind::Amp => write!(f, "&"),
             TokenKind::Pipe => write!(f, "|"),
-            TokenKind::LessThan => write!(f, "<"),
-            TokenKind::MoreThan => write!(f, ">"),
+            TokenKind::Lt => write!(f, "<"),
+            TokenKind::Gt => write!(f, ">"),
             TokenKind::Bang => write!(f, "!"),
             TokenKind::Plus => write!(f, "+"),
             TokenKind::Minus => write!(f, "-"),
             TokenKind::Star => write!(f, "*"),
             TokenKind::Slash => write!(f, "/"),
 
-            TokenKind::EqualsEquals => write!(f, "=="),
+            TokenKind::EqEq => write!(f, "=="),
             TokenKind::AmpAmp => write!(f, "&&"),
             TokenKind::PipePipe => write!(f, "||"),
-            TokenKind::LessThanEquals => write!(f, "<="),
-            TokenKind::MoreThanEquals => write!(f, ">="),
-            TokenKind::BangEquals => write!(f, "!="),
-            TokenKind::PlusEquals => write!(f, "+="),
-            TokenKind::MinusEquals => write!(f, "-="),
-            TokenKind::StarEquals => write!(f, "*="),
-            TokenKind::SlashEquals => write!(f, "/="),
-            TokenKind::AmpEquals => write!(f, "&="),
-            TokenKind::PipeEquals => write!(f, "|="),
+            TokenKind::LtEq => write!(f, "<="),
+            TokenKind::GtEq => write!(f, ">="),
+            TokenKind::BangEq => write!(f, "!="),
+            TokenKind::PlusEq => write!(f, "+="),
+            TokenKind::MinusEq => write!(f, "-="),
+            TokenKind::StarEq => write!(f, "*="),
+            TokenKind::SlashEq => write!(f, "/="),
+            TokenKind::AmpEq => write!(f, "&="),
+            TokenKind::PipeEq => write!(f, "|="),
         }
     }
 }
