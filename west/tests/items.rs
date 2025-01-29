@@ -13,7 +13,7 @@ fn fn_early_return() {
                 foo();
             }
         "#,
-        expected: "\n",
+        expected: "",
     };
 }
 
