@@ -69,6 +69,7 @@ pub enum StatementKind<'src> {
     Expression(ExpressionId),
 
     Let { name: Ident<'src>, value: ExpressionId },
+    Return { value: Option<ExpressionId> },
     Print { value: ExpressionId },
 }
 

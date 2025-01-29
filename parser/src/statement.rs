@@ -12,6 +12,8 @@ impl<'src> Parser<'src> {
             Ok(Some(let_statement))
         } else if let Some(print_statement) = self.parse_statement_print()? {
             Ok(Some(print_statement))
+        } else if let Some(return_statement) = self.parse_statement_return()? {
+            Ok(Some(return_statement))
         } else {
             Ok(None)
         }
@@ -56,6 +58,18 @@ impl<'src> Parser<'src> {
         let value = self.parse_expression()?.wrap_err("expected expression")?;
         self.eat_expected(TokenKind::Semi)?;
         Ok(Some(Statement { kind: StatementKind::Print { value }, span: self.end_span() }))
+    }
+
+    pub fn parse_statement_return(&mut self) -> Result<Option<Statement<'src>>> {
+        self.start_span();
+        if !self.try_eat_keyword(Keyword::Return) {
+            self.end_span();
+            return Ok(None);
+        }
+
+        let value = self.parse_expression()?;
+        self.eat_expected(TokenKind::Semi)?;
+        Ok(Some(Statement { kind: StatementKind::Return { value }, span: self.end_span() }))
     }
 }
 
@@ -127,6 +141,38 @@ mod tests {
         assert_eq!(value, &Expression {
             kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(1), span: 6..7 }),
             span: 6..7,
+        });
+    }
+
+    #[test]
+    fn return_empty() {
+        let source = SourceFile::new("tests".to_string(), r#"return;"#);
+        let mut parser = crate::Parser::new(&source);
+
+        let statement = parser.parse_statement().unwrap().unwrap();
+
+        let StatementKind::Return { value } = statement.kind else {
+            panic!();
+        };
+
+        assert_eq!(value, None);
+    }
+
+    #[test]
+    fn return_expr() {
+        let source = SourceFile::new("tests".to_string(), r#"return 1;"#);
+        let mut parser = crate::Parser::new(&source);
+
+        let statement = parser.parse_statement().unwrap().unwrap();
+
+        let StatementKind::Return { value: Some(value) } = statement.kind else {
+            panic!();
+        };
+
+        let value = parser.ast.get_expression(&value);
+        assert_eq!(value, &Expression {
+            kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(1), span: 7..8 }),
+            span: 7..8,
         });
     }
 }
