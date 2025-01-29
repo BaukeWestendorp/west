@@ -64,19 +64,23 @@ impl BytecodeModule {
 
 impl std::fmt::Display for BytecodeModule {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut lines = vec![format!("==== bytecode module ====")];
-
-        for label in self.labels.keys() {
-            if let Some((path, _)) = self.function_labels.iter().find(|(_, l)| *l == label) {
-                lines.push(format!("-- label {} (fn {})", label, path));
-            } else {
-                lines.push(format!("-- label {}", label));
-            }
-        }
+        let mut lines = vec![];
 
         for (i, opcode) in self.opcodes.iter().enumerate() {
             lines.push(format!("{:8} {}", i, opcode));
         }
+
+        for label in self.labels.keys() {
+            let addr = self.get_label_address(label);
+            if let Some((path, _)) = self.function_labels.iter().find(|(_, l)| *l == label) {
+                lines.insert(addr, format!("-- label {} (fn {})", label, path));
+            } else {
+                lines.insert(addr, format!("-- label {}", label));
+            }
+        }
+
+        // The header after the labels to make sure we don't mess up the addresses.
+        lines.insert(0, format!("==== bytecode module ===="));
 
         for line in lines {
             writeln!(f, "{}", line)?;
