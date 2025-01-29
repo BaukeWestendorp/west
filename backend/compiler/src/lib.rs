@@ -79,6 +79,8 @@ impl<'src> ModuleCompiler<'src> {
         self.bc_module.add_function_label(function.name.to_string(), label);
 
         self.compile_block(&function.body);
+
+        self.bc_module.push(Opcode::Return { value: Value::Int(0).into() });
     }
 
     fn compile_block(&mut self, block: &Block<'src>) {
@@ -91,6 +93,9 @@ impl<'src> ModuleCompiler<'src> {
 
     fn compile_statement(&mut self, statement: &Statement<'src>) {
         match statement {
+            Statement::Expression { expression } => {
+                self.compile_expression(expression);
+            }
             Statement::Print { value } => {
                 let value_reg = self.compile_expression(value);
                 self.bc_module.push(Opcode::Print { value: value_reg });
@@ -182,7 +187,16 @@ impl<'src> ModuleCompiler<'src> {
 
                 dest_reg
             }
-            Expression::FnCall { callee: _callee, args: _args } => todo!(),
+            Expression::FnCall { callee, args: _args } => {
+                let Expression::Ident(callee_label) = self.ast.get_expression(callee) else {
+                    panic!("invalid fn call. expected callee to be an ident");
+                };
+
+                let fn_label = self.bc_module.get_function_label(callee_label.as_str());
+
+                self.bc_module.push(Opcode::Jump { label: fn_label });
+                Register::R0
+            }
         }
     }
 

@@ -41,13 +41,6 @@ impl<'src> Parser<'src> {
             }
         };
 
-        match self.lexer.peek() {
-            Some(Ok(token)) if token.kind == TokenKind::ParenOpen => {
-                lhs = self.parse_fn_call(lhs)?;
-            }
-            _ => {}
-        }
-
         loop {
             let op = match self.lexer.peek() {
                 Some(Ok(token)) => match token.kind {
@@ -61,6 +54,7 @@ impl<'src> Parser<'src> {
                     TokenKind::LessThanEquals => Operator::LessThanEqual,
                     TokenKind::MoreThanEquals => Operator::MoreThanEqual,
                     TokenKind::BangEquals => Operator::NotEqual,
+                    TokenKind::ParenOpen => Operator::FnCall,
                     _ => break,
                 },
                 Some(Err(_)) => {
@@ -68,6 +62,19 @@ impl<'src> Parser<'src> {
                 }
                 _ => return Ok(Some(lhs)),
             };
+
+            if let Some((l_bp, ())) = postfix_binding_power(&op) {
+                if l_bp < min_bp {
+                    break;
+                }
+
+                lhs = match op {
+                    Operator::FnCall => self.parse_fn_call(lhs)?,
+                    _ => unreachable!(),
+                };
+
+                continue;
+            }
 
             if let Some((l_bp, r_bp)) = infix_binding_power(&op) {
                 if l_bp < min_bp {
@@ -168,6 +175,13 @@ fn infix_binding_power(op: &Operator) -> Option<(u8, u8)> {
     };
 
     Some(bp)
+}
+
+fn postfix_binding_power(op: &Operator) -> Option<(u8, ())> {
+    match op {
+        Operator::FnCall => Some((13, ())),
+        _ => None,
+    }
 }
 
 #[cfg(test)]
@@ -369,7 +383,7 @@ mod tests {
                     actual_args.iter().map(|id| parser.ast.get_expression(id)).collect::<Vec<_>>();
                 assert_eq!(args, actual_args);
             }
-            _ => panic!(),
+            expr => panic!("expected a function call, found {:?}", expr),
         }
     }
 

@@ -55,6 +55,7 @@ pub struct Block<'src> {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Statement<'src> {
+    Expression { expression: ExpressionId },
     Let { name: Ident<'src>, value: ExpressionId },
     Print { value: ExpressionId },
 }
@@ -73,6 +74,11 @@ pub enum Expression<'src> {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Operator {
+    // Prefix
+    Negate,
+    Invert,
+
+    // Infix,
     Assign,
     AddAssign,
     SubtractAssign,
@@ -84,8 +90,6 @@ pub enum Operator {
     BitOr,
     LessThan,
     MoreThan,
-    Negate,
-    Invert,
     Add,
     Subtract,
     Multiply,
@@ -96,11 +100,17 @@ pub enum Operator {
     LessThanEqual,
     MoreThanEqual,
     NotEqual,
+
+    // Postfix
+    FnCall,
 }
 
 impl std::fmt::Display for Operator {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let token = match self {
+            Operator::Negate => TokenKind::Minus,
+            Operator::Invert => TokenKind::Bang,
+
             Operator::Assign => TokenKind::Equals,
             Operator::AddAssign => TokenKind::PlusEquals,
             Operator::SubtractAssign => TokenKind::MinusEquals,
@@ -112,8 +122,6 @@ impl std::fmt::Display for Operator {
             Operator::BitOr => TokenKind::Pipe,
             Operator::LessThan => TokenKind::LessThan,
             Operator::MoreThan => TokenKind::MoreThan,
-            Operator::Negate => TokenKind::Minus,
-            Operator::Invert => TokenKind::Bang,
             Operator::Add => TokenKind::Plus,
             Operator::Subtract => TokenKind::Minus,
             Operator::Multiply => TokenKind::Star,
@@ -124,6 +132,8 @@ impl std::fmt::Display for Operator {
             Operator::LessThanEqual => TokenKind::LessThanEquals,
             Operator::MoreThanEqual => TokenKind::MoreThanEquals,
             Operator::NotEqual => TokenKind::BangEquals,
+
+            Self::FnCall => return write!(f, "fn call"),
         };
         write!(f, "{token}")
     }

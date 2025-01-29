@@ -7,6 +7,9 @@ impl Register {
     pub fn new(id: u32) -> Self {
         Self(id)
     }
+
+    /// The register used for the return value of a function.
+    pub const R0: Register = Register(0);
 }
 
 impl std::ops::Deref for Register {

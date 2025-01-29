@@ -3,11 +3,13 @@ use std::collections::HashMap;
 use crate::opcode::Opcode;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Label(usize);
+pub struct Label {
+    id: usize,
+}
 
 impl std::fmt::Display for Label {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
+        write!(f, "{}", self.id)
     }
 }
 
@@ -15,7 +17,7 @@ pub type Address = usize;
 
 impl Label {
     pub fn new(id: usize) -> Self {
-        Self(id)
+        Self { id }
     }
 }
 
@@ -41,8 +43,8 @@ impl BytecodeModule {
         self.opcodes.push(opcode);
     }
 
-    pub fn add_label(&mut self, ix: usize, address: Address) -> Label {
-        let label = Label(ix);
+    pub fn add_label(&mut self, id: usize, address: Address) -> Label {
+        let label = Label { id };
         self.labels.insert(label, address);
         label
     }

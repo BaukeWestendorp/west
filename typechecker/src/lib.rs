@@ -1,3 +1,6 @@
+#![feature(assert_matches)]
+
+use std::assert_matches::assert_matches;
 use std::ops::Range;
 
 use ast::{Ast, Expression, ExpressionId, Ident, Item, Literal, Module, Operator, Statement};
@@ -87,6 +90,9 @@ impl<'src> Typechecker<'src> {
 
     pub fn check_statement(&mut self, statement: &Statement<'src>) -> Result<()> {
         match statement {
+            Statement::Expression { expression } => {
+                self.check_expression(expression)?;
+            }
             Statement::Let { name, value } => {
                 let ty = self.check_expression(value)?;
                 self.locals.push(Local { name: *name, ty, depth: self.depth });
@@ -190,7 +196,11 @@ impl<'src> Typechecker<'src> {
                 }
             }
             Expression::FnCall { callee, args } => {
-                let _callee_ty = self.check_expression(callee)?;
+                assert_matches!(
+                    self.ast.get_expression(callee),
+                    Expression::Ident(_),
+                    "invalid fn call. expected callee to be an ident"
+                );
 
                 let _arg_tys = args
                     .iter()

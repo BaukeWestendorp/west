@@ -1,3 +1,4 @@
+use crate::module::Label;
 use crate::reg::{RegOrImm, Register};
 
 #[derive(Debug, Clone)]
@@ -9,6 +10,9 @@ pub enum Opcode {
     Mul { left: RegOrImm, right: RegOrImm, dest: Register },
     Div { left: RegOrImm, right: RegOrImm, dest: Register },
     Not { value: RegOrImm, dest: Register },
+
+    Jump { label: Label },
+    Return { value: RegOrImm },
 
     Print { value: Register },
 }
@@ -24,6 +28,9 @@ impl std::fmt::Display for Opcode {
             Opcode::Mul { left, right, dest } => write!(f, "mul   {} {} {}", left,  right, dest),
             Opcode::Div { left, right, dest } => write!(f, "div   {} {} {}", left,  right, dest),
             Opcode::Not { value, dest } =>       write!(f, "not   {} {}",    value, dest),
+
+            Opcode::Jump { label } =>            write!(f, "jump  {}",       label),
+            Opcode::Return { value } =>          write!(f, "return {}",      value),
 
             Opcode::Print { value } =>           write!(f, "print {}",      value),
         }

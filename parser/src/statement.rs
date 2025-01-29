@@ -6,10 +6,22 @@ use crate::Parser;
 
 impl<'src> Parser<'src> {
     pub fn parse_statement(&mut self) -> Result<Option<Statement<'src>>> {
-        if let Some(let_statement) = self.parse_statement_let()? {
+        if let Some(expr_statement) = self.parse_statement_expression()? {
+            Ok(Some(expr_statement))
+        } else if let Some(let_statement) = self.parse_statement_let()? {
             Ok(Some(let_statement))
         } else if let Some(print_statement) = self.parse_statement_print()? {
             Ok(Some(print_statement))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn parse_statement_expression(&mut self) -> Result<Option<Statement<'src>>> {
+        let expression = self.parse_expression()?;
+        if let Some(expression) = expression {
+            self.eat_expected(TokenKind::Semicolon)?;
+            Ok(Some(Statement::Expression { expression }))
         } else {
             Ok(None)
         }
@@ -52,6 +64,21 @@ mod tests {
             fn: parse_statement,
             expected: None
         };
+    }
+
+    #[test]
+    fn expression() {
+        let source = SourceFile::new("tests".to_string(), r#"1.0;"#);
+        let mut parser = crate::Parser::new(&source);
+
+        let statement = parser.parse_statement().unwrap().unwrap();
+
+        let Statement::Expression { expression } = statement else {
+            panic!();
+        };
+        let value = parser.ast.get_expression(&expression);
+
+        assert_eq!(value, &Expression::Literal(Literal::Float(1.0)));
     }
 
     #[test]

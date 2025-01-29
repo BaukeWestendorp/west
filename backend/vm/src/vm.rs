@@ -15,6 +15,9 @@ where
     registers: HashMap<Register, Value>,
 
     writer: &'w mut W,
+
+    // FIMXE: Right now the instruction pointer only works for a single module.
+    ip: usize,
 }
 
 impl<'w, W> Vm<'w, W>
@@ -22,7 +25,7 @@ where
     W: Write + 'w,
 {
     pub fn new(modules: Vec<BytecodeModule>, writer: &'w mut W) -> Self {
-        Self { modules, registers: HashMap::new(), writer }
+        Self { modules, registers: HashMap::new(), writer, ip: 0 }
     }
 
     pub fn run(mut self) {
@@ -34,11 +37,11 @@ where
 
     fn run_module(&mut self, module: &BytecodeModule) {
         for opcode in module.opcodes() {
-            self.run_opcode(opcode);
+            self.run_opcode(opcode, module);
         }
     }
 
-    fn run_opcode(&mut self, opcode: &Opcode) {
+    fn run_opcode(&mut self, opcode: &Opcode, module: &BytecodeModule) {
         match opcode {
             Opcode::Load { value, dest } => {
                 let value = self.read_reg_or_imm(value).clone();
@@ -104,6 +107,12 @@ where
                 self.allocate_register(*dest, value);
             }
 
+            Opcode::Jump { label } => self.ip = module.get_label_address(label),
+            Opcode::Return { value } => {
+                let value = self.read_reg_or_imm(value).clone();
+                self.set_register(Register::R0, value);
+            }
+
             Opcode::Print { value } => {
                 let value = self.read_register(value).clone();
                 writeln!(self.writer, "{}", value).expect("should write to writer");
@@ -112,6 +121,10 @@ where
     }
 
     fn allocate_register(&mut self, reg: Register, value: Value) {
+        self.registers.insert(reg, value);
+    }
+
+    fn set_register(&mut self, reg: Register, value: Value) {
         self.registers.insert(reg, value);
     }
 
