@@ -1,5 +1,7 @@
 # West
 
+[Project tracker](https://github.com/users/BaukeWestendorp/projects/4/views/1)
+
 _WE. NEED. MORE. PROGRAMMING. LANGUAGESSSSSS BABYYYYYY!!!_
 
 West is an experimental programming language meant for me to learn how they work. Yes this probably will suck but wait until I make the new OVERHYPED LANGUAGE biaaatchhhhh (Not talking about you Java, I'll love you forever <3).
