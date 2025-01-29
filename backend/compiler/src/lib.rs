@@ -35,6 +35,9 @@ struct ModuleCompiler<'src> {
     locals: HashMap<(usize, &'src str), Register>,
     depth: usize,
 
+    /// Whether the current function can return on a different code flow path.
+    can_return_on_other_path: bool,
+    /// Whether the current function has a return statement
     has_return: bool,
 
     label_counter: usize,
@@ -52,6 +55,7 @@ impl<'src> ModuleCompiler<'src> {
             locals: HashMap::new(),
             depth: 0,
 
+            can_return_on_other_path: false,
             has_return: false,
 
             ip: 0,
@@ -88,7 +92,7 @@ impl<'src> ModuleCompiler<'src> {
         self.compile_block(&function.body);
 
         if !self.has_return {
-            self.bc_module.push(Opcode::Return { value: Some(Value::Int(0).into()) });
+            self.push(Opcode::Return { value: None });
         }
 
         self.has_return = false;
@@ -98,6 +102,9 @@ impl<'src> ModuleCompiler<'src> {
         self.enter_scope();
         for statement in &block.statements {
             self.compile_statement(statement);
+            if !self.can_return_on_other_path && self.has_return {
+                break;
+            }
         }
         self.exit_scope();
     }
@@ -109,11 +116,11 @@ impl<'src> ModuleCompiler<'src> {
             }
             StatementKind::Print { value } => {
                 let value_reg = self.compile_expression(value);
-                self.bc_module.push(Opcode::Print { value: value_reg });
+                self.push(Opcode::Print { value: value_reg });
             }
             StatementKind::Return { value } => {
                 let value_reg = value.map(|v| RegOrImm::from(self.compile_expression(&v)));
-                self.bc_module.push(Opcode::Return { value: value_reg });
+                self.push(Opcode::Return { value: value_reg });
                 self.has_return = true;
             }
             StatementKind::Let { name, value } => {
@@ -135,7 +142,7 @@ impl<'src> ModuleCompiler<'src> {
                 };
 
                 let reg = self.add_register();
-                self.bc_module.push(Opcode::Load { value: value.into(), dest: reg });
+                self.push(Opcode::Load { value: value.into(), dest: reg });
 
                 reg
             }
@@ -148,14 +155,14 @@ impl<'src> ModuleCompiler<'src> {
 
                 match op {
                     PrefixOp::Minus => {
-                        self.bc_module.push(Opcode::Mul {
+                        self.push(Opcode::Mul {
                             left: rhs_reg.into(),
                             right: Value::Float(-1.0).into(),
                             dest: dest_reg,
                         });
                     }
                     PrefixOp::Negate => {
-                        self.bc_module.push(Opcode::Not { value: rhs_reg.into(), dest: dest_reg });
+                        self.push(Opcode::Not { value: rhs_reg.into(), dest: dest_reg });
                     }
                 }
 
@@ -168,28 +175,28 @@ impl<'src> ModuleCompiler<'src> {
 
                 match op {
                     InfixOp::Add => {
-                        self.bc_module.push(Opcode::Add {
+                        self.push(Opcode::Add {
                             left: lhs_reg.into(),
                             right: rhs_reg.into(),
                             dest: dest_reg,
                         });
                     }
                     InfixOp::Subtract => {
-                        self.bc_module.push(Opcode::Sub {
+                        self.push(Opcode::Sub {
                             left: lhs_reg.into(),
                             right: rhs_reg.into(),
                             dest: dest_reg,
                         });
                     }
                     InfixOp::Multiply => {
-                        self.bc_module.push(Opcode::Mul {
+                        self.push(Opcode::Mul {
                             left: lhs_reg.into(),
                             right: rhs_reg.into(),
                             dest: dest_reg,
                         });
                     }
                     InfixOp::Divide => {
-                        self.bc_module.push(Opcode::Div {
+                        self.push(Opcode::Div {
                             left: lhs_reg.into(),
                             right: rhs_reg.into(),
                             dest: dest_reg,
@@ -208,10 +215,15 @@ impl<'src> ModuleCompiler<'src> {
 
                 let fn_label = self.bc_module.get_function_label(callee_label.as_str());
 
-                self.bc_module.push(Opcode::Jump { label: fn_label });
+                self.push(Opcode::Jump { label: fn_label });
                 Register::R0
             }
         }
+    }
+
+    fn push(&mut self, opcode: Opcode) {
+        self.bc_module.push(opcode);
+        self.ip += 1;
     }
 
     fn enter_scope(&mut self) {
