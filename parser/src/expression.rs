@@ -1,4 +1,4 @@
-use ast::{Expression, ExpressionId, InfixOp, Op, PostfixOp, PrefixOp};
+use ast::{Expression, ExpressionId, ExpressionKind, InfixOp, Op, PostfixOp, PrefixOp};
 use lexer::token::TokenKind;
 use miette::{Context, Result};
 use west_error::ErrorProducer;
@@ -17,9 +17,11 @@ impl<'src> Parser<'src> {
 
     fn parse_expression_bp(&mut self, min_bp: u8) -> Result<Option<Expression<'src>>> {
         let mut lhs = if let Some(ident) = self.parse_ident()? {
-            Expression::Ident(ident)
+            let span = ident.span.clone();
+            Expression { kind: ExpressionKind::Ident(ident), span }
         } else if let Some(literal) = self.parse_literal()? {
-            Expression::Literal(literal)
+            let span = literal.span.clone();
+            Expression { kind: ExpressionKind::Literal(literal), span }
         } else if let Some(expr) = self.parse_prefix_expression()? {
             expr
         } else {
@@ -91,10 +93,14 @@ impl<'src> Parser<'src> {
                     .wrap_err("on the right-hand side")?
                     .wrap_err("expected an expression")?;
 
-                lhs = Expression::BinaryOp {
-                    lhs: self.ast.add_expression(lhs),
-                    op,
-                    rhs: self.ast.add_expression(rhs),
+                let span = lhs.span.start..self.current_span().end;
+                lhs = Expression {
+                    kind: ExpressionKind::BinaryOp {
+                        lhs: self.ast.add_expression(lhs),
+                        op,
+                        rhs: self.ast.add_expression(rhs),
+                    },
+                    span,
                 };
                 continue;
             }
@@ -117,7 +123,11 @@ impl<'src> Parser<'src> {
         }
         self.eat_expected(TokenKind::ParenClose)?;
 
-        Ok(Expression::FnCall { callee: self.ast.add_expression(callee), args })
+        let span = callee.span.start..self.current_span().end;
+        Ok(Expression {
+            kind: ExpressionKind::FnCall { callee: self.ast.add_expression(callee), args },
+            span,
+        })
     }
 
     fn parse_prefix_expression(&mut self) -> Result<Option<Expression<'src>>> {
@@ -137,7 +147,10 @@ impl<'src> Parser<'src> {
             .parse_expression_bp(r_bp)
             .wrap_err("in right-hand side")?
             .wrap_err("expected an expression")?;
-        Ok(Some(Expression::UnaryOp { op, rhs: self.ast.add_expression(rhs) }))
+        Ok(Some(Expression {
+            kind: ExpressionKind::UnaryOp { op, rhs: self.ast.add_expression(rhs) },
+            span: self.current_span(),
+        }))
     }
 }
 
@@ -183,7 +196,7 @@ fn postfix_binding_power(op: &PostfixOp) -> (u8, ()) {
 
 #[cfg(test)]
 mod tests {
-    use ast::{Expression, Ident, InfixOp, Literal, PrefixOp};
+    use ast::{Expression, ExpressionKind, Ident, InfixOp, Literal, LiteralKind, PrefixOp};
 
     fn check_simple(source: &str, expected: Option<&Expression>) {
         let source = west_error::source::SourceFile::new("tests".to_string(), source);
@@ -191,23 +204,44 @@ mod tests {
 
         let expr_id = parser.parse_expression().unwrap();
 
-        let expr = expr_id.map(|id| parser.ast.get_expression(&id));
-        assert_eq!(expr, expected);
+        let actual = expr_id.map(|id| parser.ast.get_expression(&id));
+        assert_eq!(actual, expected);
     }
 
     #[test]
     fn expression_literal_int() {
-        check_simple(r#"1"#, Some(&Expression::Literal(Literal::Int(1))))
+        check_simple(
+            r#"1"#,
+            Some(&Expression {
+                kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(1), span: 0..1 }),
+                span: 0..1,
+            }),
+        )
     }
 
     #[test]
     fn expression_literal_str() {
-        check_simple(r#""hello""#, Some(&Expression::Literal(Literal::Str("hello"))))
+        check_simple(
+            r#""hello""#,
+            Some(&Expression {
+                kind: ExpressionKind::Literal(Literal {
+                    kind: LiteralKind::Str("hello"),
+                    span: 0..7,
+                }),
+                span: 0..7,
+            }),
+        )
     }
 
     #[test]
     fn expression_ident() {
-        check_simple(r#"a"#, Some(&Expression::Ident(Ident("a"))))
+        check_simple(
+            r#"a"#,
+            Some(&Expression {
+                kind: ExpressionKind::Ident(Ident { name: "a", span: 0..1 }),
+                span: 0..1,
+            }),
+        )
     }
 
     #[test]
@@ -222,12 +256,12 @@ mod tests {
         let expr_id = parser.parse_expression().unwrap();
         let expr = expr_id.map(|id| parser.ast.get_expression(&id)).unwrap();
 
-        match expr {
-            Expression::UnaryOp { op: actual_op, rhs: actual_rhs } => {
-                assert_eq!(op, *actual_op);
+        match &expr.kind {
+            ExpressionKind::UnaryOp { op: actual_op, rhs: actual_rhs } => {
+                assert_eq!(*actual_op, op);
 
                 let actual_rhs = parser.ast.get_expression(actual_rhs);
-                assert_eq!(rhs, actual_rhs);
+                assert_eq!(actual_rhs, rhs);
             }
             _ => panic!(),
         }
@@ -235,12 +269,18 @@ mod tests {
 
     #[test]
     fn prefix_minus() {
-        check_prefix_op(r#"-1"#, PrefixOp::Minus, &Expression::Literal(Literal::Int(1)))
+        check_prefix_op(r#"-1"#, PrefixOp::Minus, &Expression {
+            kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(1), span: 1..2 }),
+            span: 1..2,
+        })
     }
 
     #[test]
     fn prefix_negate() {
-        check_prefix_op(r#"!true"#, PrefixOp::Negate, &Expression::Literal(Literal::Bool(true)))
+        check_prefix_op(r#"!true"#, PrefixOp::Negate, &Expression {
+            kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Bool(true), span: 1..5 }),
+            span: 1..5,
+        })
     }
 
     fn check_infix_op(source: &str, op: InfixOp, lhs: &Expression, rhs: &Expression) {
@@ -250,15 +290,15 @@ mod tests {
         let expr_id = parser.parse_expression().unwrap();
         let expr = expr_id.map(|id| parser.ast.get_expression(&id)).unwrap();
 
-        match expr {
-            Expression::BinaryOp { op: actual_op, lhs: actual_lhs, rhs: actual_rhs } => {
-                assert_eq!(op, *actual_op);
+        match &expr.kind {
+            ExpressionKind::BinaryOp { op: actual_op, lhs: actual_lhs, rhs: actual_rhs } => {
+                assert_eq!(*actual_op, op);
 
                 let actual_lhs = parser.ast.get_expression(actual_lhs);
-                assert_eq!(lhs, actual_lhs);
+                assert_eq!(actual_lhs, lhs);
 
                 let actual_rhs = parser.ast.get_expression(actual_rhs);
-                assert_eq!(rhs, actual_rhs);
+                assert_eq!(actual_rhs, rhs);
             }
             _ => panic!(),
         }
@@ -269,8 +309,14 @@ mod tests {
         check_infix_op(
             r#"1 + 2"#,
             InfixOp::Add,
-            &Expression::Literal(Literal::Int(1)),
-            &Expression::Literal(Literal::Int(2)),
+            &Expression {
+                kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(1), span: 0..1 }),
+                span: 0..1,
+            },
+            &Expression {
+                kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(2), span: 4..5 }),
+                span: 4..5,
+            },
         );
     }
 
@@ -279,8 +325,14 @@ mod tests {
         check_infix_op(
             r#"1 - 2"#,
             InfixOp::Subtract,
-            &Expression::Literal(Literal::Int(1)),
-            &Expression::Literal(Literal::Int(2)),
+            &Expression {
+                kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(1), span: 0..1 }),
+                span: 0..1,
+            },
+            &Expression {
+                kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(2), span: 4..5 }),
+                span: 4..5,
+            },
         );
     }
 
@@ -289,8 +341,14 @@ mod tests {
         check_infix_op(
             r#"1 * 2"#,
             InfixOp::Multiply,
-            &Expression::Literal(Literal::Int(1)),
-            &Expression::Literal(Literal::Int(2)),
+            &Expression {
+                kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(1), span: 0..1 }),
+                span: 0..1,
+            },
+            &Expression {
+                kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(2), span: 4..5 }),
+                span: 4..5,
+            },
         );
     }
 
@@ -299,8 +357,14 @@ mod tests {
         check_infix_op(
             r#"1 / 2"#,
             InfixOp::Divide,
-            &Expression::Literal(Literal::Int(1)),
-            &Expression::Literal(Literal::Int(2)),
+            &Expression {
+                kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(1), span: 0..1 }),
+                span: 0..1,
+            },
+            &Expression {
+                kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(2), span: 4..5 }),
+                span: 4..5,
+            },
         );
     }
 
@@ -309,8 +373,14 @@ mod tests {
         check_infix_op(
             r#"1 == 2"#,
             InfixOp::Equals,
-            &Expression::Literal(Literal::Int(1)),
-            &Expression::Literal(Literal::Int(2)),
+            &Expression {
+                kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(1), span: 0..1 }),
+                span: 0..1,
+            },
+            &Expression {
+                kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(2), span: 5..6 }),
+                span: 5..6,
+            },
         );
     }
 
@@ -319,8 +389,14 @@ mod tests {
         check_infix_op(
             r#"1 && 2"#,
             InfixOp::And,
-            &Expression::Literal(Literal::Int(1)),
-            &Expression::Literal(Literal::Int(2)),
+            &Expression {
+                kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(1), span: 0..1 }),
+                span: 0..1,
+            },
+            &Expression {
+                kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(2), span: 5..6 }),
+                span: 5..6,
+            },
         );
     }
 
@@ -329,8 +405,14 @@ mod tests {
         check_infix_op(
             r#"1 || 2"#,
             InfixOp::Or,
-            &Expression::Literal(Literal::Int(1)),
-            &Expression::Literal(Literal::Int(2)),
+            &Expression {
+                kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(1), span: 0..1 }),
+                span: 0..1,
+            },
+            &Expression {
+                kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(2), span: 5..6 }),
+                span: 5..6,
+            },
         );
     }
 
@@ -339,8 +421,14 @@ mod tests {
         check_infix_op(
             r#"1 <= 2"#,
             InfixOp::LessThanEqual,
-            &Expression::Literal(Literal::Int(1)),
-            &Expression::Literal(Literal::Int(2)),
+            &Expression {
+                kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(1), span: 0..1 }),
+                span: 0..1,
+            },
+            &Expression {
+                kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(2), span: 5..6 }),
+                span: 5..6,
+            },
         );
     }
 
@@ -349,8 +437,14 @@ mod tests {
         check_infix_op(
             r#"1 >= 2"#,
             InfixOp::MoreThanEqual,
-            &Expression::Literal(Literal::Int(1)),
-            &Expression::Literal(Literal::Int(2)),
+            &Expression {
+                kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(1), span: 0..1 }),
+                span: 0..1,
+            },
+            &Expression {
+                kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(2), span: 5..6 }),
+                span: 5..6,
+            },
         );
     }
 
@@ -359,8 +453,14 @@ mod tests {
         check_infix_op(
             r#"1 != 2"#,
             InfixOp::NotEqual,
-            &Expression::Literal(Literal::Int(1)),
-            &Expression::Literal(Literal::Int(2)),
+            &Expression {
+                kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(1), span: 0..1 }),
+                span: 0..1,
+            },
+            &Expression {
+                kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(2), span: 5..6 }),
+                span: 5..6,
+            },
         );
     }
 
@@ -371,14 +471,14 @@ mod tests {
         let expr_id = parser.parse_expression().unwrap();
         let expr = expr_id.map(|id| parser.ast.get_expression(&id)).unwrap();
 
-        match expr {
-            Expression::FnCall { callee: actual_callee, args: actual_args } => {
+        match &expr.kind {
+            ExpressionKind::FnCall { callee: actual_callee, args: actual_args } => {
                 let actual_callee = parser.ast.get_expression(actual_callee);
-                assert_eq!(callee, actual_callee);
+                assert_eq!(actual_callee, callee);
 
                 let actual_args =
                     actual_args.iter().map(|id| parser.ast.get_expression(id)).collect::<Vec<_>>();
-                assert_eq!(args, actual_args);
+                assert_eq!(actual_args, args);
             }
             expr => panic!("expected a function call, found {:?}", expr),
         }
@@ -386,32 +486,97 @@ mod tests {
 
     #[test]
     fn fn_call_no_args() {
-        check_call(r#"test()"#, &Expression::Ident(Ident("test")), vec![])
+        check_call(
+            r#"test()"#,
+            &Expression {
+                kind: ExpressionKind::Ident(Ident { name: "test", span: 0..4 }),
+                span: 0..4,
+            },
+            vec![],
+        )
     }
 
     #[test]
     fn fn_call_single_arg() {
-        check_call(r#"test(1)"#, &Expression::Ident(Ident("test")), vec![&Expression::Literal(
-            Literal::Int(1),
-        )])
+        check_call(
+            r#"test(1)"#,
+            &Expression {
+                kind: ExpressionKind::Ident(Ident { name: "test", span: 0..4 }),
+                span: 0..4,
+            },
+            vec![&Expression {
+                kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(1), span: 5..6 }),
+                span: 5..6,
+            }],
+        )
     }
 
     #[test]
     fn fn_call_multiple_args() {
-        check_call(r#"test(1, 2, 3)"#, &Expression::Ident(Ident("test")), vec![
-            &Expression::Literal(Literal::Int(1)),
-            &Expression::Literal(Literal::Int(2)),
-            &Expression::Literal(Literal::Int(3)),
-        ])
+        check_call(
+            r#"test(1, 2, 3)"#,
+            &Expression {
+                kind: ExpressionKind::Ident(Ident { name: "test", span: 0..4 }),
+                span: 0..4,
+            },
+            vec![
+                &Expression {
+                    kind: ExpressionKind::Literal(Literal {
+                        kind: LiteralKind::Int(1),
+                        span: 5..6,
+                    }),
+                    span: 5..6,
+                },
+                &Expression {
+                    kind: ExpressionKind::Literal(Literal {
+                        kind: LiteralKind::Int(2),
+                        span: 8..9,
+                    }),
+                    span: 8..9,
+                },
+                &Expression {
+                    kind: ExpressionKind::Literal(Literal {
+                        kind: LiteralKind::Int(3),
+                        span: 11..12,
+                    }),
+                    span: 11..12,
+                },
+            ],
+        )
     }
 
     #[test]
     fn fn_call_trailing_comma() {
-        check_call(r#"test(1, 2, 3,)"#, &Expression::Ident(Ident("test")), vec![
-            &Expression::Literal(Literal::Int(1)),
-            &Expression::Literal(Literal::Int(2)),
-            &Expression::Literal(Literal::Int(3)),
-        ])
+        check_call(
+            r#"test(1, 2, 3,)"#,
+            &Expression {
+                kind: ExpressionKind::Ident(Ident { name: "test", span: 0..4 }),
+                span: 0..4,
+            },
+            vec![
+                &Expression {
+                    kind: ExpressionKind::Literal(Literal {
+                        kind: LiteralKind::Int(1),
+                        span: 5..6,
+                    }),
+                    span: 5..6,
+                },
+                &Expression {
+                    kind: ExpressionKind::Literal(Literal {
+                        kind: LiteralKind::Int(2),
+                        span: 8..9,
+                    }),
+                    span: 8..9,
+                },
+                &Expression {
+                    kind: ExpressionKind::Literal(Literal {
+                        kind: LiteralKind::Int(3),
+                        span: 11..12,
+                    }),
+                    span: 11..12,
+                },
+            ],
+        )
     }
 
     #[test]

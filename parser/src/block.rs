@@ -6,19 +6,20 @@ use crate::Parser;
 
 impl<'src> Parser<'src> {
     pub fn parse_block(&mut self) -> Result<Block<'src>> {
+        self.start_span();
         self.eat_expected(TokenKind::BraceOpen)?;
         let mut statements = Vec::new();
         while let Some(statement) = self.parse_statement()? {
             statements.push(statement);
         }
         self.eat_expected(TokenKind::BraceClose)?;
-        Ok(Block { statements })
+        Ok(Block { statements, span: self.end_span() })
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use ast::{Block, Expression, Literal, Statement};
+    use ast::{Block, Expression, ExpressionKind, Literal, LiteralKind, StatementKind};
     use west_error::source::SourceFile;
 
     use crate::{check_parser, check_parser_error};
@@ -26,9 +27,9 @@ mod tests {
     #[test]
     fn block_empty() {
         check_parser! {
-            source: r#"{}"#,
+            source: r#"{   }"#,
             fn: parse_block,
-            expected: Block { statements: vec![] }
+            expected: Block { statements: vec![], span: 0..5 }
         }
     }
 
@@ -48,12 +49,17 @@ mod tests {
 
         let block = parser.parse_block().unwrap();
 
-        let Statement::Let { value, .. } = &block.statements[0] else {
+        assert_eq!(block.span, 0..14);
+
+        let StatementKind::Let { value, .. } = &block.statements[0].kind else {
             panic!();
         };
         let value = parser.ast.get_expression(&value);
 
-        assert_eq!(value, &Expression::Literal(Literal::Int(1)));
+        assert_eq!(value, &Expression {
+            kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(1), span: 10..11 }),
+            span: 10..11
+        });
     }
 
     #[test]
@@ -63,16 +69,24 @@ mod tests {
 
         let block = parser.parse_block().unwrap();
 
-        let Statement::Let { value: value_1, .. } = &block.statements[0] else {
+        assert_eq!(block.span, 0..25);
+
+        let StatementKind::Let { value: value_1, .. } = &block.statements[0].kind else {
             panic!();
         };
         let value_1 = parser.ast.get_expression(&value_1);
-        assert_eq!(value_1, &Expression::Literal(Literal::Int(1)));
+        assert_eq!(value_1, &Expression {
+            kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(1), span: 10..11 }),
+            span: 10..11
+        });
 
-        let Statement::Let { value: value_2, .. } = &block.statements[1] else {
+        let StatementKind::Let { value: value_2, .. } = &block.statements[1].kind else {
             panic!();
         };
         let value_2 = parser.ast.get_expression(&value_2);
-        assert_eq!(value_2, &Expression::Literal(Literal::Int(2)));
+        assert_eq!(value_2, &Expression {
+            kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(2), span: 21..22 }),
+            span: 21..22
+        });
     }
 }

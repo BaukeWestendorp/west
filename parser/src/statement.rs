@@ -1,4 +1,4 @@
-use ast::Statement;
+use ast::{Statement, StatementKind};
 use lexer::token::{Keyword, TokenKind};
 use miette::{Context, Result};
 
@@ -18,17 +18,24 @@ impl<'src> Parser<'src> {
     }
 
     pub fn parse_statement_expression(&mut self) -> Result<Option<Statement<'src>>> {
+        self.start_span();
         let expression = self.parse_expression()?;
         if let Some(expression) = expression {
             self.eat_expected(TokenKind::Semi)?;
-            Ok(Some(Statement::Expression { expression }))
+            Ok(Some(Statement {
+                kind: StatementKind::Expression(expression),
+                span: self.end_span(),
+            }))
         } else {
+            self.end_span();
             Ok(None)
         }
     }
 
     pub fn parse_statement_let(&mut self) -> Result<Option<Statement<'src>>> {
+        self.start_span();
         if !self.try_eat_keyword(Keyword::Let) {
+            self.end_span();
             return Ok(None);
         }
 
@@ -36,23 +43,25 @@ impl<'src> Parser<'src> {
         self.eat_expected(TokenKind::Eq)?;
         let value = self.parse_expression()?.wrap_err("expected expression")?;
         self.eat_expected(TokenKind::Semi)?;
-        Ok(Some(Statement::Let { name, value }))
+        Ok(Some(Statement { kind: StatementKind::Let { name, value }, span: self.end_span() }))
     }
 
     pub fn parse_statement_print(&mut self) -> Result<Option<Statement<'src>>> {
+        self.start_span();
         if !self.try_eat_keyword(Keyword::Print) {
+            self.end_span();
             return Ok(None);
         }
 
         let value = self.parse_expression()?.wrap_err("expected expression")?;
         self.eat_expected(TokenKind::Semi)?;
-        Ok(Some(Statement::Print { value }))
+        Ok(Some(Statement { kind: StatementKind::Print { value }, span: self.end_span() }))
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use ast::{Expression, Ident, Literal, Statement};
+    use ast::{Expression, ExpressionKind, Ident, Literal, LiteralKind, StatementKind};
     use west_error::source::SourceFile;
 
     use crate::check_parser;
@@ -73,12 +82,15 @@ mod tests {
 
         let statement = parser.parse_statement().unwrap().unwrap();
 
-        let Statement::Expression { expression } = statement else {
+        let StatementKind::Expression(expression) = statement.kind else {
             panic!();
         };
         let value = parser.ast.get_expression(&expression);
 
-        assert_eq!(value, &Expression::Literal(Literal::Float(1.0)));
+        assert_eq!(value, &Expression {
+            kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Float(1.0), span: 0..3 }),
+            span: 0..3,
+        });
     }
 
     #[test]
@@ -88,13 +100,16 @@ mod tests {
 
         let statement = parser.parse_statement().unwrap().unwrap();
 
-        let Statement::Let { name, value } = statement else {
+        let StatementKind::Let { name, value } = statement.kind else {
             panic!();
         };
         let value = parser.ast.get_expression(&value);
 
-        assert_eq!(name, Ident("x"));
-        assert_eq!(value, &Expression::Literal(Literal::Int(1)));
+        assert_eq!(name, Ident { name: "x", span: 4..5 });
+        assert_eq!(value, &Expression {
+            kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(1), span: 8..9 }),
+            span: 8..9,
+        });
     }
 
     #[test]
@@ -104,11 +119,14 @@ mod tests {
 
         let statement = parser.parse_statement().unwrap().unwrap();
 
-        let Statement::Print { value } = statement else {
+        let StatementKind::Print { value } = statement.kind else {
             panic!();
         };
         let value = parser.ast.get_expression(&value);
 
-        assert_eq!(value, &Expression::Literal(Literal::Int(1)));
+        assert_eq!(value, &Expression {
+            kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(1), span: 6..7 }),
+            span: 6..7,
+        });
     }
 }

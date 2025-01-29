@@ -25,11 +25,20 @@ pub struct Parser<'src> {
     pub(crate) lexer: std::iter::Peekable<Lexer<'src>>,
 
     ast: Ast<'src>,
+
+    span_stack: Vec<Range<usize>>,
+    prev_span: Range<usize>,
 }
 
 impl<'src> Parser<'src> {
     pub fn new(source: &'src SourceFile<'src>) -> Parser<'src> {
-        Parser { source, lexer: Lexer::new(source).peekable(), ast: Ast::new() }
+        Parser {
+            source,
+            lexer: Lexer::new(source).peekable(),
+            ast: Ast::new(),
+            span_stack: Vec::new(),
+            prev_span: 0..0,
+        }
     }
 
     pub fn parse(mut self) -> Result<Ast<'src>> {
@@ -41,6 +50,7 @@ impl<'src> Parser<'src> {
     }
 
     pub(crate) fn eat(&mut self) -> Result<Token> {
+        self.prev_span = self.current_span();
         match self.lexer.next() {
             Some(token) => token,
             _ => Err(self.err_unexpected_eof(None)),
@@ -75,7 +85,9 @@ impl<'src> Parser<'src> {
 
     pub(crate) fn eat_ident(&mut self, expected: TokenKind) -> Result<Ident<'src>> {
         match self.eat()? {
-            Token { kind: TokenKind::Ident, span } => Ok(Ident(&self.source.as_str()[span])),
+            Token { kind: TokenKind::Ident, span } => {
+                Ok(Ident { name: &self.source.as_str()[span.clone()], span })
+            }
             Token { kind, .. } => {
                 Err(self.err_here(ErrorKind::ExpectedToken { expected, found: kind.to_string() }))
             }
@@ -83,6 +95,7 @@ impl<'src> Parser<'src> {
     }
 
     pub(crate) fn eat_or_eof(&mut self) -> Result<Option<Token>> {
+        self.prev_span = self.current_span();
         match self.lexer.next() {
             Some(Ok(token)) => Ok(Some(token)),
             Some(Err(err)) => Err(err),
@@ -112,6 +125,17 @@ impl<'src> Parser<'src> {
 
     fn at_eof(&mut self) -> bool {
         self.lexer.peek().is_none()
+    }
+
+    pub(crate) fn start_span(&mut self) {
+        let start = self.current_span().start;
+        self.span_stack.push(start..start);
+    }
+
+    pub(crate) fn end_span(&mut self) -> Range<usize> {
+        let initial = self.span_stack.pop().expect("span stack should not be empty");
+        let end = self.prev_span.end;
+        initial.start..end
     }
 }
 

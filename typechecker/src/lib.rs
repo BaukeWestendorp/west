@@ -4,7 +4,8 @@ use std::assert_matches::assert_matches;
 use std::ops::Range;
 
 use ast::{
-    Ast, Expression, ExpressionId, Ident, InfixOp, Item, Literal, Module, PrefixOp, Statement,
+    Ast, Expression, ExpressionId, ExpressionKind, Ident, InfixOp, Item, ItemKind, LiteralKind,
+    Module, PrefixOp, Statement, StatementKind,
 };
 use error::ErrorKind;
 use miette::Result;
@@ -45,11 +46,13 @@ pub struct Typechecker<'src> {
     depth: usize,
 
     locals: Vec<Local<'src>>,
+
+    current_span: &'src Range<usize>,
 }
 
 impl<'src> Typechecker<'src> {
     pub fn new(ast: &'src Ast<'src>, source: &'src SourceFile<'src>) -> Self {
-        Self { ast, source, depth: 0, locals: Vec::new() }
+        Self { ast, source, depth: 0, locals: Vec::new(), current_span: &(0..0) }
     }
 
     pub fn check(&mut self) -> Result<()> {
@@ -60,27 +63,29 @@ impl<'src> Typechecker<'src> {
         Ok(())
     }
 
-    pub fn check_module(&mut self, module: &Module<'src>) -> Result<()> {
+    pub fn check_module(&mut self, module: &'src Module<'src>) -> Result<()> {
         for item in &module.items {
+            self.current_span = &item.span;
             self.check_item(item)?;
         }
 
         Ok(())
     }
 
-    pub fn check_item(&mut self, item: &Item<'src>) -> Result<()> {
-        match item {
-            Item::Fn(f) => self.check_fn_item(f),
+    pub fn check_item(&mut self, item: &'src Item<'src>) -> Result<()> {
+        match &item.kind {
+            ItemKind::Fn(f) => self.check_fn_item(f),
         }
     }
 
-    pub fn check_fn_item(&mut self, f: &ast::Fn<'src>) -> Result<()> {
+    pub fn check_fn_item(&mut self, f: &'src ast::Fn<'src>) -> Result<()> {
         self.check_block(&f.body)?;
 
         Ok(())
     }
 
-    pub fn check_block(&mut self, block: &ast::Block<'src>) -> Result<()> {
+    pub fn check_block(&mut self, block: &'src ast::Block<'src>) -> Result<()> {
+        self.current_span = &block.span;
         self.enter_scope();
         for statement in &block.statements {
             self.check_statement(statement)?;
@@ -90,16 +95,17 @@ impl<'src> Typechecker<'src> {
         Ok(())
     }
 
-    pub fn check_statement(&mut self, statement: &Statement<'src>) -> Result<()> {
-        match statement {
-            Statement::Expression { expression } => {
+    pub fn check_statement(&mut self, statement: &'src Statement<'src>) -> Result<()> {
+        self.current_span = &statement.span;
+        match &statement.kind {
+            StatementKind::Expression(expression) => {
                 self.check_expression(expression)?;
             }
-            Statement::Let { name, value } => {
+            StatementKind::Let { name, value } => {
                 let ty = self.check_expression(value)?;
-                self.locals.push(Local { name: *name, ty, depth: self.depth });
+                self.locals.push(Local { name: name.clone(), ty, depth: self.depth });
             }
-            Statement::Print { value } => {
+            StatementKind::Print { value } => {
                 self.check_expression(value)?;
             }
         }
@@ -109,24 +115,25 @@ impl<'src> Typechecker<'src> {
 
     pub fn check_expression(&mut self, expr_id: &ExpressionId) -> Result<Ty> {
         let expr = self.ast.get_expression(expr_id);
+        self.current_span = &expr.span;
 
-        let ty = match expr {
-            Expression::Literal(literal) => match literal {
-                Literal::Int(_) => Ty::Int,
-                Literal::Float(_) => Ty::Float,
-                Literal::Str(_) => Ty::Str,
-                Literal::Bool(_) => Ty::Bool,
+        let ty = match &expr.kind {
+            ExpressionKind::Literal(literal) => match &literal.kind {
+                LiteralKind::Int(_) => Ty::Int,
+                LiteralKind::Float(_) => Ty::Float,
+                LiteralKind::Str(_) => Ty::Str,
+                LiteralKind::Bool(_) => Ty::Bool,
             },
-            Expression::Ident(ident) => {
+            ExpressionKind::Ident(ident) => {
                 for local in self.locals.iter().rev() {
                     if local.name == *ident {
                         return Ok(local.ty);
                     }
                 }
 
-                return Err(self.err_here(ErrorKind::UnknownVariable { ident: *ident }));
+                return Err(self.err_here(ErrorKind::UnknownVariable { ident: ident.clone() }));
             }
-            Expression::UnaryOp { op, rhs } => {
+            ExpressionKind::UnaryOp { op, rhs } => {
                 let rhs_ty = self.check_expression(rhs)?;
 
                 match op {
@@ -141,7 +148,7 @@ impl<'src> Typechecker<'src> {
                     },
                 }
             }
-            Expression::BinaryOp { lhs, op, rhs } => {
+            ExpressionKind::BinaryOp { lhs, op, rhs } => {
                 let lhs_ty = self.check_expression(lhs)?;
                 let rhs_ty = self.check_expression(rhs)?;
 
@@ -195,10 +202,10 @@ impl<'src> Typechecker<'src> {
                     _ => unreachable!(),
                 }
             }
-            Expression::FnCall { callee, args } => {
+            ExpressionKind::FnCall { callee, args } => {
                 assert_matches!(
                     self.ast.get_expression(callee),
-                    Expression::Ident(_),
+                    Expression { kind: ExpressionKind::Ident(_), .. },
                     "invalid fn call. expected callee to be an ident"
                 );
 
@@ -238,7 +245,6 @@ impl<'src> ErrorProducer for Typechecker<'src> {
     }
 
     fn current_span(&mut self) -> Range<usize> {
-        // FIXME: Implement span tracking
-        0..0
+        self.current_span.clone()
     }
 }

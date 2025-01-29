@@ -1,4 +1,4 @@
-use ast::Item;
+use ast::{Item, ItemKind};
 use lexer::token::{Keyword, TokenKind};
 use miette::{Context, Result};
 use west_error::ErrorProducer;
@@ -8,8 +8,9 @@ use crate::error::ErrorKind;
 
 impl<'src> Parser<'src> {
     pub fn parse_item(&mut self) -> Result<Option<Item<'src>>> {
+        self.start_span();
         if let Some(fn_item) = self.parse_item_fn()? {
-            Ok(Some(Item::Fn(fn_item)))
+            Ok(Some(Item { kind: ItemKind::Fn(fn_item), span: self.end_span() }))
         } else {
             match self.eat_or_eof()? {
                 Some(_) => Err(self.err_here(ErrorKind::ExpectedItem)),
@@ -24,17 +25,20 @@ impl<'src> Parser<'src> {
         }
 
         let name = self.parse_ident()?.wrap_err("expected function name")?;
+
         self.eat_expected(TokenKind::ParenOpen)?;
         let params = ();
         self.eat_expected(TokenKind::ParenClose)?;
+
         let body = self.parse_block()?;
+
         Ok(Some(ast::Fn { name, params, body }))
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use ast::{Block, Ident, Item};
+    use ast::{Block, Ident, Item, ItemKind};
 
     use crate::{check_parser, check_parser_error};
 
@@ -43,7 +47,14 @@ mod tests {
         check_parser! {
             source: r#"fn a() {}"#,
             fn: parse_item,
-            expected: Some(Item::Fn(ast::Fn { name: Ident("a"), params: (), body: Block { statements: vec![] } }))
+            expected: Some(Item {
+                kind: ItemKind::Fn(ast::Fn {
+                    name: Ident { name: "a", span: 3..4 },
+                    params: (),
+                    body: Block { statements: vec![], span: 7..9 } }
+                ),
+                span: 0..9
+            })
         };
     }
 
@@ -52,7 +63,14 @@ mod tests {
         check_parser! {
             source: r#"fn a_very_long_name_here() {}"#,
             fn: parse_item,
-            expected: Some(Item::Fn(ast::Fn { name: Ident("a_very_long_name_here"), params: (), body: Block { statements: vec![] } }))
+            expected: Some(Item {
+                kind: ItemKind::Fn(ast::Fn {
+                    name: Ident { name: "a_very_long_name_here", span: 3..24 },
+                    params: (),
+                    body: Block { statements: vec![], span: 27..29 } }
+                ),
+                span: 0..29
+            })
         };
     }
 

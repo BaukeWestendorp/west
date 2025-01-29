@@ -9,7 +9,7 @@ impl<'src> Parser<'src> {
         match self.lexer.peek() {
             Some(Ok(Token { kind: TokenKind::Ident, .. })) => {
                 let span = self.eat()?.span;
-                Ok(Some(Ident(&self.source.as_str()[span])))
+                Ok(Some(Ident { name: &self.source.as_str()[span.clone()], span }))
             }
             _ => Ok(None),
         }
@@ -27,7 +27,7 @@ mod tests {
         check_parser! {
             source: "a",
             fn: parse_ident,
-            expected: Some(Ident("a"))
+            expected: Some(Ident { name: "a", span: 0..1 })
         };
     }
 

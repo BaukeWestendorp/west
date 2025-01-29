@@ -1,4 +1,4 @@
-use ast::Literal;
+use ast::{Literal, LiteralKind};
 use lexer::token::{Token, TokenKind};
 use miette::Result;
 
@@ -11,24 +11,24 @@ impl<'src> Parser<'src> {
                 let literal = *literal;
                 let span = self.eat()?.span;
 
-                let origin = &self.source.as_str()[span];
+                let origin = &self.source.as_str()[span.clone()];
                 let literal = match literal {
                     lexer::token::Literal::Int => {
                         let int = origin.parse().unwrap();
-                        Literal::Int(int)
+                        Literal { kind: LiteralKind::Int(int), span }
                     }
                     lexer::token::Literal::Float => {
                         let float = origin.parse().unwrap();
-                        Literal::Float(float)
+                        Literal { kind: LiteralKind::Float(float), span }
                     }
                     lexer::token::Literal::Str => {
                         // FIXME: We should properly unescape the string.
                         let str = &origin[1..origin.len() - 1];
-                        Literal::Str(str)
+                        Literal { kind: LiteralKind::Str(str), span }
                     }
                     lexer::token::Literal::Bool => {
                         let bool = origin.parse().unwrap();
-                        Literal::Bool(bool)
+                        Literal { kind: LiteralKind::Bool(bool), span }
                     }
                 };
 
@@ -41,7 +41,7 @@ impl<'src> Parser<'src> {
 
 #[cfg(test)]
 mod tests {
-    use ast::Literal;
+    use ast::{Literal, LiteralKind};
 
     use crate::check_parser;
 
@@ -51,7 +51,7 @@ mod tests {
             check_parser! {
                 source: input,
                 fn: parse_literal,
-                expected: Some(ast::Literal::Int(expected))
+                expected: Some(Literal { kind: LiteralKind::Int(expected), span: 0..input.len() })
             };
         };
 
@@ -69,7 +69,7 @@ mod tests {
             check_parser! {
                 source: input,
                 fn: parse_literal,
-                expected: Some(ast::Literal::Float(expected))
+                expected: Some(Literal { kind: LiteralKind::Float(expected), span: 0..input.len() })
             };
         };
 
@@ -88,7 +88,7 @@ mod tests {
         check_parser! {
             source: r#""hello""#,
             fn: parse_literal,
-            expected: Some(Literal::Str("hello"))
+            expected: Some(Literal { kind: LiteralKind::Str("hello"), span: 0..7 })
         }
     }
 
@@ -97,13 +97,13 @@ mod tests {
         check_parser! {
             source: "true",
             fn: parse_literal,
-            expected: Some(Literal::Bool(true))
+            expected: Some(Literal { kind: LiteralKind::Bool(true), span: 0..4 })
         }
 
         check_parser! {
             source: "false",
             fn: parse_literal,
-            expected: Some(Literal::Bool(false))
+            expected: Some(Literal { kind: LiteralKind::Bool(false), span: 0..5 })
         }
     }
 

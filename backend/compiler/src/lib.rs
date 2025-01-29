@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 
 use ast::{
-    Ast, Block, Expression, ExpressionId, Fn, InfixOp, Item, Literal, Module, PrefixOp, Statement,
+    Ast, Block, ExpressionId, ExpressionKind, Fn, InfixOp, ItemKind, LiteralKind, Module, PrefixOp,
+    Statement, StatementKind,
 };
 use bytecode::module::{BytecodeModule, Label};
 use bytecode::opcode::Opcode;
@@ -69,8 +70,8 @@ impl<'src> ModuleCompiler<'src> {
 
     fn compile(mut self) -> BytecodeModule {
         for item in &self.module.items {
-            match item {
-                Item::Fn(function) => self.compile_item_fn(function),
+            match &item.kind {
+                ItemKind::Fn(function) => self.compile_item_fn(function),
             }
         }
         self.bc_module
@@ -94,15 +95,15 @@ impl<'src> ModuleCompiler<'src> {
     }
 
     fn compile_statement(&mut self, statement: &Statement<'src>) {
-        match statement {
-            Statement::Expression { expression } => {
+        match &statement.kind {
+            StatementKind::Expression(expression) => {
                 self.compile_expression(expression);
             }
-            Statement::Print { value } => {
+            StatementKind::Print { value } => {
                 let value_reg = self.compile_expression(value);
                 self.bc_module.push(Opcode::Print { value: value_reg });
             }
-            Statement::Let { name, value } => {
+            StatementKind::Let { name, value } => {
                 let value_reg = self.compile_expression(value);
                 self.locals.insert((self.depth, name.as_str()), value_reg);
             }
@@ -111,13 +112,13 @@ impl<'src> ModuleCompiler<'src> {
 
     fn compile_expression(&mut self, expression: &ExpressionId) -> Register {
         let expression = &self.ast.get_expression(expression);
-        match expression {
-            Expression::Literal(literal) => {
-                let value = match literal {
-                    Literal::Int(value) => Value::Int(*value),
-                    Literal::Float(value) => Value::Float(*value),
-                    Literal::Str(value) => Value::Str(value.to_string()),
-                    Literal::Bool(value) => Value::Bool(*value),
+        match &expression.kind {
+            ExpressionKind::Literal(literal) => {
+                let value = match literal.kind {
+                    LiteralKind::Int(value) => Value::Int(value),
+                    LiteralKind::Float(value) => Value::Float(value),
+                    LiteralKind::Str(value) => Value::Str(value.to_string()),
+                    LiteralKind::Bool(value) => Value::Bool(value),
                 };
 
                 let reg = self.add_register();
@@ -125,10 +126,10 @@ impl<'src> ModuleCompiler<'src> {
 
                 reg
             }
-            Expression::Ident(ident) => {
+            ExpressionKind::Ident(ident) => {
                 *self.locals.get(&(self.depth, ident.as_str())).expect("local should exist")
             }
-            Expression::UnaryOp { op, rhs } => {
+            ExpressionKind::UnaryOp { op, rhs } => {
                 let rhs_reg = self.compile_expression(rhs);
                 let dest_reg = self.add_register();
 
@@ -147,7 +148,7 @@ impl<'src> ModuleCompiler<'src> {
 
                 dest_reg
             }
-            Expression::BinaryOp { lhs, op, rhs } => {
+            ExpressionKind::BinaryOp { lhs, op, rhs } => {
                 let lhs_reg = self.compile_expression(lhs);
                 let rhs_reg = self.compile_expression(rhs);
                 let dest_reg = self.add_register();
@@ -186,8 +187,9 @@ impl<'src> ModuleCompiler<'src> {
 
                 dest_reg
             }
-            Expression::FnCall { callee, args: _args } => {
-                let Expression::Ident(callee_label) = self.ast.get_expression(callee) else {
+            ExpressionKind::FnCall { callee, args: _args } => {
+                let ExpressionKind::Ident(callee_label) = &self.ast.get_expression(callee).kind
+                else {
                     panic!("invalid fn call. expected callee to be an ident");
                 };
 

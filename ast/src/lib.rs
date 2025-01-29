@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::ops::Range;
 
 use lexer::token::TokenKind;
 
@@ -37,7 +38,14 @@ pub struct Module<'src> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Item<'src> {
+pub struct Item<'src> {
+    pub kind: ItemKind<'src>,
+
+    pub span: Range<usize>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ItemKind<'src> {
     Fn(Fn<'src>),
 }
 
@@ -51,25 +59,42 @@ pub struct Fn<'src> {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Block<'src> {
     pub statements: Vec<Statement<'src>>,
+
+    pub span: Range<usize>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum Statement<'src> {
-    Expression { expression: ExpressionId },
+#[derive(Debug, Clone, PartialEq)]
+pub enum StatementKind<'src> {
+    Expression(ExpressionId),
+
     Let { name: Ident<'src>, value: ExpressionId },
     Print { value: ExpressionId },
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Statement<'src> {
+    pub kind: StatementKind<'src>,
+
+    pub span: Range<usize>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ExpressionKind<'src> {
+    Literal(Literal<'src>),
+    Ident(Ident<'src>),
+    UnaryOp { op: PrefixOp, rhs: ExpressionId },
+    BinaryOp { lhs: ExpressionId, op: InfixOp, rhs: ExpressionId },
+    FnCall { callee: ExpressionId, args: Vec<ExpressionId> },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ExpressionId(pub usize);
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Expression<'src> {
-    Literal(Literal<'src>),
-    Ident(Ident<'src>),
-    UnaryOp { op: PrefixOp, rhs: ExpressionId },
-    BinaryOp { lhs: ExpressionId, op: InfixOp, rhs: ExpressionId },
-    FnCall { callee: ExpressionId, args: Vec<ExpressionId> },
+pub struct Expression<'src> {
+    pub kind: ExpressionKind<'src>,
+
+    pub span: Range<usize>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -172,24 +197,35 @@ impl std::fmt::Display for PostfixOp {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum Literal<'src> {
+pub enum LiteralKind<'src> {
     Int(i64),
     Float(f64),
     Str(&'src str),
     Bool(bool),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Ident<'src>(pub &'src str);
+#[derive(Debug, Clone, PartialEq)]
+pub struct Literal<'src> {
+    pub kind: LiteralKind<'src>,
+
+    pub span: Range<usize>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Ident<'src> {
+    pub name: &'src str,
+
+    pub span: Range<usize>,
+}
 
 impl<'src> Ident<'src> {
     pub fn as_str(&self) -> &'src str {
-        self.0
+        self.name
     }
 }
 
 impl std::fmt::Display for Ident<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
+        write!(f, "{}", self.name)
     }
 }
