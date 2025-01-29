@@ -26,9 +26,11 @@ impl<'src> Parser<'src> {
 
         let name = self.parse_ident()?.wrap_err("expected function name")?;
 
-        self.eat_expected(TokenKind::ParenOpen)?;
-        let params = ();
-        self.eat_expected(TokenKind::ParenClose)?;
+        let mut params = ();
+        if self.try_eat(TokenKind::ParenOpen).is_some() {
+            params = ();
+            self.eat_expected(TokenKind::ParenClose)?;
+        };
 
         let mut return_type = None;
         if self.try_eat(TokenKind::Colon).is_some() {
@@ -60,6 +62,23 @@ mod tests {
                     body: Block { statements: vec![], span: 7..9 } }
                 ),
                 span: 0..9
+            })
+        };
+    }
+
+    #[test]
+    fn fn_item_without_parens() {
+        check_parser! {
+            source: r#"fn a {}"#,
+            fn: parse_item,
+            expected: Some(Item {
+                kind: ItemKind::Fn(ast::Fn {
+                    name: Ident { name: "a", span: 3..4 },
+                    params: (),
+                    return_type: None,
+                    body: Block { statements: vec![], span: 5..7 } }
+                ),
+                span: 0..7
             })
         };
     }
