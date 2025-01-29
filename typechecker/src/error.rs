@@ -1,4 +1,4 @@
-use ast::{Ident, Operator};
+use ast::{Ident, InfixOp};
 use miette::Diagnostic;
 use thiserror::Error;
 
@@ -16,7 +16,7 @@ pub enum ErrorKind<'src> {
 
     #[error("invalid type combination in operator: {lhs} {op} {rhs}")]
     #[diagnostic(code(west::typechecker::invalid_type_combination_in_operator))]
-    InvalidTypeCombinationInOperator { lhs: Ty, op: Operator, rhs: Ty },
+    InvalidTypeCombinationInInfixOp { lhs: Ty, op: InfixOp, rhs: Ty },
 
     #[error("unknown variable: {ident:?}")]
     #[diagnostic(code(west::typechecker::unknown_variable))]

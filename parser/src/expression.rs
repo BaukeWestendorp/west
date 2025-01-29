@@ -1,4 +1,4 @@
-use ast::{Expression, ExpressionId, Operator};
+use ast::{Expression, ExpressionId, InfixOp, Op, PostfixOp, PrefixOp};
 use lexer::token::TokenKind;
 use miette::{Context, Result};
 use west_error::ErrorProducer;
@@ -44,17 +44,17 @@ impl<'src> Parser<'src> {
         loop {
             let op = match self.lexer.peek() {
                 Some(Ok(token)) => match token.kind {
-                    TokenKind::Plus => Operator::Add,
-                    TokenKind::Minus => Operator::Subtract,
-                    TokenKind::Star => Operator::Multiply,
-                    TokenKind::Slash => Operator::Divide,
-                    TokenKind::EqEq => Operator::Equals,
-                    TokenKind::AmpAmp => Operator::And,
-                    TokenKind::PipePipe => Operator::Or,
-                    TokenKind::LtEq => Operator::LessThanEqual,
-                    TokenKind::GtEq => Operator::MoreThanEqual,
-                    TokenKind::BangEq => Operator::NotEqual,
-                    TokenKind::ParenOpen => Operator::FnCall,
+                    TokenKind::Plus => Op::Infix(InfixOp::Add),
+                    TokenKind::Minus => Op::Infix(InfixOp::Subtract),
+                    TokenKind::Star => Op::Infix(InfixOp::Multiply),
+                    TokenKind::Slash => Op::Infix(InfixOp::Divide),
+                    TokenKind::EqEq => Op::Infix(InfixOp::Equals),
+                    TokenKind::AmpAmp => Op::Infix(InfixOp::And),
+                    TokenKind::PipePipe => Op::Infix(InfixOp::Or),
+                    TokenKind::LtEq => Op::Infix(InfixOp::LessThanEqual),
+                    TokenKind::GtEq => Op::Infix(InfixOp::MoreThanEqual),
+                    TokenKind::BangEq => Op::Infix(InfixOp::NotEqual),
+                    TokenKind::ParenOpen => Op::Postfix(PostfixOp::FnCall),
                     _ => break,
                 },
                 Some(Err(_)) => {
@@ -63,20 +63,23 @@ impl<'src> Parser<'src> {
                 _ => return Ok(Some(lhs)),
             };
 
-            if let Some((l_bp, ())) = postfix_binding_power(&op) {
+            if let Op::Postfix(op) = op {
+                let (l_bp, ()) = postfix_binding_power(&op);
+
                 if l_bp < min_bp {
                     break;
                 }
 
                 lhs = match op {
-                    Operator::FnCall => self.parse_fn_call(lhs)?,
-                    _ => unreachable!(),
+                    PostfixOp::FnCall => self.parse_fn_call(lhs)?,
                 };
 
                 continue;
             }
 
-            if let Some((l_bp, r_bp)) = infix_binding_power(&op) {
+            if let Op::Infix(op) = op {
+                let (l_bp, r_bp) = infix_binding_power(&op);
+
                 if l_bp < min_bp {
                     break;
                 }
@@ -120,8 +123,8 @@ impl<'src> Parser<'src> {
     fn parse_prefix_expression(&mut self) -> Result<Option<Expression<'src>>> {
         let op = match self.lexer.peek() {
             Some(Ok(token)) => match token.kind {
-                TokenKind::Minus => Operator::Negate,
-                TokenKind::Bang => Operator::Invert,
+                TokenKind::Minus => PrefixOp::Minus,
+                TokenKind::Bang => PrefixOp::Negate,
                 _ => return Ok(None),
             },
             _ => return Ok(None),
@@ -138,55 +141,49 @@ impl<'src> Parser<'src> {
     }
 }
 
-fn prefix_binding_power(op: &Operator) -> ((), u8) {
+fn prefix_binding_power(op: &PrefixOp) -> ((), u8) {
     match op {
-        Operator::Negate => ((), 1),
-        Operator::Invert => ((), 11),
-        _ => panic!("unexpected prefix operator: {:?}", op),
+        PrefixOp::Minus => ((), 1),
+        PrefixOp::Negate => ((), 11),
     }
 }
 
-fn infix_binding_power(op: &Operator) -> Option<(u8, u8)> {
-    let bp = match op {
-        Operator::Assign
-        | Operator::AddAssign
-        | Operator::SubtractAssign
-        | Operator::MultiplyAssign
-        | Operator::DivideAssign
-        | Operator::BitAndAssign
-        | Operator::BitOrAssign => (2, 1),
+fn infix_binding_power(op: &InfixOp) -> (u8, u8) {
+    match op {
+        InfixOp::Assign
+        | InfixOp::AddAssign
+        | InfixOp::SubtractAssign
+        | InfixOp::MultiplyAssign
+        | InfixOp::DivideAssign
+        | InfixOp::BitAndAssign
+        | InfixOp::BitOrAssign => (2, 1),
 
-        Operator::BitAnd | Operator::BitOr => (3, 4),
+        InfixOp::BitAnd | InfixOp::BitOr => (3, 4),
 
-        Operator::Equals
-        | Operator::LessThanEqual
-        | Operator::MoreThanEqual
-        | Operator::LessThan
-        | Operator::MoreThan
-        | Operator::NotEqual => (5, 6),
+        InfixOp::Equals
+        | InfixOp::LessThanEqual
+        | InfixOp::MoreThanEqual
+        | InfixOp::LessThan
+        | InfixOp::MoreThan
+        | InfixOp::NotEqual => (5, 6),
 
-        Operator::Add | Operator::Subtract => (7, 8),
+        InfixOp::Add | InfixOp::Subtract => (7, 8),
 
-        Operator::Multiply | Operator::Divide => (9, 10),
+        InfixOp::Multiply | InfixOp::Divide => (9, 10),
 
-        Operator::And | Operator::Or => (11, 12),
-
-        _ => return None,
-    };
-
-    Some(bp)
+        InfixOp::And | InfixOp::Or => (11, 12),
+    }
 }
 
-fn postfix_binding_power(op: &Operator) -> Option<(u8, ())> {
+fn postfix_binding_power(op: &PostfixOp) -> (u8, ()) {
     match op {
-        Operator::FnCall => Some((13, ())),
-        _ => None,
+        PostfixOp::FnCall => (13, ()),
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use ast::{Expression, Ident, Literal, Operator};
+    use ast::{Expression, Ident, InfixOp, Literal, PrefixOp};
 
     fn check_simple(source: &str, expected: Option<&Expression>) {
         let source = west_error::source::SourceFile::new("tests".to_string(), source);
@@ -218,7 +215,7 @@ mod tests {
         check_simple(r#"*"#, None)
     }
 
-    fn check_prefix_op(source: &str, op: Operator, rhs: &Expression) {
+    fn check_prefix_op(source: &str, op: PrefixOp, rhs: &Expression) {
         let source = west_error::source::SourceFile::new("tests".to_string(), source);
         let mut parser = crate::Parser::new(&source);
 
@@ -238,15 +235,15 @@ mod tests {
 
     #[test]
     fn prefix_minus() {
-        check_prefix_op(r#"-1"#, Operator::Negate, &Expression::Literal(Literal::Int(1)))
+        check_prefix_op(r#"-1"#, PrefixOp::Minus, &Expression::Literal(Literal::Int(1)))
     }
 
     #[test]
     fn prefix_negate() {
-        check_prefix_op(r#"!true"#, Operator::Invert, &Expression::Literal(Literal::Bool(true)))
+        check_prefix_op(r#"!true"#, PrefixOp::Negate, &Expression::Literal(Literal::Bool(true)))
     }
 
-    fn check_infix_op(source: &str, op: Operator, lhs: &Expression, rhs: &Expression) {
+    fn check_infix_op(source: &str, op: InfixOp, lhs: &Expression, rhs: &Expression) {
         let source = west_error::source::SourceFile::new("tests".to_string(), source);
         let mut parser = crate::Parser::new(&source);
 
@@ -271,7 +268,7 @@ mod tests {
     fn infix_add() {
         check_infix_op(
             r#"1 + 2"#,
-            Operator::Add,
+            InfixOp::Add,
             &Expression::Literal(Literal::Int(1)),
             &Expression::Literal(Literal::Int(2)),
         );
@@ -281,7 +278,7 @@ mod tests {
     fn infix_subtract() {
         check_infix_op(
             r#"1 - 2"#,
-            Operator::Subtract,
+            InfixOp::Subtract,
             &Expression::Literal(Literal::Int(1)),
             &Expression::Literal(Literal::Int(2)),
         );
@@ -291,7 +288,7 @@ mod tests {
     fn infix_multiply() {
         check_infix_op(
             r#"1 * 2"#,
-            Operator::Multiply,
+            InfixOp::Multiply,
             &Expression::Literal(Literal::Int(1)),
             &Expression::Literal(Literal::Int(2)),
         );
@@ -301,7 +298,7 @@ mod tests {
     fn infix_divide() {
         check_infix_op(
             r#"1 / 2"#,
-            Operator::Divide,
+            InfixOp::Divide,
             &Expression::Literal(Literal::Int(1)),
             &Expression::Literal(Literal::Int(2)),
         );
@@ -311,7 +308,7 @@ mod tests {
     fn infix_equals() {
         check_infix_op(
             r#"1 == 2"#,
-            Operator::Equals,
+            InfixOp::Equals,
             &Expression::Literal(Literal::Int(1)),
             &Expression::Literal(Literal::Int(2)),
         );
@@ -321,7 +318,7 @@ mod tests {
     fn infix_and() {
         check_infix_op(
             r#"1 && 2"#,
-            Operator::And,
+            InfixOp::And,
             &Expression::Literal(Literal::Int(1)),
             &Expression::Literal(Literal::Int(2)),
         );
@@ -331,7 +328,7 @@ mod tests {
     fn infix_or() {
         check_infix_op(
             r#"1 || 2"#,
-            Operator::Or,
+            InfixOp::Or,
             &Expression::Literal(Literal::Int(1)),
             &Expression::Literal(Literal::Int(2)),
         );
@@ -341,7 +338,7 @@ mod tests {
     fn infix_less_than_equal() {
         check_infix_op(
             r#"1 <= 2"#,
-            Operator::LessThanEqual,
+            InfixOp::LessThanEqual,
             &Expression::Literal(Literal::Int(1)),
             &Expression::Literal(Literal::Int(2)),
         );
@@ -351,7 +348,7 @@ mod tests {
     fn infix_more_than_equal() {
         check_infix_op(
             r#"1 >= 2"#,
-            Operator::MoreThanEqual,
+            InfixOp::MoreThanEqual,
             &Expression::Literal(Literal::Int(1)),
             &Expression::Literal(Literal::Int(2)),
         );
@@ -361,7 +358,7 @@ mod tests {
     fn infix_not_equal() {
         check_infix_op(
             r#"1 != 2"#,
-            Operator::NotEqual,
+            InfixOp::NotEqual,
             &Expression::Literal(Literal::Int(1)),
             &Expression::Literal(Literal::Int(2)),
         );

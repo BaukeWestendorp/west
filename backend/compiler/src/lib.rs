@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 
-use ast::{Ast, Block, Expression, ExpressionId, Fn, Item, Literal, Module, Operator, Statement};
+use ast::{
+    Ast, Block, Expression, ExpressionId, Fn, InfixOp, Item, Literal, Module, PrefixOp, Statement,
+};
 use bytecode::module::{BytecodeModule, Label};
 use bytecode::opcode::Opcode;
 use bytecode::reg::Register;
@@ -131,18 +133,16 @@ impl<'src> ModuleCompiler<'src> {
                 let dest_reg = self.add_register();
 
                 match op {
-                    Operator::Negate => {
+                    PrefixOp::Minus => {
                         self.bc_module.push(Opcode::Mul {
                             left: rhs_reg.into(),
                             right: Value::Float(-1.0).into(),
                             dest: dest_reg,
                         });
                     }
-                    Operator::Invert => {
+                    PrefixOp::Negate => {
                         self.bc_module.push(Opcode::Not { value: rhs_reg.into(), dest: dest_reg });
                     }
-                    // FIXME: Refactor `Operator` to make this `unreachable()` unnecessary.
-                    _ => unreachable!(),
                 }
 
                 dest_reg
@@ -153,36 +153,35 @@ impl<'src> ModuleCompiler<'src> {
                 let dest_reg = self.add_register();
 
                 match op {
-                    Operator::Add => {
+                    InfixOp::Add => {
                         self.bc_module.push(Opcode::Add {
                             left: lhs_reg.into(),
                             right: rhs_reg.into(),
                             dest: dest_reg,
                         });
                     }
-                    Operator::Subtract => {
+                    InfixOp::Subtract => {
                         self.bc_module.push(Opcode::Sub {
                             left: lhs_reg.into(),
                             right: rhs_reg.into(),
                             dest: dest_reg,
                         });
                     }
-                    Operator::Multiply => {
+                    InfixOp::Multiply => {
                         self.bc_module.push(Opcode::Mul {
                             left: lhs_reg.into(),
                             right: rhs_reg.into(),
                             dest: dest_reg,
                         });
                     }
-                    Operator::Divide => {
+                    InfixOp::Divide => {
                         self.bc_module.push(Opcode::Div {
                             left: lhs_reg.into(),
                             right: rhs_reg.into(),
                             dest: dest_reg,
                         });
                     }
-                    // FIXME: Refactor `Operator` to make this `unreachable()` unnecessary.
-                    _ => unreachable!(),
+                    op => todo!("implement {op}"),
                 }
 
                 dest_reg

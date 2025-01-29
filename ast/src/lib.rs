@@ -67,18 +67,46 @@ pub struct ExpressionId(pub usize);
 pub enum Expression<'src> {
     Literal(Literal<'src>),
     Ident(Ident<'src>),
-    UnaryOp { op: Operator, rhs: ExpressionId },
-    BinaryOp { lhs: ExpressionId, op: Operator, rhs: ExpressionId },
+    UnaryOp { op: PrefixOp, rhs: ExpressionId },
+    BinaryOp { lhs: ExpressionId, op: InfixOp, rhs: ExpressionId },
     FnCall { callee: ExpressionId, args: Vec<ExpressionId> },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Operator {
-    // Prefix
-    Negate,
-    Invert,
+pub enum Op {
+    Prefix(PrefixOp),
+    Infix(InfixOp),
+    Postfix(PostfixOp),
+}
 
-    // Infix,
+impl std::fmt::Display for Op {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Op::Prefix(op) => write!(f, "{op}"),
+            Op::Infix(op) => write!(f, "{op}"),
+            Op::Postfix(op) => write!(f, "{op}"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PrefixOp {
+    Minus,
+    Negate,
+}
+
+impl std::fmt::Display for PrefixOp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let token = match self {
+            PrefixOp::Minus => TokenKind::Minus,
+            PrefixOp::Negate => TokenKind::Bang,
+        };
+        write!(f, "{token}")
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InfixOp {
     Assign,
     AddAssign,
     SubtractAssign,
@@ -100,42 +128,46 @@ pub enum Operator {
     LessThanEqual,
     MoreThanEqual,
     NotEqual,
+}
 
-    // Postfix
+impl std::fmt::Display for InfixOp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let token = match self {
+            Self::Assign => TokenKind::Eq,
+            Self::AddAssign => TokenKind::PlusEq,
+            Self::SubtractAssign => TokenKind::MinusEq,
+            Self::MultiplyAssign => TokenKind::StarEq,
+            Self::DivideAssign => TokenKind::SlashEq,
+            Self::BitAndAssign => TokenKind::AmpEq,
+            Self::BitOrAssign => TokenKind::PipeEq,
+            Self::BitAnd => TokenKind::Amp,
+            Self::BitOr => TokenKind::Pipe,
+            Self::LessThan => TokenKind::Lt,
+            Self::MoreThan => TokenKind::Gt,
+            Self::Add => TokenKind::Plus,
+            Self::Subtract => TokenKind::Minus,
+            Self::Multiply => TokenKind::Star,
+            Self::Divide => TokenKind::Slash,
+            Self::Equals => TokenKind::EqEq,
+            Self::And => TokenKind::AmpAmp,
+            Self::Or => TokenKind::PipePipe,
+            Self::LessThanEqual => TokenKind::LtEq,
+            Self::MoreThanEqual => TokenKind::GtEq,
+            Self::NotEqual => TokenKind::BangEq,
+        };
+
+        write!(f, "{token}")
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PostfixOp {
     FnCall,
 }
 
-impl std::fmt::Display for Operator {
+impl std::fmt::Display for PostfixOp {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let token = match self {
-            Operator::Negate => TokenKind::Minus,
-            Operator::Invert => TokenKind::Bang,
-
-            Operator::Assign => TokenKind::Eq,
-            Operator::AddAssign => TokenKind::PlusEq,
-            Operator::SubtractAssign => TokenKind::MinusEq,
-            Operator::MultiplyAssign => TokenKind::StarEq,
-            Operator::DivideAssign => TokenKind::SlashEq,
-            Operator::BitAndAssign => TokenKind::AmpEq,
-            Operator::BitOrAssign => TokenKind::PipeEq,
-            Operator::BitAnd => TokenKind::Amp,
-            Operator::BitOr => TokenKind::Pipe,
-            Operator::LessThan => TokenKind::Lt,
-            Operator::MoreThan => TokenKind::Gt,
-            Operator::Add => TokenKind::Plus,
-            Operator::Subtract => TokenKind::Minus,
-            Operator::Multiply => TokenKind::Star,
-            Operator::Divide => TokenKind::Slash,
-            Operator::Equals => TokenKind::EqEq,
-            Operator::And => TokenKind::AmpAmp,
-            Operator::Or => TokenKind::PipePipe,
-            Operator::LessThanEqual => TokenKind::LtEq,
-            Operator::MoreThanEqual => TokenKind::GtEq,
-            Operator::NotEqual => TokenKind::BangEq,
-
-            Self::FnCall => return write!(f, "fn call"),
-        };
-        write!(f, "{token}")
+        write!(f, "fn call")
     }
 }
 

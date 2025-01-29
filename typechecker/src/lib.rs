@@ -3,7 +3,9 @@
 use std::assert_matches::assert_matches;
 use std::ops::Range;
 
-use ast::{Ast, Expression, ExpressionId, Ident, Item, Literal, Module, Operator, Statement};
+use ast::{
+    Ast, Expression, ExpressionId, Ident, InfixOp, Item, Literal, Module, PrefixOp, Statement,
+};
 use error::ErrorKind;
 use miette::Result;
 use west_error::ErrorProducer;
@@ -128,17 +130,15 @@ impl<'src> Typechecker<'src> {
                 let rhs_ty = self.check_expression(rhs)?;
 
                 match op {
-                    Operator::Negate => match rhs_ty {
+                    PrefixOp::Minus => match rhs_ty {
                         Ty::Int => Ty::Int,
                         Ty::Float => Ty::Float,
                         _ => return Err(self.err_here(ErrorKind::CannotNegate)),
                     },
-                    Operator::Invert => match rhs_ty {
+                    PrefixOp::Negate => match rhs_ty {
                         Ty::Bool => Ty::Bool,
                         _ => return Err(self.err_here(ErrorKind::CannotInvert)),
                     },
-                    // FIXME: find a way to prevent needing a unreachable case
-                    _ => unreachable!(),
                 }
             }
             Expression::BinaryOp { lhs, op, rhs } => {
@@ -146,13 +146,13 @@ impl<'src> Typechecker<'src> {
                 let rhs_ty = self.check_expression(rhs)?;
 
                 match op {
-                    Operator::Add | Operator::Subtract | Operator::Multiply | Operator::Divide => {
+                    InfixOp::Add | InfixOp::Subtract | InfixOp::Multiply | InfixOp::Divide => {
                         match (lhs_ty, rhs_ty) {
                             (Ty::Int, Ty::Int) => Ty::Int,
                             (Ty::Float, Ty::Float) => Ty::Float,
                             _ => {
                                 return Err(self.err_here(
-                                    ErrorKind::InvalidTypeCombinationInOperator {
+                                    ErrorKind::InvalidTypeCombinationInInfixOp {
                                         lhs: lhs_ty,
                                         op: *op,
                                         rhs: rhs_ty,
@@ -161,17 +161,17 @@ impl<'src> Typechecker<'src> {
                             }
                         }
                     }
-                    Operator::Equals
-                    | Operator::NotEqual
-                    | Operator::LessThan
-                    | Operator::LessThanEqual
-                    | Operator::MoreThan
-                    | Operator::MoreThanEqual => {
+                    InfixOp::Equals
+                    | InfixOp::NotEqual
+                    | InfixOp::LessThan
+                    | InfixOp::LessThanEqual
+                    | InfixOp::MoreThan
+                    | InfixOp::MoreThanEqual => {
                         if lhs_ty == rhs_ty {
                             Ty::Bool
                         } else {
                             return Err(self.err_here(
-                                ErrorKind::InvalidTypeCombinationInOperator {
+                                ErrorKind::InvalidTypeCombinationInInfixOp {
                                     lhs: lhs_ty,
                                     op: *op,
                                     rhs: rhs_ty,
@@ -179,12 +179,12 @@ impl<'src> Typechecker<'src> {
                             ));
                         }
                     }
-                    Operator::And | Operator::Or => {
+                    InfixOp::And | InfixOp::Or => {
                         if lhs_ty == Ty::Bool && rhs_ty == Ty::Bool {
                             Ty::Bool
                         } else {
                             return Err(self.err_here(
-                                ErrorKind::InvalidTypeCombinationInOperator {
+                                ErrorKind::InvalidTypeCombinationInInfixOp {
                                     lhs: lhs_ty,
                                     op: *op,
                                     rhs: rhs_ty,
