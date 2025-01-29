@@ -6,7 +6,7 @@ use ast::{
 };
 use bytecode::module::{BytecodeModule, Label};
 use bytecode::opcode::Opcode;
-use bytecode::reg::Register;
+use bytecode::reg::{RegOrImm, Register};
 use bytecode::value::Value;
 
 pub struct Compiler<'src> {
@@ -35,6 +35,8 @@ struct ModuleCompiler<'src> {
     locals: HashMap<(usize, &'src str), Register>,
     depth: usize,
 
+    has_return: bool,
+
     label_counter: usize,
     reg_counter: u32,
     ip: usize,
@@ -49,6 +51,8 @@ impl<'src> ModuleCompiler<'src> {
 
             locals: HashMap::new(),
             depth: 0,
+
+            has_return: false,
 
             ip: 0,
             label_counter: 0,
@@ -83,7 +87,11 @@ impl<'src> ModuleCompiler<'src> {
 
         self.compile_block(&function.body);
 
-        self.bc_module.push(Opcode::Return { value: Value::Int(0).into() });
+        if !self.has_return {
+            self.bc_module.push(Opcode::Return { value: Some(Value::Int(0).into()) });
+        }
+
+        self.has_return = false;
     }
 
     fn compile_block(&mut self, block: &Block<'src>) {
@@ -102,6 +110,11 @@ impl<'src> ModuleCompiler<'src> {
             StatementKind::Print { value } => {
                 let value_reg = self.compile_expression(value);
                 self.bc_module.push(Opcode::Print { value: value_reg });
+            }
+            StatementKind::Return { value } => {
+                let value_reg = value.map(|v| RegOrImm::from(self.compile_expression(&v)));
+                self.bc_module.push(Opcode::Return { value: value_reg });
+                self.has_return = true;
             }
             StatementKind::Let { name, value } => {
                 let value_reg = self.compile_expression(value);

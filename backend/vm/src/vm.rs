@@ -109,8 +109,10 @@ where
 
             Opcode::Jump { label } => self.ip = module.get_label_address(label),
             Opcode::Return { value } => {
-                let value = self.read_reg_or_imm(value).clone();
-                self.set_register(Register::R0, value);
+                if let Some(value) = value {
+                    let value = self.read_reg_or_imm(value).clone();
+                    self.set_register(Register::R0, value);
+                }
             }
 
             Opcode::Print { value } => {

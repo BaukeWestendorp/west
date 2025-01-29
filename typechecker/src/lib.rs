@@ -4,8 +4,8 @@ use std::assert_matches::assert_matches;
 use std::ops::Range;
 
 use ast::{
-    Ast, Expression, ExpressionId, ExpressionKind, Ident, InfixOp, Item, ItemKind, LiteralKind,
-    Module, PrefixOp, Statement, StatementKind,
+    Ast, Block, Expression, ExpressionId, ExpressionKind, Fn, Ident, InfixOp, Item, ItemKind,
+    LiteralKind, Module, PrefixOp, Statement, StatementKind,
 };
 use error::ErrorKind;
 use miette::Result;
@@ -47,12 +47,21 @@ pub struct Typechecker<'src> {
 
     locals: Vec<Local<'src>>,
 
+    expected_return_type: Option<Ty>,
+
     current_span: &'src Range<usize>,
 }
 
 impl<'src> Typechecker<'src> {
     pub fn new(ast: &'src Ast<'src>, source: &'src SourceFile<'src>) -> Self {
-        Self { ast, source, depth: 0, locals: Vec::new(), current_span: &(0..0) }
+        Self {
+            ast,
+            source,
+            depth: 0,
+            locals: Vec::new(),
+            expected_return_type: None,
+            current_span: &(0..0),
+        }
     }
 
     pub fn check(&mut self) -> Result<()> {
@@ -78,18 +87,38 @@ impl<'src> Typechecker<'src> {
         }
     }
 
-    pub fn check_fn_item(&mut self, f: &'src ast::Fn<'src>) -> Result<()> {
+    pub fn check_fn_item(&mut self, f: &'src Fn<'src>) -> Result<()> {
+        if let Some(return_ty) = &f.return_type {
+            self.expected_return_type = Some(self.check_type(return_ty)?);
+        }
+
         self.check_block(&f.body)?;
+
+        self.expected_return_type = None;
 
         Ok(())
     }
 
-    pub fn check_block(&mut self, block: &'src ast::Block<'src>) -> Result<()> {
+    pub fn check_block(&mut self, block: &'src Block<'src>) -> Result<()> {
         self.current_span = &block.span;
         self.enter_scope();
+
+        let mut has_return = false;
+
         for statement in &block.statements {
+            if let StatementKind::Return { .. } = &statement.kind {
+                has_return = true;
+            }
+
             self.check_statement(statement)?;
         }
+
+        if !has_return {
+            if let Some(expected) = self.expected_return_type {
+                return Err(self.err_here(ErrorKind::MissingReturnValue { expected }));
+            }
+        }
+
         self.exit_scope();
 
         Ok(())
@@ -105,6 +134,21 @@ impl<'src> Typechecker<'src> {
                 let ty = self.check_expression(value)?;
                 self.locals.push(Local { name: name.clone(), ty, depth: self.depth });
             }
+            StatementKind::Return { value } => match (self.expected_return_type, value) {
+                (Some(expected), Some(value)) => {
+                    let ty = self.check_expression(value)?;
+                    if ty != expected {
+                        return Err(self.err_here(ErrorKind::InvalidReturnValue { expected, ty }));
+                    }
+                }
+                (Some(expected), None) => {
+                    return Err(self.err_here(ErrorKind::MissingReturnValue { expected }));
+                }
+                (None, Some(_)) => {
+                    return Err(self.err_here(ErrorKind::UnexpectedReturnValue));
+                }
+                (None, None) => {}
+            },
             StatementKind::Print { value } => {
                 self.check_expression(value)?;
             }
@@ -222,6 +266,16 @@ impl<'src> Typechecker<'src> {
         Ok(ty)
     }
 
+    fn check_type(&mut self, ty: &Ident<'src>) -> Result<Ty> {
+        match ty.name {
+            "int" => Ok(Ty::Int),
+            "float" => Ok(Ty::Float),
+            "str" => Ok(Ty::Str),
+            "bool" => Ok(Ty::Bool),
+            _ => Err(self.err_here(ErrorKind::UnknownType { ident: ty.clone() })),
+        }
+    }
+
     fn enter_scope(&mut self) {
         self.depth += 1;
     }
@@ -251,17 +305,22 @@ impl<'src> ErrorProducer for Typechecker<'src> {
 
 #[cfg(test)]
 mod tests {
+    use parser::Parser;
+    use west_error::source::SourceFile;
+
+    use crate::Typechecker;
+
     #[test]
-    fn test_incompatible_types() {
+    fn incompatible_types() {
         let source = r#"
             fn main() {
                 true + 1;
             }
         "#;
 
-        let source = west_error::source::SourceFile::new("tests".to_string(), source);
-        let ast = parser::Parser::new(&source).parse().unwrap();
-        let mut typechecker = crate::Typechecker::new(&ast, &source);
+        let source = SourceFile::new("tests".to_string(), source);
+        let ast = Parser::new(&source).parse().unwrap();
+        let mut typechecker = Typechecker::new(&ast, &source);
 
         let result = typechecker.check();
         assert!(result.is_err());
@@ -269,5 +328,76 @@ mod tests {
             result.unwrap_err().to_string(),
             "invalid type combination in operator: <bool> + <int>"
         );
+    }
+
+    #[test]
+    fn fn_return_value_expected_but_not_found() {
+        let source = r#"fn a(): int {}"#;
+
+        let source = SourceFile::new("tests".to_string(), source);
+        let ast = Parser::new(&source).parse().unwrap();
+        let mut typechecker = Typechecker::new(&ast, &source);
+
+        let actual = typechecker.check();
+
+        assert_eq!(
+            actual.unwrap_err().to_string(),
+            "missing return value: expected a value of type <int>".to_string()
+        )
+    }
+
+    #[test]
+    fn fn_return_value_not_expected_but_found() {
+        let source = r#"fn a() { return 1; }"#;
+
+        let source = SourceFile::new("tests".to_string(), source);
+        let ast = Parser::new(&source).parse().unwrap();
+        let mut typechecker = Typechecker::new(&ast, &source);
+
+        let actual = typechecker.check();
+
+        assert_eq!(actual.unwrap_err().to_string(), "unexpected return value".to_string())
+    }
+
+    #[test]
+    fn fn_return_value_expected_and_found() {
+        let source = r#"fn a(): int { return 1; }"#;
+
+        let source = SourceFile::new("tests".to_string(), source);
+        let ast = Parser::new(&source).parse().unwrap();
+        let mut typechecker = Typechecker::new(&ast, &source);
+
+        let actual = typechecker.check();
+
+        assert!(actual.is_ok())
+    }
+
+    #[test]
+    fn fn_return_value_expected_and_found_but_incompatible() {
+        let source = r#"fn a(): int { return true; }"#;
+
+        let source = SourceFile::new("tests".to_string(), source);
+        let ast = Parser::new(&source).parse().unwrap();
+        let mut typechecker = Typechecker::new(&ast, &source);
+
+        let actual = typechecker.check();
+
+        assert_eq!(
+            actual.unwrap_err().to_string(),
+            "invalid return type: expected <int>, got <bool>".to_string()
+        )
+    }
+
+    #[test]
+    fn fn_return_value_not_expectend_and_not_found() {
+        let source = r#"fn a() {}"#;
+
+        let source = SourceFile::new("tests".to_string(), source);
+        let ast = Parser::new(&source).parse().unwrap();
+        let mut typechecker = Typechecker::new(&ast, &source);
+
+        let actual = typechecker.check();
+
+        assert!(actual.is_ok())
     }
 }

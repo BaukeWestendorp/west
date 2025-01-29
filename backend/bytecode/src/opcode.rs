@@ -12,7 +12,7 @@ pub enum Opcode {
     Not { value: RegOrImm, dest: Register },
 
     Jump { label: Label },
-    Return { value: RegOrImm },
+    Return { value: Option<RegOrImm> },
 
     Print { value: Register },
 }
@@ -30,7 +30,7 @@ impl std::fmt::Display for Opcode {
             Opcode::Not { value, dest } =>       write!(f, "not   {} {}",    value, dest),
 
             Opcode::Jump { label } =>            write!(f, "jump  {}",       label),
-            Opcode::Return { value } =>          write!(f, "return {}",      value),
+            Opcode::Return { value } =>          write!(f, "return {}",      value.as_ref().map(|v| v.to_string()).unwrap_or_default()),
 
             Opcode::Print { value } =>           write!(f, "print {}",      value),
         }

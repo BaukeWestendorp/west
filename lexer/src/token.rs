@@ -148,6 +148,7 @@ impl std::fmt::Display for TokenKind {
 pub enum Keyword {
     Fn,
     Let,
+    Return,
     Print,
 }
 
@@ -156,6 +157,7 @@ impl Display for Keyword {
         match self {
             Keyword::Fn => write!(f, "fn"),
             Keyword::Let => write!(f, "let"),
+            Keyword::Return => write!(f, "return"),
             Keyword::Print => write!(f, "print"),
         }
     }
@@ -168,6 +170,7 @@ impl FromStr for Keyword {
         match s {
             "fn" => Ok(Keyword::Fn),
             "let" => Ok(Keyword::Let),
+            "return" => Ok(Keyword::Return),
             "print" => Ok(Keyword::Print),
             _ => Err(ErrorKind::UnknownKeyword(s.to_string())),
         }

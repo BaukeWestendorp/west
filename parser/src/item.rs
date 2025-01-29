@@ -30,9 +30,14 @@ impl<'src> Parser<'src> {
         let params = ();
         self.eat_expected(TokenKind::ParenClose)?;
 
+        let mut return_type = None;
+        if self.try_eat(TokenKind::Colon).is_some() {
+            return_type = self.parse_ident()?;
+        }
+
         let body = self.parse_block()?;
 
-        Ok(Some(ast::Fn { name, params, body }))
+        Ok(Some(ast::Fn { name, params, return_type, body }))
     }
 }
 
@@ -51,6 +56,7 @@ mod tests {
                 kind: ItemKind::Fn(ast::Fn {
                     name: Ident { name: "a", span: 3..4 },
                     params: (),
+                    return_type: None,
                     body: Block { statements: vec![], span: 7..9 } }
                 ),
                 span: 0..9
@@ -67,9 +73,27 @@ mod tests {
                 kind: ItemKind::Fn(ast::Fn {
                     name: Ident { name: "a_very_long_name_here", span: 3..24 },
                     params: (),
+                    return_type: None,
                     body: Block { statements: vec![], span: 27..29 } }
                 ),
                 span: 0..29
+            })
+        };
+    }
+
+    #[test]
+    fn fn_return_type() {
+        check_parser! {
+            source: r#"fn a(): int {}"#,
+            fn: parse_item,
+            expected: Some(Item {
+                kind: ItemKind::Fn(ast::Fn {
+                    name: Ident { name: "a", span: 3..4 },
+                    params: (),
+                    return_type: Some(Ident { name: "int", span: 8..11 }),
+                    body: Block { statements: vec![], span: 12..14 } }
+                ),
+                span: 0..14
             })
         };
     }

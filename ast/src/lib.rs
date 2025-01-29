@@ -53,6 +53,7 @@ pub enum ItemKind<'src> {
 pub struct Fn<'src> {
     pub name: Ident<'src>,
     pub params: (),
+    pub return_type: Option<Ident<'src>>,
     pub body: Block<'src>,
 }
 
@@ -68,6 +69,7 @@ pub enum StatementKind<'src> {
     Expression(ExpressionId),
 
     Let { name: Ident<'src>, value: ExpressionId },
+    Return { value: Option<ExpressionId> },
     Print { value: ExpressionId },
 }
 
