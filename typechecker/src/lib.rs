@@ -88,6 +88,15 @@ impl<'src> Typechecker<'src> {
     }
 
     pub fn check_fn_item(&mut self, f: &'src Fn<'src>) -> Result<()> {
+        for param in &f.params {
+            let local = Local {
+                name: param.name.clone(),
+                ty: self.check_type(&param.ty)?,
+                depth: self.depth,
+            };
+            self.locals.push(local);
+        }
+
         if let Some(return_ty) = &f.return_type {
             self.expected_return_type = Some(self.check_type(return_ty)?);
         }
