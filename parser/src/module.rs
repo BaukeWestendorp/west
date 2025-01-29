@@ -33,7 +33,7 @@ mod tests {
                     Item {
                         kind: ItemKind::Fn(Fn {
                             name: Ident { span: 3..7, name: "main" },
-                            params: (),
+                            params: vec![],
                             return_type: None,
                             body: Block { statements: vec![], span: 10..12 },
                         }),
@@ -65,7 +65,7 @@ mod tests {
                     Item {
                         kind: ItemKind::Fn(Fn {
                             name: Ident { span: 3..4, name: "a" },
-                            params: (),
+                            params: vec![],
                             return_type: None,
                             body: Block { statements: vec![], span: 7..9 },
                         }),
@@ -74,7 +74,7 @@ mod tests {
                     Item {
                         kind: ItemKind::Fn(Fn {
                             name: Ident { span: 13..14, name: "b" },
-                            params: (),
+                            params: vec![],
                             return_type: None,
                             body: Block { statements: vec![], span: 17..19 },
                         }),

@@ -52,9 +52,15 @@ pub enum ItemKind<'src> {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Fn<'src> {
     pub name: Ident<'src>,
-    pub params: (),
+    pub params: Vec<FnParam<'src>>,
     pub return_type: Option<Ident<'src>>,
     pub body: Block<'src>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct FnParam<'src> {
+    pub name: Ident<'src>,
+    pub ty: Ident<'src>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
