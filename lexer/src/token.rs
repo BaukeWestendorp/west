@@ -2,7 +2,9 @@ use std::fmt::Display;
 use std::ops::Range;
 use std::str::FromStr;
 
-use miette::{Error, Result, bail};
+use miette::Result;
+
+use crate::error::ErrorKind;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Token {
@@ -160,15 +162,14 @@ impl Display for Keyword {
 }
 
 impl FromStr for Keyword {
-    type Err = Error;
+    type Err = ErrorKind;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "fn" => Ok(Keyword::Fn),
             "let" => Ok(Keyword::Let),
             "print" => Ok(Keyword::Print),
-            // FIXME: Use lexer's error kind.
-            _ => bail!("unknown keyword: {}", s),
+            _ => Err(ErrorKind::UnknownKeyword(s.to_string())),
         }
     }
 }
