@@ -103,6 +103,7 @@ impl<'src> ModuleCompiler<'src> {
                 let value_reg = self.compile_expression(value);
                 self.bc_module.push(Opcode::Print { value: value_reg });
             }
+            StatementKind::Return { value: _value } => todo!(),
             StatementKind::Let { name, value } => {
                 let value_reg = self.compile_expression(value);
                 self.locals.insert((self.depth, name.as_str()), value_reg);

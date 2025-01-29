@@ -5,7 +5,8 @@ use source::SourceFile;
 
 pub mod source;
 
-pub struct Error<K> {
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Error<K: PartialEq> {
     pub kind: K,
     pub source: NamedSource<String>,
     pub span: SourceSpan,
