@@ -18,7 +18,7 @@ pub enum ErrorKind<'src> {
     #[diagnostic(code(west::typechecker::invalid_type_combination_in_operator))]
     InvalidTypeCombinationInInfixOp { lhs: Ty, op: InfixOp, rhs: Ty },
 
-    #[error("unknown variable: {ident:?}")]
+    #[error("unknown variable: {ident}")]
     #[diagnostic(code(west::typechecker::unknown_variable))]
     UnknownVariable { ident: Ident<'src> },
 }

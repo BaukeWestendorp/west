@@ -248,3 +248,26 @@ impl<'src> ErrorProducer for Typechecker<'src> {
         self.current_span.clone()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_incompatible_types() {
+        let source = r#"
+            fn main() {
+                true + 1;
+            }
+        "#;
+
+        let source = west_error::source::SourceFile::new("tests".to_string(), source);
+        let ast = parser::Parser::new(&source).parse().unwrap();
+        let mut typechecker = crate::Typechecker::new(&ast, &source);
+
+        let result = typechecker.check();
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "invalid type combination in operator: <bool> + <int>"
+        );
+    }
+}
