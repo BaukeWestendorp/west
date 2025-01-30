@@ -45,4 +45,8 @@ pub enum ErrorKind<'src> {
     #[error("expected a <bool> in condition of if statement, but found {ty}")]
     #[diagnostic(code(west::typechecker::invalid_if_condition))]
     ExpectedBoolInIfCondition { ty: Ty },
+
+    #[error("expected a <bool> in condition of while statement, but found {ty}")]
+    #[diagnostic(code(west::typechecker::invalid_while_condition))]
+    ExpectedBoolInWhileCondition { ty: Ty },
 }

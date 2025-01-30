@@ -151,6 +151,7 @@ pub enum Keyword {
     Return,
     Print,
     Loop,
+    While,
     If,
     Else,
 }
@@ -163,6 +164,7 @@ impl Display for Keyword {
             Keyword::Return => write!(f, "return"),
             Keyword::Print => write!(f, "print"),
             Keyword::Loop => write!(f, "loop"),
+            Keyword::While => write!(f, "while"),
             Keyword::If => write!(f, "if"),
             Keyword::Else => write!(f, "else"),
         }
@@ -179,6 +181,7 @@ impl FromStr for Keyword {
             "return" => Ok(Keyword::Return),
             "print" => Ok(Keyword::Print),
             "loop" => Ok(Keyword::Loop),
+            "while" => Ok(Keyword::While),
             "if" => Ok(Keyword::If),
             "else" => Ok(Keyword::Else),
             _ => Err(ErrorKind::UnknownKeyword(s.to_string())),

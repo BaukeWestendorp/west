@@ -164,6 +164,21 @@ impl<'src> ModuleCompiler<'src> {
                 self.compile_block(body);
                 self.push(Opcode::Jump { label: loop_label });
             }
+            StatementKind::While { condition, body } => {
+                let start_label = self.add_label();
+                let end_label = self.add_label();
+
+                let condition_reg = self.compile_expression(condition).into();
+
+                self.push(Opcode::JumpIfFalse { condition: condition_reg, label: end_label });
+
+                self.compile_block(body);
+
+                self.push(Opcode::Jump { label: start_label });
+
+                // Set the address of the end of the statement.
+                self.bc_module.set_label_address(end_label, self.ip);
+            }
         }
     }
 

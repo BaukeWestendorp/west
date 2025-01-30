@@ -179,6 +179,16 @@ impl<'src> Typechecker<'src> {
             StatementKind::Loop { body } => {
                 self.check_block(body)?;
             }
+            StatementKind::While { condition, body } => {
+                let condition_ty = self.check_expression(condition)?;
+                if condition_ty != Ty::Bool {
+                    return Err(
+                        self.err_here(ErrorKind::ExpectedBoolInWhileCondition { ty: condition_ty })
+                    );
+                }
+
+                self.check_block(body)?;
+            }
         }
 
         Ok(())
@@ -429,7 +439,7 @@ mod tests {
     }
 
     #[test]
-    fn if_else_condition_not_bool() {
+    fn if_else_with_non_bool_condition() {
         let source = r#"
             fn main() {
                 if 1 {}
@@ -449,7 +459,7 @@ mod tests {
     }
 
     #[test]
-    fn if_else_condition_is_bool() {
+    fn if_else_with_bool_condition() {
         let source = r#"
             fn main() {
                 if true {}
@@ -466,7 +476,7 @@ mod tests {
     }
 
     #[test]
-    fn if_else_with_else() {
+    fn if_else_with_else_block() {
         let source = r#"
             fn main() {
                 if true {} else {}
@@ -497,5 +507,42 @@ mod tests {
         let actual = typechecker.check();
 
         assert!(actual.is_ok())
+    }
+
+    #[test]
+    fn r#while() {
+        let source = r#"
+            fn main() {
+                while true {}
+            }
+        "#;
+
+        let source = SourceFile::new("tests".to_string(), source);
+        let ast = Parser::new(&source).parse().unwrap();
+        let mut typechecker = Typechecker::new(&ast, &source);
+
+        let actual = typechecker.check();
+
+        assert!(actual.is_ok())
+    }
+
+    #[test]
+    fn while_with_non_bool_condition() {
+        let source = r#"
+            fn main() {
+                while 1 {}
+            }
+        "#;
+
+        let source = SourceFile::new("tests".to_string(), source);
+        let ast = Parser::new(&source).parse().unwrap();
+        let mut typechecker = Typechecker::new(&ast, &source);
+
+        let actual = typechecker.check();
+
+        assert_eq!(
+            actual.unwrap_err().to_string(),
+            "expected a <bool> in condition of while statement, but found <int>".to_string()
+        )
     }
 }
