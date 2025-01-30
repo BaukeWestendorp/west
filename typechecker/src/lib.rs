@@ -159,6 +159,16 @@ impl<'src> Typechecker<'src> {
                 }
                 (None, None) => {}
             },
+            StatementKind::IfElse { condition, then_block } => {
+                let condition_ty = self.check_expression(condition)?;
+                if condition_ty != Ty::Bool {
+                    return Err(
+                        self.err_here(ErrorKind::ExpectedBoolInIfCondition { ty: condition_ty })
+                    );
+                }
+
+                self.check_block(then_block)?;
+            }
             StatementKind::Print { value } => {
                 self.check_expression(value)?;
             }
@@ -401,6 +411,43 @@ mod tests {
     #[test]
     fn fn_return_value_not_expectend_and_not_found() {
         let source = r#"fn a() {}"#;
+
+        let source = SourceFile::new("tests".to_string(), source);
+        let ast = Parser::new(&source).parse().unwrap();
+        let mut typechecker = Typechecker::new(&ast, &source);
+
+        let actual = typechecker.check();
+
+        assert!(actual.is_ok())
+    }
+
+    #[test]
+    fn if_else_condition_not_bool() {
+        let source = r#"
+            fn main() {
+                if 1 {}
+            }
+        "#;
+
+        let source = SourceFile::new("tests".to_string(), source);
+        let ast = Parser::new(&source).parse().unwrap();
+        let mut typechecker = Typechecker::new(&ast, &source);
+
+        let actual = typechecker.check();
+
+        assert_eq!(
+            actual.unwrap_err().to_string(),
+            "expected a <bool> in condition of if statement, but found <int>".to_string()
+        )
+    }
+
+    #[test]
+    fn if_else_condition_is_bool() {
+        let source = r#"
+            fn main() {
+                if true {}
+            }
+        "#;
 
         let source = SourceFile::new("tests".to_string(), source);
         let ast = Parser::new(&source).parse().unwrap();

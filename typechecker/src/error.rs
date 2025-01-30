@@ -41,4 +41,8 @@ pub enum ErrorKind<'src> {
     #[error("unexpected return value")]
     #[diagnostic(code(west::typechecker::unexpected_return_value))]
     UnexpectedReturnValue,
+
+    #[error("expected a <bool> in condition of if statement, but found {ty}")]
+    #[diagnostic(code(west::typechecker::invalid_if_condition))]
+    ExpectedBoolInIfCondition { ty: Ty },
 }
