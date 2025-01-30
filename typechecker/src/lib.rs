@@ -33,6 +33,7 @@ impl std::fmt::Display for Ty {
     }
 }
 
+#[derive(Debug)]
 struct Local<'src> {
     name: Ident<'src>,
     ty: Ty,
@@ -179,7 +180,7 @@ impl<'src> Typechecker<'src> {
             },
             ExpressionKind::Ident(ident) => {
                 for local in self.locals.iter().rev() {
-                    if local.name == *ident {
+                    if local.name.name == ident.name {
                         return Ok(local.ty);
                     }
                 }

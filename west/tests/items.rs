@@ -32,3 +32,19 @@ fn fn_return_value() {
         expected: "3\n",
     };
 }
+
+#[test]
+fn fn_parameters() {
+    expect_output_for! {
+        source: r#"
+            fn foo(x: float, y: float): float {
+                return x + y;
+            }
+
+            fn main {
+                print foo(1.0, 2.0);
+            }
+        "#,
+        expected: "3\n",
+    };
+}
