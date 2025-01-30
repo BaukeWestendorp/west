@@ -53,6 +53,8 @@ impl<'src> Parser<'src> {
                     TokenKind::EqEq => Op::Infix(InfixOp::Equals),
                     TokenKind::AmpAmp => Op::Infix(InfixOp::And),
                     TokenKind::PipePipe => Op::Infix(InfixOp::Or),
+                    TokenKind::Lt => Op::Infix(InfixOp::LessThan),
+                    TokenKind::Gt => Op::Infix(InfixOp::MoreThan),
                     TokenKind::LtEq => Op::Infix(InfixOp::LessThanEqual),
                     TokenKind::GtEq => Op::Infix(InfixOp::MoreThanEqual),
                     TokenKind::BangEq => Op::Infix(InfixOp::NotEqual),
@@ -163,14 +165,6 @@ fn prefix_binding_power(op: &PrefixOp) -> ((), u8) {
 
 fn infix_binding_power(op: &InfixOp) -> (u8, u8) {
     match op {
-        InfixOp::Assign
-        | InfixOp::AddAssign
-        | InfixOp::SubtractAssign
-        | InfixOp::MultiplyAssign
-        | InfixOp::DivideAssign
-        | InfixOp::BitAndAssign
-        | InfixOp::BitOrAssign => (2, 1),
-
         InfixOp::BitAnd | InfixOp::BitOr => (3, 4),
 
         InfixOp::Equals

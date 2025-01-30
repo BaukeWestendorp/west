@@ -236,7 +236,24 @@ impl<'src> ModuleCompiler<'src> {
                             dest: dest_reg,
                         });
                     }
-                    op => todo!("implement {op}"),
+
+                    InfixOp::Equals
+                    | InfixOp::And
+                    | InfixOp::Or
+                    | InfixOp::LessThan
+                    | InfixOp::MoreThan
+                    | InfixOp::LessThanEqual
+                    | InfixOp::MoreThanEqual
+                    | InfixOp::NotEqual
+                    | InfixOp::BitAnd
+                    | InfixOp::BitOr => {
+                        self.push(Opcode::Cmp {
+                            left: lhs_reg.into(),
+                            op: *op,
+                            right: rhs_reg.into(),
+                            dest: dest_reg,
+                        });
+                    }
                 }
 
                 dest_reg

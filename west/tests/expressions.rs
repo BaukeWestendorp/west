@@ -15,3 +15,24 @@ fn fn_return() {
         expected: "3\n",
     };
 }
+
+#[test]
+fn comparison() {
+    expect_output_for! {
+        source: r#"
+            fn main() {
+                print 1.0 < 2.0;
+                print 1.0 > 2.0;
+                print 1.0 <= 2.0;
+                print 1.0 <= 1.0;
+                print 1.0 >= 1.0;
+                print 1.0 >= 2.0;
+                print 1.0 == 1.0;
+                print 1.0 == 2.0;
+                print 1.0 != 2.0;
+                print 1.0 != 1.0;
+            }
+        "#,
+        expected: "true\nfalse\ntrue\ntrue\ntrue\nfalse\ntrue\nfalse\ntrue\nfalse\n",
+    };
+}
