@@ -63,3 +63,8 @@ fn if_else_cond_false() {
         expected: "2\n",
     };
 }
+
+#[test]
+fn r#while() {
+    // FIXME: Test while loop when we support reassigning variables.
+}
