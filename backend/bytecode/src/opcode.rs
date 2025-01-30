@@ -21,18 +21,18 @@ impl std::fmt::Display for Opcode {
     #[rustfmt::skip]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Opcode::Load { value, dest } =>      write!(f, "load  {} {}",    value, dest),
+            Opcode::Load { value, dest } =>      write!(f, "load   {} {}",    value, dest),
 
-            Opcode::Add { left, right, dest } => write!(f, "add   {} {} {}", left,  right, dest),
-            Opcode::Sub { left, right, dest } => write!(f, "sub   {} {} {}", left,  right, dest),
-            Opcode::Mul { left, right, dest } => write!(f, "mul   {} {} {}", left,  right, dest),
-            Opcode::Div { left, right, dest } => write!(f, "div   {} {} {}", left,  right, dest),
-            Opcode::Not { value, dest } =>       write!(f, "not   {} {}",    value, dest),
+            Opcode::Add { left, right, dest } => write!(f, "add    {} {} {}", left,  right, dest),
+            Opcode::Sub { left, right, dest } => write!(f, "sub    {} {} {}", left,  right, dest),
+            Opcode::Mul { left, right, dest } => write!(f, "mul    {} {} {}", left,  right, dest),
+            Opcode::Div { left, right, dest } => write!(f, "div    {} {} {}", left,  right, dest),
+            Opcode::Not { value, dest } =>       write!(f, "not    {} {}",    value, dest),
 
-            Opcode::Jump { label } =>            write!(f, "jump  {}",       label),
+            Opcode::Jump { label } =>            write!(f, "jump   {}",       label),
             Opcode::Return { value } =>          write!(f, "return {}",      value.as_ref().map(|v| v.to_string()).unwrap_or_default()),
 
-            Opcode::Print { value } =>           write!(f, "print {}",      value),
+            Opcode::Print { value } =>           write!(f, "print  {}",       value),
         }
     }
 }

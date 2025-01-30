@@ -131,7 +131,7 @@ where
     }
 
     fn read_register(&self, reg: &Register) -> &Value {
-        self.registers.get(reg).expect("register should exist")
+        self.registers.get(reg).expect(&format!("register should exist: {reg}"))
     }
 
     fn read_reg_or_imm<'a>(&'a self, reg_or_imm: &'a RegOrImm) -> &'a Value {
