@@ -76,7 +76,7 @@ impl std::fmt::Display for BytecodeModule {
         let mut lines = vec![];
 
         for (addr, opcode) in self.opcodes.iter().enumerate() {
-            if let Some((label, _)) = self.labels.iter().find(|(_, &a)| a == addr) {
+            for (label, _) in self.labels.iter().filter(|(_, &a)| a == addr) {
                 if let Some((path, _)) = self.function_labels.iter().find(|(_, l)| *l == label) {
                     lines.push(format!("-- label {} (fn {})", label, path));
                 } else {
