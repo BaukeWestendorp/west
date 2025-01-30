@@ -162,6 +162,9 @@ impl<'src> Typechecker<'src> {
             StatementKind::Print { value } => {
                 self.check_expression(value)?;
             }
+            StatementKind::Loop { body } => {
+                self.check_block(body)?;
+            }
         }
 
         Ok(())
@@ -401,6 +404,19 @@ mod tests {
     #[test]
     fn fn_return_value_not_expectend_and_not_found() {
         let source = r#"fn a() {}"#;
+
+        let source = SourceFile::new("tests".to_string(), source);
+        let ast = Parser::new(&source).parse().unwrap();
+        let mut typechecker = Typechecker::new(&ast, &source);
+
+        let actual = typechecker.check();
+
+        assert!(actual.is_ok())
+    }
+
+    #[test]
+    fn r#loop() {
+        let source = r#"fn main { loop {} }"#;
 
         let source = SourceFile::new("tests".to_string(), source);
         let ast = Parser::new(&source).parse().unwrap();
