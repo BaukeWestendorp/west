@@ -13,11 +13,12 @@ where
     module: BytecodeModule,
 
     registers: HashMap<Register, Value>,
+    call_stack: Vec<Address>,
 
     writer: &'w mut W,
 
     // FIMXE: Right now the instruction pointer only works for a single module.
-    ip: usize,
+    ip: Address,
 }
 
 impl<'w, W> Vm<'w, W>
@@ -29,6 +30,7 @@ where
         Self {
             module,
             registers: HashMap::new(),
+            call_stack: vec![],
             writer,
             ip: entry_address,
     }
@@ -108,11 +110,21 @@ where
                 self.allocate_register(*dest, value);
             }
 
-            Opcode::Jump { label } => self.ip = module.get_label_address(label),
+            Opcode::Jump { label } => {
+                self.call_stack.push(self.ip);
+                self.ip = self.module.get_label_address(label)
+            }
             Opcode::Return { value } => {
                 if let Some(value) = value {
                     let value = self.read_reg_or_imm(value).clone();
                     self.set_register(Register::R0, value);
+                }
+                match self.call_stack.pop() {
+                    Some(address) => self.ip = address,
+                    None => {
+                        // Returned from main function.
+                        self.ip = self.module.opcodes().len();
+                    }
                 }
             }
 

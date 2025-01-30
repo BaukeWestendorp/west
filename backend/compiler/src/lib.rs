@@ -60,7 +60,7 @@ impl<'src> ModuleCompiler<'src> {
 
             ip: 0,
             label_counter: 0,
-            reg_counter: 0,
+            reg_counter: 1,
         }
     }
 
