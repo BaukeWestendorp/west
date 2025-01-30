@@ -106,7 +106,9 @@ fn test_ident() {
 fn test_keywords() {
     check_lexer("fn",    vec![Token { kind: TokenKind::Keyword(Keyword::Fn),    span: 0..2 }]);
     check_lexer("let",   vec![Token { kind: TokenKind::Keyword(Keyword::Let),   span: 0..3 }]);
+    check_lexer("return",vec![Token { kind: TokenKind::Keyword(Keyword::Return),span: 0..6 }]);
     check_lexer("print", vec![Token { kind: TokenKind::Keyword(Keyword::Print), span: 0..5 }]);
+    check_lexer("if",    vec![Token { kind: TokenKind::Keyword(Keyword::If),    span: 0..2 }]);
 }
 
 #[test]
