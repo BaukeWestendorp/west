@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::io::Write;
 
-use bytecode::module::{Address, BytecodeModule};
+use bytecode::module::{Address, BytecodeModule, Label};
 use bytecode::opcode::Opcode;
 use bytecode::reg::{RegOrImm, Register};
 use bytecode::value::Value;
@@ -122,8 +122,24 @@ where
             }
 
             Opcode::Jump { label } => {
+                self.jump_to_label(label);
+            }
+
+            Opcode::JumpIfTrue { condition, label } => {
+                let condition = self.read_register(condition).clone();
+                if condition.as_bool() {
+                    self.jump_to_label(label);
+                }
+            }
+            Opcode::JumpIfFalse { condition, label } => {
+                let condition = self.read_register(condition).clone();
+                if !condition.as_bool() {
+                    self.jump_to_label(label);
+                }
+            }
+            Opcode::Call { label } => {
                 self.call_stack.push(self.ip);
-                self.ip = self.module.get_label_address(label)
+                self.jump_to_label(label);
             }
             Opcode::Return { value } => {
                 if let Some(value) = value {
@@ -163,5 +179,9 @@ where
             RegOrImm::Register(reg) => self.read_register(&reg),
             RegOrImm::Immediate(imm) => imm,
         }
+    }
+
+    fn jump_to_label(&mut self, label: &Label) {
+        self.ip = self.module.get_label_address(label);
     }
 }
