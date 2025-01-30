@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::io::Write;
 
+use ast::InfixOp;
 use bytecode::module::{Address, BytecodeModule, Label};
 use bytecode::opcode::Opcode;
 use bytecode::reg::{RegOrImm, Register};
@@ -116,6 +117,41 @@ where
                 let value = match value {
                     Value::Bool(value) => Value::Bool(!value),
                     _ => panic!("invalid type for not operation"),
+                };
+
+                self.allocate_register(*dest, value);
+            }
+
+            Opcode::Cmp { left, op, right, dest } => {
+                let left = self.read_reg_or_imm(left);
+                let right = self.read_reg_or_imm(right);
+
+                let value = match (left, right) {
+                    (Value::Int(left), Value::Int(right)) => {
+                        let result = match op {
+                            InfixOp::Equals => left == right,
+                            InfixOp::NotEqual => left != right,
+                            InfixOp::LessThan => left < right,
+                            InfixOp::LessThanEqual => left <= right,
+                            InfixOp::MoreThan => left > right,
+                            InfixOp::MoreThanEqual => left >= right,
+                            _ => panic!("invalid operator for int comparison"),
+                        };
+                        Value::Bool(result)
+                    }
+                    (Value::Float(left), Value::Float(right)) => {
+                        let result = match op {
+                            InfixOp::Equals => left == right,
+                            InfixOp::NotEqual => left != right,
+                            InfixOp::LessThan => left < right,
+                            InfixOp::LessThanEqual => left <= right,
+                            InfixOp::MoreThan => left > right,
+                            InfixOp::MoreThanEqual => left >= right,
+                            _ => panic!("invalid operator for float comparison"),
+                        };
+                        Value::Bool(result)
+                    }
+                    _ => panic!("invalid types for comparison operation"),
                 };
 
                 self.allocate_register(*dest, value);

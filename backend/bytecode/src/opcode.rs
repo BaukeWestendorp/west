@@ -35,6 +35,7 @@ impl std::fmt::Display for Opcode {
             Opcode::Mul { left, right, dest } =>        write!(f, "mul         {} {} {}", left,  right, dest),
             Opcode::Div { left, right, dest } =>        write!(f, "div         {} {} {}", left,  right, dest),
             Opcode::Not { value, dest } =>              write!(f, "not         {} {}",    value, dest),
+            Opcode::Cmp { left, op, right, dest } =>    write!(f, "cmp         {} {} {} -> {}", left, op, right, dest),
 
             Opcode::Jump { label } =>                   write!(f, "jump        {}",       label),
             Opcode::JumpIfTrue { condition, label } =>  write!(f, "jumpiftrue  {} {}",    condition, label),
