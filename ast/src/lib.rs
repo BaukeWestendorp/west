@@ -143,13 +143,6 @@ impl std::fmt::Display for PrefixOp {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InfixOp {
-    Assign,
-    AddAssign,
-    SubtractAssign,
-    MultiplyAssign,
-    DivideAssign,
-    BitAndAssign,
-    BitOrAssign,
     BitAnd,
     BitOr,
     LessThan,
@@ -169,13 +162,6 @@ pub enum InfixOp {
 impl std::fmt::Display for InfixOp {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let token = match self {
-            Self::Assign => TokenKind::Eq,
-            Self::AddAssign => TokenKind::PlusEq,
-            Self::SubtractAssign => TokenKind::MinusEq,
-            Self::MultiplyAssign => TokenKind::StarEq,
-            Self::DivideAssign => TokenKind::SlashEq,
-            Self::BitAndAssign => TokenKind::AmpEq,
-            Self::BitOrAssign => TokenKind::PipeEq,
             Self::BitAnd => TokenKind::Amp,
             Self::BitOr => TokenKind::Pipe,
             Self::LessThan => TokenKind::Lt,
