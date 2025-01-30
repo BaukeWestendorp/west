@@ -78,7 +78,7 @@ pub enum StatementKind<'src> {
     Return { value: Option<ExpressionId> },
     Print { value: ExpressionId },
 
-    IfElse { condition: ExpressionId, then_block: Block<'src> },
+    IfElse { condition: ExpressionId, then_block: Block<'src>, else_block: Option<Block<'src>> },
 }
 
 #[derive(Debug, Clone, PartialEq)]

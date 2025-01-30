@@ -61,10 +61,13 @@ impl<'src> Parser<'src> {
 
         let then_block = self.parse_block()?;
 
-        // FIXME: Implement else.
+        let mut else_block = None;
+        if self.try_eat_keyword(Keyword::Else) {
+            else_block = Some(self.parse_block()?);
+        }
 
         Ok(Some(Statement {
-            kind: StatementKind::IfElse { condition, then_block },
+            kind: StatementKind::IfElse { condition, then_block, else_block },
             span: self.end_span(),
         }))
     }
@@ -204,7 +207,7 @@ mod tests {
 
         let statement = parser.parse_statement().unwrap().unwrap();
 
-        let StatementKind::IfElse { condition, then_block } = statement.kind else {
+        let StatementKind::IfElse { condition, then_block, .. } = statement.kind else {
             panic!();
         };
 
@@ -217,8 +220,24 @@ mod tests {
         assert_eq!(then_block.statements.len(), 0);
     }
 
-    // #[test]
-    // fn if_else_else() {
-    //     FIXME: Implement else.
-    // }
+    #[test]
+    fn if_else_else() {
+        let source = SourceFile::new("tests".to_string(), r#"if true {} else {}"#);
+        let mut parser = crate::Parser::new(&source);
+
+        let statement = parser.parse_statement().unwrap().unwrap();
+
+        let StatementKind::IfElse { condition, then_block, else_block } = statement.kind else {
+            panic!();
+        };
+
+        let condition = parser.ast.get_expression(&condition);
+        assert_eq!(condition, &Expression {
+            kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Bool(true), span: 3..7 }),
+            span: 3..7,
+        });
+
+        assert_eq!(then_block.statements.len(), 0);
+        assert_eq!(else_block.unwrap().statements.len(), 0);
+    }
 }
