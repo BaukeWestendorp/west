@@ -156,6 +156,11 @@ impl<'src> ModuleCompiler<'src> {
                 let value_reg = self.compile_expression(value);
                 self.locals.insert((self.depth, name.as_str()), value_reg);
             }
+            StatementKind::Loop { body } => {
+                let loop_label = self.add_label();
+                self.compile_block(body);
+                self.push(Opcode::Jump { label: loop_label });
+            }
         }
     }
 

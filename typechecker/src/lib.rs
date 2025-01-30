@@ -176,6 +176,9 @@ impl<'src> Typechecker<'src> {
             StatementKind::Print { value } => {
                 self.check_expression(value)?;
             }
+            StatementKind::Loop { body } => {
+                self.check_block(body)?;
+            }
         }
 
         Ok(())
@@ -425,7 +428,6 @@ mod tests {
         assert!(actual.is_ok())
     }
 
-    #[test]
     fn if_else_condition_not_bool() {
         let source = r#"
             fn main() {
@@ -477,5 +479,19 @@ mod tests {
         let actual = typechecker.check();
 
         assert!(actual.is_ok())
+    }
+  
+    #[test]
+    fn r#loop() {
+        let source = SourceFile::new("tests".to_string(), r#"loop {}"#);
+        let mut parser = crate::Parser::new(&source);
+
+        let statement = parser.parse_statement().unwrap().unwrap();
+
+        let StatementKind::Loop { body } = statement.kind else {
+            panic!();
+        };
+
+        assert_eq!(body.span, 5..7);
     }
 }
