@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::io::Write;
 
-use bytecode::module::BytecodeModule;
+use bytecode::module::{Address, BytecodeModule};
 use bytecode::opcode::Opcode;
 use bytecode::reg::{RegOrImm, Register};
 use bytecode::value::Value;
@@ -10,7 +10,7 @@ pub struct Vm<'w, W>
 where
     W: Write + 'w,
 {
-    modules: Vec<BytecodeModule>,
+    module: BytecodeModule,
 
     registers: HashMap<Register, Value>,
 
@@ -24,24 +24,25 @@ impl<'w, W> Vm<'w, W>
 where
     W: Write + 'w,
 {
-    pub fn new(modules: Vec<BytecodeModule>, writer: &'w mut W) -> Self {
-        Self { modules, registers: HashMap::new(), writer, ip: 0 }
+    pub fn new(module: BytecodeModule, writer: &'w mut W) -> Self {
+        let entry_address = module.get_entry_address();
+        Self {
+            module,
+            registers: HashMap::new(),
+            writer,
+            ip: entry_address,
     }
 
     pub fn run(mut self) {
-        let modules = std::mem::take(&mut self.modules);
-        for module in modules {
-            self.run_module(&module);
+        while self.ip < self.module.opcodes().len() {
+            // FIXME: We should not clone the opcode here.
+            let opcode = self.module.opcodes()[self.ip].clone();
+            self.run_opcode(&opcode);
         }
     }
 
-    fn run_module(&mut self, module: &BytecodeModule) {
-        for opcode in module.opcodes() {
-            self.run_opcode(opcode, module);
-        }
-    }
+    fn run_opcode(&mut self, opcode: &Opcode) {
 
-    fn run_opcode(&mut self, opcode: &Opcode, module: &BytecodeModule) {
         match opcode {
             Opcode::Load { value, dest } => {
                 let value = self.read_reg_or_imm(value).clone();

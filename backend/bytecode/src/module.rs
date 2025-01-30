@@ -60,6 +60,11 @@ impl BytecodeModule {
     pub fn get_function_label(&self, name: &str) -> Label {
         *self.function_labels.get(name).expect("a label should exist for every function")
     }
+
+    pub fn get_entry_address(&self) -> Address {
+        let label = self.get_function_label("main");
+        self.get_label_address(&label)
+    }
 }
 
 impl std::fmt::Display for BytecodeModule {
