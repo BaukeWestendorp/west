@@ -159,7 +159,7 @@ impl<'src> Typechecker<'src> {
                 }
                 (None, None) => {}
             },
-            StatementKind::IfElse { condition, then_block } => {
+            StatementKind::IfElse { condition, then_block, else_block } => {
                 let condition_ty = self.check_expression(condition)?;
                 if condition_ty != Ty::Bool {
                     return Err(
@@ -168,6 +168,10 @@ impl<'src> Typechecker<'src> {
                 }
 
                 self.check_block(then_block)?;
+
+                if let Some(else_block) = else_block {
+                    self.check_block(else_block)?;
+                }
             }
             StatementKind::Print { value } => {
                 self.check_expression(value)?;
@@ -446,6 +450,23 @@ mod tests {
         let source = r#"
             fn main() {
                 if true {}
+            }
+        "#;
+
+        let source = SourceFile::new("tests".to_string(), source);
+        let ast = Parser::new(&source).parse().unwrap();
+        let mut typechecker = Typechecker::new(&ast, &source);
+
+        let actual = typechecker.check();
+
+        assert!(actual.is_ok())
+    }
+
+    #[test]
+    fn if_else_with_else() {
+        let source = r#"
+            fn main() {
+                if true {} else {}
             }
         "#;
 
