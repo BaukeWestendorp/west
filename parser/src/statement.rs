@@ -10,6 +10,8 @@ impl<'src> Parser<'src> {
             Ok(Some(expr_statement))
         } else if let Some(let_statement) = self.parse_statement_let()? {
             Ok(Some(let_statement))
+        } else if let Some(if_else_statement) = self.parse_statement_if_else()? {
+            Ok(Some(if_else_statement))
         } else if let Some(print_statement) = self.parse_statement_print()? {
             Ok(Some(print_statement))
         } else if let Some(return_statement) = self.parse_statement_return()? {
@@ -46,6 +48,25 @@ impl<'src> Parser<'src> {
         let value = self.parse_expression()?.wrap_err("expected expression")?;
         self.eat_expected(TokenKind::Semi)?;
         Ok(Some(Statement { kind: StatementKind::Let { name, value }, span: self.end_span() }))
+    }
+
+    pub fn parse_statement_if_else(&mut self) -> Result<Option<Statement<'src>>> {
+        self.start_span();
+        if !self.try_eat_keyword(Keyword::If) {
+            self.end_span();
+            return Ok(None);
+        }
+
+        let condition = self.parse_expression()?.wrap_err("expected expression")?;
+
+        let then_block = self.parse_block()?;
+
+        // FIXME: Implement else.
+
+        Ok(Some(Statement {
+            kind: StatementKind::IfElse { condition, then_block },
+            span: self.end_span(),
+        }))
     }
 
     pub fn parse_statement_print(&mut self) -> Result<Option<Statement<'src>>> {
@@ -175,4 +196,29 @@ mod tests {
             span: 7..8,
         });
     }
+
+    #[test]
+    fn if_else() {
+        let source = SourceFile::new("tests".to_string(), r#"if true {}"#);
+        let mut parser = crate::Parser::new(&source);
+
+        let statement = parser.parse_statement().unwrap().unwrap();
+
+        let StatementKind::IfElse { condition, then_block } = statement.kind else {
+            panic!();
+        };
+
+        let condition = parser.ast.get_expression(&condition);
+        assert_eq!(condition, &Expression {
+            kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Bool(true), span: 3..7 }),
+            span: 3..7,
+        });
+
+        assert_eq!(then_block.statements.len(), 0);
+    }
+
+    // #[test]
+    // fn if_else_else() {
+    //     FIXME: Implement else.
+    // }
 }
