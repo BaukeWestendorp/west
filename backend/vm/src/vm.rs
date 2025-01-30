@@ -13,6 +13,7 @@ where
     module: BytecodeModule,
 
     registers: HashMap<Register, Value>,
+    constant_stack: Vec<Value>,
     call_stack: Vec<Address>,
 
     writer: &'w mut W,
@@ -31,8 +32,10 @@ where
             module,
             registers: HashMap::new(),
             call_stack: vec![],
+            constant_stack: vec![],
             writer,
             ip: entry_address,
+        }
     }
 
     pub fn run(mut self) {
@@ -44,10 +47,18 @@ where
     }
 
     fn run_opcode(&mut self, opcode: &Opcode) {
+        self.ip += 1;
 
         match opcode {
             Opcode::Load { value, dest } => {
                 let value = self.read_reg_or_imm(value).clone();
+                self.allocate_register(*dest, value.clone());
+            }
+            Opcode::Push { value } => {
+                self.constant_stack.push(self.read_reg_or_imm(value).clone());
+            }
+            Opcode::Pop { dest } => {
+                let value = self.constant_stack.pop().expect("stack should not be empty");
                 self.allocate_register(*dest, value);
             }
 

@@ -89,6 +89,14 @@ impl<'src> ModuleCompiler<'src> {
         let label = self.add_label();
         self.bc_module.add_function_label(function.name.to_string(), label);
 
+        for param in function.params.iter() {
+            let reg = self.add_register();
+            self.push(Opcode::Pop { dest: reg });
+
+            // NOTE: We have to add one to the depth, because we are not in the scope of the block yet.
+            self.locals.insert((self.depth + 1, param.name.as_str()), reg);
+        }
+
         self.compile_block(&function.body);
 
         if !self.has_return {
@@ -207,13 +215,18 @@ impl<'src> ModuleCompiler<'src> {
 
                 dest_reg
             }
-            ExpressionKind::FnCall { callee, args: _args } => {
+            ExpressionKind::FnCall { callee, args } => {
                 let ExpressionKind::Ident(callee_label) = &self.ast.get_expression(callee).kind
                 else {
                     panic!("invalid fn call. expected callee to be an ident");
                 };
 
                 let fn_label = self.bc_module.get_function_label(callee_label.as_str());
+
+                for argument in args {
+                    let arg_reg = self.compile_expression(argument);
+                    self.push(Opcode::Push { value: arg_reg.into() });
+                }
 
                 self.push(Opcode::Jump { label: fn_label });
                 Register::R0

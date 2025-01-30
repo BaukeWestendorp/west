@@ -4,6 +4,8 @@ use crate::reg::{RegOrImm, Register};
 #[derive(Debug, Clone)]
 pub enum Opcode {
     Load { value: RegOrImm, dest: Register },
+    Push { value: RegOrImm },
+    Pop { dest: Register },
 
     Add { left: RegOrImm, right: RegOrImm, dest: Register },
     Sub { left: RegOrImm, right: RegOrImm, dest: Register },
@@ -22,6 +24,8 @@ impl std::fmt::Display for Opcode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Opcode::Load { value, dest } =>      write!(f, "load   {} {}",    value, dest),
+            Opcode::Push { value } =>            write!(f, "push   {}",       value),
+            Opcode::Pop { dest } =>              write!(f, "pop    {}",       dest),
 
             Opcode::Add { left, right, dest } => write!(f, "add    {} {} {}", left,  right, dest),
             Opcode::Sub { left, right, dest } => write!(f, "sub    {} {} {}", left,  right, dest),
