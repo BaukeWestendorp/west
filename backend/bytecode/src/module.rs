@@ -53,6 +53,10 @@ impl BytecodeModule {
         *self.labels.get(label).expect("an address should exist for every label")
     }
 
+    pub fn set_label_address(&mut self, label: Label, address: Address) {
+        self.labels.insert(label, address);
+    }
+
     pub fn add_function_label(&mut self, name: String, label: Label) {
         self.function_labels.insert(name, label);
     }
