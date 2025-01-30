@@ -18,6 +18,8 @@ impl<'src> Parser<'src> {
             Ok(Some(return_statement))
         } else if let Some(loop_statement) = self.parse_statement_loop()? {
             Ok(Some(loop_statement))
+        } else if let Some(while_statement) = self.parse_statement_while()? {
+            Ok(Some(while_statement))
         } else {
             Ok(None)
         }
@@ -107,6 +109,21 @@ impl<'src> Parser<'src> {
 
         let body = self.parse_block()?;
         Ok(Some(Statement { kind: StatementKind::Loop { body }, span: self.end_span() }))
+    }
+
+    pub fn parse_statement_while(&mut self) -> Result<Option<Statement<'src>>> {
+        self.start_span();
+        if !self.try_eat_keyword(Keyword::While) {
+            self.end_span();
+            return Ok(None);
+        }
+
+        let condition = self.parse_expression()?.wrap_err("expected expression")?;
+        let body = self.parse_block()?;
+        Ok(Some(Statement {
+            kind: StatementKind::While { condition, body },
+            span: self.end_span(),
+        }))
     }
 }
 
@@ -224,6 +241,26 @@ mod tests {
         };
 
         assert_eq!(body.span, 5..7);
+    }
+
+    #[test]
+    fn r#while() {
+        let source = SourceFile::new("tests".to_string(), r#"while true {}"#);
+        let mut parser = crate::Parser::new(&source);
+        let statement = parser.parse_statement().unwrap().unwrap();
+
+        let StatementKind::While { condition, body } = statement.kind else {
+            panic!();
+        };
+
+        let condition = parser.ast.get_expression(&condition);
+
+        assert_eq!(condition, &Expression {
+            kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Bool(true), span: 6..10 }),
+            span: 6..10,
+        });
+
+        assert_eq!(body.span, 11..13);
     }
 
     #[test]
