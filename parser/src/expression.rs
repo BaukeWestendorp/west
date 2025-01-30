@@ -53,6 +53,8 @@ impl<'src> Parser<'src> {
                     TokenKind::EqEq => Op::Infix(InfixOp::Equals),
                     TokenKind::AmpAmp => Op::Infix(InfixOp::And),
                     TokenKind::PipePipe => Op::Infix(InfixOp::Or),
+                    TokenKind::Lt => Op::Infix(InfixOp::LessThan),
+                    TokenKind::Gt => Op::Infix(InfixOp::MoreThan),
                     TokenKind::LtEq => Op::Infix(InfixOp::LessThanEqual),
                     TokenKind::GtEq => Op::Infix(InfixOp::MoreThanEqual),
                     TokenKind::BangEq => Op::Infix(InfixOp::NotEqual),
