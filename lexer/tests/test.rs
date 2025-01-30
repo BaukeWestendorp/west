@@ -56,18 +56,18 @@ fn test_whitespace() {
 #[test]
 #[rustfmt::skip]
 fn test_symbols() {
-    check_lexer("==", vec![Token { kind: TokenKind::EqEq,   span: 0..2 }]);
-    check_lexer("&&", vec![Token { kind: TokenKind::AmpAmp,         span: 0..2 }]);
-    check_lexer("||", vec![Token { kind: TokenKind::PipePipe,       span: 0..2 }]);
-    check_lexer("&=", vec![Token { kind: TokenKind::AmpEq,      span: 0..2 }]);
-    check_lexer("|=", vec![Token { kind: TokenKind::PipeEq,     span: 0..2 }]);
-    check_lexer("<=", vec![Token { kind: TokenKind::LtEq, span: 0..2 }]);
-    check_lexer(">=", vec![Token { kind: TokenKind::GtEq, span: 0..2 }]);
-    check_lexer("!=", vec![Token { kind: TokenKind::BangEq,     span: 0..2 }]);
-    check_lexer("+=", vec![Token { kind: TokenKind::PlusEq,     span: 0..2 }]);
-    check_lexer("-=", vec![Token { kind: TokenKind::MinusEq,    span: 0..2 }]);
-    check_lexer("*=", vec![Token { kind: TokenKind::StarEq,     span: 0..2 }]);
-    check_lexer("/=", vec![Token { kind: TokenKind::SlashEq,    span: 0..2 }]);
+    check_lexer("==", vec![Token { kind: TokenKind::EqEq,      span: 0..2 }]);
+    check_lexer("&&", vec![Token { kind: TokenKind::AmpAmp,    span: 0..2 }]);
+    check_lexer("||", vec![Token { kind: TokenKind::PipePipe,  span: 0..2 }]);
+    check_lexer("&=", vec![Token { kind: TokenKind::AmpEq,     span: 0..2 }]);
+    check_lexer("|=", vec![Token { kind: TokenKind::PipeEq,    span: 0..2 }]);
+    check_lexer("<=", vec![Token { kind: TokenKind::LtEq,      span: 0..2 }]);
+    check_lexer(">=", vec![Token { kind: TokenKind::GtEq,      span: 0..2 }]);
+    check_lexer("!=", vec![Token { kind: TokenKind::BangEq,    span: 0..2 }]);
+    check_lexer("+=", vec![Token { kind: TokenKind::PlusEq,    span: 0..2 }]);
+    check_lexer("-=", vec![Token { kind: TokenKind::MinusEq,   span: 0..2 }]);
+    check_lexer("*=", vec![Token { kind: TokenKind::StarEq,    span: 0..2 }]);
+    check_lexer("/=", vec![Token { kind: TokenKind::SlashEq,   span: 0..2 }]);
 
     check_lexer("(", vec![Token { kind: TokenKind::ParenOpen,  span: 0..1 }]);
     check_lexer(")", vec![Token { kind: TokenKind::ParenClose, span: 0..1 }]);
@@ -76,12 +76,12 @@ fn test_symbols() {
     check_lexer(".", vec![Token { kind: TokenKind::Dot,        span: 0..1 }]);
     check_lexer(",", vec![Token { kind: TokenKind::Comma,      span: 0..1 }]);
     check_lexer(":", vec![Token { kind: TokenKind::Colon,      span: 0..1 }]);
-    check_lexer(";", vec![Token { kind: TokenKind::Semi,  span: 0..1 }]);
-    check_lexer("=", vec![Token { kind: TokenKind::Eq,     span: 0..1 }]);
+    check_lexer(";", vec![Token { kind: TokenKind::Semi,       span: 0..1 }]);
+    check_lexer("=", vec![Token { kind: TokenKind::Eq,         span: 0..1 }]);
     check_lexer("&", vec![Token { kind: TokenKind::Amp,        span: 0..1 }]);
     check_lexer("|", vec![Token { kind: TokenKind::Pipe,       span: 0..1 }]);
-    check_lexer("<", vec![Token { kind: TokenKind::Lt,   span: 0..1 }]);
-    check_lexer(">", vec![Token { kind: TokenKind::Gt,   span: 0..1 }]);
+    check_lexer("<", vec![Token { kind: TokenKind::Lt,         span: 0..1 }]);
+    check_lexer(">", vec![Token { kind: TokenKind::Gt,         span: 0..1 }]);
     check_lexer("!", vec![Token { kind: TokenKind::Bang,       span: 0..1 }]);
     check_lexer("+", vec![Token { kind: TokenKind::Plus,       span: 0..1 }]);
     check_lexer("-", vec![Token { kind: TokenKind::Minus,      span: 0..1 }]);
@@ -107,6 +107,8 @@ fn test_keywords() {
     check_lexer("fn",    vec![Token { kind: TokenKind::Keyword(Keyword::Fn),    span: 0..2 }]);
     check_lexer("let",   vec![Token { kind: TokenKind::Keyword(Keyword::Let),   span: 0..3 }]);
     check_lexer("print", vec![Token { kind: TokenKind::Keyword(Keyword::Print), span: 0..5 }]);
+    check_lexer("return",vec![Token { kind: TokenKind::Keyword(Keyword::Return),span: 0..6 }]);
+    check_lexer("loop",  vec![Token { kind: TokenKind::Keyword(Keyword::Loop),  span: 0..4 }]);
 }
 
 #[test]
