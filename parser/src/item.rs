@@ -1,4 +1,4 @@
-use ast::{Item, ItemKind};
+use ast::{FnParam, Item, ItemKind};
 use lexer::token::{Keyword, TokenKind};
 use miette::{Context, Result};
 use west_error::ErrorProducer;
@@ -26,9 +26,12 @@ impl<'src> Parser<'src> {
 
         let name = self.parse_ident()?.wrap_err("expected function name")?;
 
-        let mut params = ();
+        let mut params = vec![];
         if self.try_eat(TokenKind::ParenOpen).is_some() {
-            params = ();
+            if let Some(p) = self.parse_item_fn_params()? {
+                params = p;
+            }
+
             self.eat_expected(TokenKind::ParenClose)?;
         };
 
@@ -41,11 +44,29 @@ impl<'src> Parser<'src> {
 
         Ok(Some(ast::Fn { name, params, return_type, body }))
     }
+
+    fn parse_item_fn_params(&mut self) -> Result<Option<Vec<FnParam<'src>>>> {
+        let mut params = vec![];
+
+        loop {
+            let Some(name) = self.parse_ident()? else { return Ok(None) };
+            self.eat_expected(TokenKind::Colon)?;
+            let ty = self.parse_ident()?.wrap_err("expected parameter type")?;
+
+            params.push(FnParam { name, ty });
+
+            if self.try_eat(TokenKind::Comma).is_none() {
+                break;
+            }
+        }
+
+        Ok(Some(params))
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use ast::{Block, Ident, Item, ItemKind};
+    use ast::{Block, FnParam, Ident, Item, ItemKind};
 
     use crate::{check_parser, check_parser_error};
 
@@ -57,7 +78,7 @@ mod tests {
             expected: Some(Item {
                 kind: ItemKind::Fn(ast::Fn {
                     name: Ident { name: "a", span: 3..4 },
-                    params: (),
+                    params: vec![],
                     return_type: None,
                     body: Block { statements: vec![], span: 7..9 } }
                 ),
@@ -74,7 +95,7 @@ mod tests {
             expected: Some(Item {
                 kind: ItemKind::Fn(ast::Fn {
                     name: Ident { name: "a", span: 3..4 },
-                    params: (),
+                    params: vec![],
                     return_type: None,
                     body: Block { statements: vec![], span: 5..7 } }
                 ),
@@ -91,7 +112,7 @@ mod tests {
             expected: Some(Item {
                 kind: ItemKind::Fn(ast::Fn {
                     name: Ident { name: "a_very_long_name_here", span: 3..24 },
-                    params: (),
+                    params: vec![],
                     return_type: None,
                     body: Block { statements: vec![], span: 27..29 } }
                 ),
@@ -108,7 +129,7 @@ mod tests {
             expected: Some(Item {
                 kind: ItemKind::Fn(ast::Fn {
                     name: Ident { name: "a", span: 3..4 },
-                    params: (),
+                    params: vec![],
                     return_type: Some(Ident { name: "int", span: 8..11 }),
                     body: Block { statements: vec![], span: 12..14 } }
                 ),
@@ -132,6 +153,43 @@ mod tests {
             source: r#"fn () {}"#,
             fn: parse_item,
             expected: "expected function name"
+        };
+    }
+
+    #[test]
+    fn fn_single_argument() {
+        check_parser! {
+            source: r#"fn a(x: int) {}"#,
+            fn: parse_item,
+            expected: Some(Item {
+                kind: ItemKind::Fn(ast::Fn {
+                    name: Ident { name: "a", span: 3..4 },
+                    params: vec![FnParam { name: Ident { name: "x", span: 5..6 }, ty: Ident { name: "int", span: 8..11 }}],
+                    return_type: None,
+                    body: Block { statements: vec![], span: 13..15 } }
+                ),
+                span: 0..15
+            })
+        };
+    }
+
+    #[test]
+    fn fn_multiple_arguments() {
+        check_parser! {
+            source: r#"fn a(x: int, y: str) {}"#,
+            fn: parse_item,
+            expected: Some(Item {
+                kind: ItemKind::Fn(ast::Fn {
+                    name: Ident { name: "a", span: 3..4 },
+                    params: vec![
+                        FnParam { name: Ident { name: "x", span: 5..6 }, ty: Ident { name: "int", span: 8..11 }},
+                        FnParam { name: Ident { name: "y", span: 13..14 }, ty: Ident { name: "str", span: 16..19 }}
+                    ],
+                    return_type: None,
+                    body: Block { statements: vec![], span: 21..23 } }
+                ),
+                span: 0..23
+            })
         };
     }
 }

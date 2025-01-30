@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::io::Write;
 
-use bytecode::module::BytecodeModule;
+use bytecode::module::{Address, BytecodeModule};
 use bytecode::opcode::Opcode;
 use bytecode::reg::{RegOrImm, Register};
 use bytecode::value::Value;
@@ -10,41 +10,55 @@ pub struct Vm<'w, W>
 where
     W: Write + 'w,
 {
-    modules: Vec<BytecodeModule>,
+    module: BytecodeModule,
 
     registers: HashMap<Register, Value>,
+    constant_stack: Vec<Value>,
+    call_stack: Vec<Address>,
 
     writer: &'w mut W,
 
     // FIMXE: Right now the instruction pointer only works for a single module.
-    ip: usize,
+    ip: Address,
 }
 
 impl<'w, W> Vm<'w, W>
 where
     W: Write + 'w,
 {
-    pub fn new(modules: Vec<BytecodeModule>, writer: &'w mut W) -> Self {
-        Self { modules, registers: HashMap::new(), writer, ip: 0 }
+    pub fn new(module: BytecodeModule, writer: &'w mut W) -> Self {
+        let entry_address = module.get_entry_address();
+        Self {
+            module,
+            registers: HashMap::new(),
+            call_stack: vec![],
+            constant_stack: vec![],
+            writer,
+            ip: entry_address,
+        }
     }
 
     pub fn run(mut self) {
-        let modules = std::mem::take(&mut self.modules);
-        for module in modules {
-            self.run_module(&module);
+        while self.ip < self.module.opcodes().len() {
+            // FIXME: We should not clone the opcode here.
+            let opcode = self.module.opcodes()[self.ip].clone();
+            self.run_opcode(&opcode);
         }
     }
 
-    fn run_module(&mut self, module: &BytecodeModule) {
-        for opcode in module.opcodes() {
-            self.run_opcode(opcode, module);
-        }
-    }
+    fn run_opcode(&mut self, opcode: &Opcode) {
+        self.ip += 1;
 
-    fn run_opcode(&mut self, opcode: &Opcode, module: &BytecodeModule) {
         match opcode {
             Opcode::Load { value, dest } => {
                 let value = self.read_reg_or_imm(value).clone();
+                self.allocate_register(*dest, value.clone());
+            }
+            Opcode::Push { value } => {
+                self.constant_stack.push(self.read_reg_or_imm(value).clone());
+            }
+            Opcode::Pop { dest } => {
+                let value = self.constant_stack.pop().expect("stack should not be empty");
                 self.allocate_register(*dest, value);
             }
 
@@ -107,11 +121,21 @@ where
                 self.allocate_register(*dest, value);
             }
 
-            Opcode::Jump { label } => self.ip = module.get_label_address(label),
+            Opcode::Jump { label } => {
+                self.call_stack.push(self.ip);
+                self.ip = self.module.get_label_address(label)
+            }
             Opcode::Return { value } => {
                 if let Some(value) = value {
                     let value = self.read_reg_or_imm(value).clone();
                     self.set_register(Register::R0, value);
+                }
+                match self.call_stack.pop() {
+                    Some(address) => self.ip = address,
+                    None => {
+                        // Returned from main function.
+                        self.ip = self.module.opcodes().len();
+                    }
                 }
             }
 
@@ -131,7 +155,7 @@ where
     }
 
     fn read_register(&self, reg: &Register) -> &Value {
-        self.registers.get(reg).expect("register should exist")
+        self.registers.get(reg).expect(&format!("register should exist: {reg}"))
     }
 
     fn read_reg_or_imm<'a>(&'a self, reg_or_imm: &'a RegOrImm) -> &'a Value {

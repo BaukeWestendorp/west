@@ -36,7 +36,8 @@ impl std::fmt::Display for RegOrImm {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             RegOrImm::Register(reg) => write!(f, "{}", reg),
-            RegOrImm::Immediate(imm) => write!(f, "{:?}", imm),
+            // FIXME: Str's should be escaped here.
+            RegOrImm::Immediate(imm) => write!(f, "{}", imm),
         }
     }
 }

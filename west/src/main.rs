@@ -43,7 +43,7 @@ fn main() -> Result<()> {
 
     let mut compiler = Compiler::new(&ast);
 
-    let bytecode_modules = compiler.compile();
+    let mut bytecode_modules = compiler.compile();
 
     if emit_bytecode {
         for module in &bytecode_modules {
@@ -52,7 +52,7 @@ fn main() -> Result<()> {
     }
 
     let mut stdout = std::io::stdout();
-    Vm::new(bytecode_modules, &mut stdout).run();
+    Vm::new(bytecode_modules.remove(0), &mut stdout).run();
 
     Ok(())
 }

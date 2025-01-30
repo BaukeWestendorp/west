@@ -22,7 +22,7 @@ pub enum ErrorKind<'src> {
     #[diagnostic(code(west::typechecker::unknown_variable))]
     UnknownVariable { ident: Ident<'src> },
 
-    #[error("unknown type")]
+    #[error("unknown type: {ident}")]
     #[diagnostic(code(west::typechecker::unknown_type))]
     UnknownType { ident: Ident<'src> },
 
