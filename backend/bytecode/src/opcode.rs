@@ -30,24 +30,25 @@ impl std::fmt::Display for Opcode {
     #[rustfmt::skip]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Opcode::Load { value, dest } =>             write!(f, "load        {} {}",    value, dest),
-            Opcode::Push { value } =>                   write!(f, "push        {}",       value),
-            Opcode::Pop { dest } =>                     write!(f, "pop         {}",       dest),
+            Opcode::Load { value, dest } =>             write!(f, "load         {} -> {}", value, dest),
+            Opcode::Push { value } =>                   write!(f, "push         {}", value),
+            Opcode::Pop { dest } =>                     write!(f, "pop          -> {}", dest),
 
-            Opcode::Add { left, right, dest } =>        write!(f, "add         {} {} {}", left,  right, dest),
-            Opcode::Sub { left, right, dest } =>        write!(f, "sub         {} {} {}", left,  right, dest),
-            Opcode::Mul { left, right, dest } =>        write!(f, "mul         {} {} {}", left,  right, dest),
-            Opcode::Div { left, right, dest } =>        write!(f, "div         {} {} {}", left,  right, dest),
-            Opcode::Not { value, dest } =>              write!(f, "not         {} {}",    value, dest),
-            Opcode::Cmp { left, op, right, dest } =>    write!(f, "cmp         {} {} {} -> {}", left, op, right, dest),
+            Opcode::Add { left, right, dest } =>        write!(f, "add          {} {} -> {}", left,  right, dest),
+            Opcode::Sub { left, right, dest } =>        write!(f, "sub          {} {} -> {}", left,  right, dest),
+            Opcode::Mul { left, right, dest } =>        write!(f, "mul          {} {} -> {}", left,  right, dest),
+            Opcode::Div { left, right, dest } =>        write!(f, "div          {} {} -> {}", left,  right, dest),
+            Opcode::Not { value, dest } =>              write!(f, "not          {} -> {}", value, dest),
 
-            Opcode::Jump { label } =>                   write!(f, "jump        {}",       label),
-            Opcode::JumpIfTrue { condition, label } =>  write!(f, "jumpiftrue  {} {}",    condition, label),
-            Opcode::JumpIfFalse { condition, label } => write!(f, "jumpiffalse {} {}",    condition, label),
-            Opcode::Call { label } =>                   write!(f, "call        {}",       label),
-            Opcode::Return { value } =>                 write!(f, "return      {}",       value.as_ref().map(|v| v.to_string()).unwrap_or_default()),
+            Opcode::Cmp { left, op, right, dest } =>    write!(f, "cmp          {} {} {} -> {}", left, op, right, dest),
 
-            Opcode::Print { value } =>                  write!(f, "print       {}",       value),
+            Opcode::Jump { label } =>                   write!(f, "jmp          {}", label),
+            Opcode::JumpIfTrue { condition, label } =>  write!(f, "jmp_if_true  {} {}", condition, label),
+            Opcode::JumpIfFalse { condition, label } => write!(f, "jmp_if_false {} {}", condition, label),
+            Opcode::Call { label } =>                   write!(f, "call         {}", label),
+            Opcode::Return { value } =>                 write!(f, "return       {}", value.as_ref().map(|v| v.to_string()).unwrap_or_default()),
+
+            Opcode::Print { value } =>                  write!(f, "print        {}", value),
         }
     }
 }
