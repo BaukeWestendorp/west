@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use ast::{
     Ast, Block, ExpressionId, ExpressionKind, Fn, InfixOp, ItemKind, LiteralKind, Module, PrefixOp,
     Statement, StatementKind,
@@ -8,6 +6,12 @@ use bytecode::module::{BytecodeModule, Label};
 use bytecode::opcode::Opcode;
 use bytecode::reg::{RegOrImm, Register};
 use bytecode::value::Value;
+
+struct Local<'src> {
+    depth: usize,
+    name: &'src str,
+    reg: Register,
+}
 
 pub struct Compiler<'src> {
     ast: &'src Ast<'src>,
@@ -32,7 +36,7 @@ struct ModuleCompiler<'src> {
     module: &'src Module<'src>,
     bc_module: BytecodeModule,
 
-    locals: HashMap<(usize, &'src str), Register>,
+    locals: Vec<Local<'src>>,
     depth: usize,
 
     /// Whether the current function can return on a different code flow path.
@@ -52,7 +56,7 @@ impl<'src> ModuleCompiler<'src> {
             module,
             bc_module: BytecodeModule::new(),
 
-            locals: HashMap::new(),
+            locals: Vec::new(),
             depth: 0,
 
             can_return_on_other_path: false,
@@ -94,7 +98,7 @@ impl<'src> ModuleCompiler<'src> {
             self.push(Opcode::Pop { dest: reg });
 
             // NOTE: We have to add one to the depth, because we are not in the scope of the block yet.
-            self.locals.insert((self.depth + 1, param.name.as_str()), reg);
+            self.locals.push(Local { depth: self.depth + 1, name: param.name.as_str(), reg });
         }
 
         self.compile_block(&function.body);
@@ -157,7 +161,7 @@ impl<'src> ModuleCompiler<'src> {
             }
             StatementKind::Let { name, value } => {
                 let value_reg = self.compile_expression(value);
-                self.locals.insert((self.depth, name.as_str()), value_reg);
+                self.locals.push(Local { depth: self.depth, name: name.as_str(), reg: value_reg });
             }
             StatementKind::Loop { body } => {
                 let loop_label = self.add_label();
@@ -198,9 +202,7 @@ impl<'src> ModuleCompiler<'src> {
 
                 reg
             }
-            ExpressionKind::Ident(ident) => {
-                *self.locals.get(&(self.depth, ident.as_str())).expect("local should exist")
-            }
+            ExpressionKind::Ident(ident) => self.get_local(ident.as_str()).reg,
             ExpressionKind::UnaryOp { op, rhs } => {
                 let rhs_reg = self.compile_expression(rhs);
                 let dest_reg = self.add_register();
@@ -306,5 +308,12 @@ impl<'src> ModuleCompiler<'src> {
 
     fn exit_scope(&mut self) {
         self.depth -= 1;
+    }
+
+    fn get_local(&self, name: &str) -> &Local {
+        self.locals
+            .iter()
+            .find(|l| l.depth <= self.depth && l.name == name)
+            .expect("local should exist")
     }
 }

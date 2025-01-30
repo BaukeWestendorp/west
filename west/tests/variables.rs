@@ -38,3 +38,18 @@ fn variable_redeclaration() {
         expected: "2\n",
     };
 }
+
+#[test]
+fn scope() {
+    expect_output_for! {
+        source: r#"
+            fn main {
+                let x = 1;
+                if true {
+                    print x;
+                }
+            }
+        "#,
+        expected: "1\n",
+    };
+}
