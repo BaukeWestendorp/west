@@ -77,6 +77,8 @@ pub enum StatementKind<'src> {
     Let { name: Ident<'src>, value: ExpressionId },
     Return { value: Option<ExpressionId> },
     Print { value: ExpressionId },
+
+    Loop { body: Block<'src> },
 }
 
 #[derive(Debug, Clone, PartialEq)]

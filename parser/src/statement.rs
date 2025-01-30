@@ -14,6 +14,8 @@ impl<'src> Parser<'src> {
             Ok(Some(print_statement))
         } else if let Some(return_statement) = self.parse_statement_return()? {
             Ok(Some(return_statement))
+        } else if let Some(loop_statement) = self.parse_statement_loop()? {
+            Ok(Some(loop_statement))
         } else {
             Ok(None)
         }
@@ -70,6 +72,17 @@ impl<'src> Parser<'src> {
         let value = self.parse_expression()?;
         self.eat_expected(TokenKind::Semi)?;
         Ok(Some(Statement { kind: StatementKind::Return { value }, span: self.end_span() }))
+    }
+
+    pub fn parse_statement_loop(&mut self) -> Result<Option<Statement<'src>>> {
+        self.start_span();
+        if !self.try_eat_keyword(Keyword::Loop) {
+            self.end_span();
+            return Ok(None);
+        }
+
+        let body = self.parse_block()?;
+        Ok(Some(Statement { kind: StatementKind::Loop { body }, span: self.end_span() }))
     }
 }
 
@@ -174,5 +187,19 @@ mod tests {
             kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(1), span: 7..8 }),
             span: 7..8,
         });
+    }
+
+    #[test]
+    fn r#loop() {
+        let source = SourceFile::new("tests".to_string(), r#"loop {}"#);
+        let mut parser = crate::Parser::new(&source);
+
+        let statement = parser.parse_statement().unwrap().unwrap();
+
+        let StatementKind::Loop { body } = statement.kind else {
+            panic!();
+        };
+
+        assert_eq!(body.span, 5..7);
     }
 }
