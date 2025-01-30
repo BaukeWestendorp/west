@@ -216,6 +216,8 @@ mod tests {
     #[test]
     fn r#loop() {
         let source = SourceFile::new("tests".to_string(), r#"loop {}"#);
+        let mut parser = crate::Parser::new(&source);
+        let statement = parser.parse_statement().unwrap().unwrap();
 
         let StatementKind::Loop { body } = statement.kind else {
             panic!();
@@ -223,11 +225,11 @@ mod tests {
 
         assert_eq!(body.span, 5..7);
     }
-    
+
+    #[test]
     fn if_else() {
         let source = SourceFile::new("tests".to_string(), r#"if true {}"#);
         let mut parser = crate::Parser::new(&source);
-
         let statement = parser.parse_statement().unwrap().unwrap();
 
         let StatementKind::IfElse { condition, then_block, .. } = statement.kind else {
