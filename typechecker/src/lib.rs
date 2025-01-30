@@ -159,6 +159,20 @@ impl<'src> Typechecker<'src> {
                 }
                 (None, None) => {}
             },
+            StatementKind::IfElse { condition, then_block, else_block } => {
+                let condition_ty = self.check_expression(condition)?;
+                if condition_ty != Ty::Bool {
+                    return Err(
+                        self.err_here(ErrorKind::ExpectedBoolInIfCondition { ty: condition_ty })
+                    );
+                }
+
+                self.check_block(then_block)?;
+
+                if let Some(else_block) = else_block {
+                    self.check_block(else_block)?;
+                }
+            }
             StatementKind::Print { value } => {
                 self.check_expression(value)?;
             }
@@ -414,9 +428,32 @@ mod tests {
         assert!(actual.is_ok())
     }
 
+    fn if_else_condition_not_bool() {
+        let source = r#"
+            fn main() {
+                if 1 {}
+            }
+        "#;
+
+        let source = SourceFile::new("tests".to_string(), source);
+        let ast = Parser::new(&source).parse().unwrap();
+        let mut typechecker = Typechecker::new(&ast, &source);
+
+        let actual = typechecker.check();
+
+        assert_eq!(
+            actual.unwrap_err().to_string(),
+            "expected a <bool> in condition of if statement, but found <int>".to_string()
+        )
+    }
+
     #[test]
-    fn r#loop() {
-        let source = r#"fn main { loop {} }"#;
+    fn if_else_condition_is_bool() {
+        let source = r#"
+            fn main() {
+                if true {}
+            }
+        "#;
 
         let source = SourceFile::new("tests".to_string(), source);
         let ast = Parser::new(&source).parse().unwrap();
@@ -425,5 +462,36 @@ mod tests {
         let actual = typechecker.check();
 
         assert!(actual.is_ok())
+    }
+
+    #[test]
+    fn if_else_with_else() {
+        let source = r#"
+            fn main() {
+                if true {} else {}
+            }
+        "#;
+
+        let source = SourceFile::new("tests".to_string(), source);
+        let ast = Parser::new(&source).parse().unwrap();
+        let mut typechecker = Typechecker::new(&ast, &source);
+
+        let actual = typechecker.check();
+
+        assert!(actual.is_ok())
+    }
+  
+    #[test]
+    fn r#loop() {
+        let source = SourceFile::new("tests".to_string(), r#"loop {}"#);
+        let mut parser = crate::Parser::new(&source);
+
+        let statement = parser.parse_statement().unwrap().unwrap();
+
+        let StatementKind::Loop { body } = statement.kind else {
+            panic!();
+        };
+
+        assert_eq!(body.span, 5..7);
     }
 }

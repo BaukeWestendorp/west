@@ -131,6 +131,27 @@ impl<'src> ModuleCompiler<'src> {
                 self.push(Opcode::Return { value: value_reg });
                 self.has_return = true;
             }
+            StatementKind::IfElse { condition, then_block, else_block } => {
+                let condition_reg = self.compile_expression(condition);
+                let else_label = self.add_label();
+                let end_label = self.add_label();
+
+                // If condition is false, jump to the 'else' block.
+                self.push(Opcode::JumpIfFalse { condition: condition_reg, label: else_label });
+                // Otherwise, execute the 'then' block, and jump to the end of the statement.
+                self.compile_block(then_block);
+                self.push(Opcode::Jump { label: end_label });
+
+                // Set the address of the 'else' block.
+                self.bc_module.set_label_address(else_label, self.ip);
+                // If there is an 'else' block, compile it.
+                if let Some(else_block) = else_block {
+                    self.compile_block(else_block);
+                }
+
+                // Set the address of the end of the statement.
+                self.bc_module.set_label_address(end_label, self.ip);
+            }
             StatementKind::Let { name, value } => {
                 let value_reg = self.compile_expression(value);
                 self.locals.insert((self.depth, name.as_str()), value_reg);
@@ -233,7 +254,7 @@ impl<'src> ModuleCompiler<'src> {
                     self.push(Opcode::Push { value: arg_reg.into() });
                 }
 
-                self.push(Opcode::Jump { label: fn_label });
+                self.push(Opcode::Call { label: fn_label });
                 Register::R0
             }
         }
