@@ -162,13 +162,13 @@ where
             }
 
             Opcode::JumpIfTrue { condition, label } => {
-                let condition = self.read_register(condition).clone();
+                let condition = self.read_reg_or_imm(condition).clone();
                 if condition.as_bool() {
                     self.jump_to_label(label);
                 }
             }
             Opcode::JumpIfFalse { condition, label } => {
-                let condition = self.read_register(condition).clone();
+                let condition = self.read_reg_or_imm(condition).clone();
                 if !condition.as_bool() {
                     self.jump_to_label(label);
                 }
@@ -192,7 +192,7 @@ where
             }
 
             Opcode::Print { value } => {
-                let value = self.read_register(value).clone();
+                let value = self.read_reg_or_imm(value).clone();
                 writeln!(self.writer, "{}", value).expect("should write to writer");
             }
         }

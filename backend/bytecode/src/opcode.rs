@@ -1,3 +1,5 @@
+use ast::InfixOp;
+
 use crate::module::Label;
 use crate::reg::{RegOrImm, Register};
 
@@ -13,13 +15,15 @@ pub enum Opcode {
     Div { left: RegOrImm, right: RegOrImm, dest: Register },
     Not { value: RegOrImm, dest: Register },
 
+    Cmp { left: RegOrImm, op: InfixOp, right: RegOrImm, dest: Register },
+
     Jump { label: Label },
-    JumpIfTrue { condition: Register, label: Label },
-    JumpIfFalse { condition: Register, label: Label },
+    JumpIfTrue { condition: RegOrImm, label: Label },
+    JumpIfFalse { condition: RegOrImm, label: Label },
     Call { label: Label },
     Return { value: Option<RegOrImm> },
 
-    Print { value: Register },
+    Print { value: RegOrImm },
 }
 
 impl std::fmt::Display for Opcode {

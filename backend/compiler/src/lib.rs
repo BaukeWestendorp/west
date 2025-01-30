@@ -124,7 +124,7 @@ impl<'src> ModuleCompiler<'src> {
             }
             StatementKind::Print { value } => {
                 let value_reg = self.compile_expression(value);
-                self.push(Opcode::Print { value: value_reg });
+                self.push(Opcode::Print { value: value_reg.into() });
             }
             StatementKind::Return { value } => {
                 let value_reg = value.map(|v| RegOrImm::from(self.compile_expression(&v)));
@@ -137,7 +137,10 @@ impl<'src> ModuleCompiler<'src> {
                 let end_label = self.add_label();
 
                 // If condition is false, jump to the 'else' block.
-                self.push(Opcode::JumpIfFalse { condition: condition_reg, label: else_label });
+                self.push(Opcode::JumpIfFalse {
+                    condition: condition_reg.into(),
+                    label: else_label,
+                });
                 // Otherwise, execute the 'then' block, and jump to the end of the statement.
                 self.compile_block(then_block);
                 self.push(Opcode::Jump { label: end_label });
