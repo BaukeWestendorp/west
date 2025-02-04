@@ -1,24 +1,23 @@
 use std::fmt::Display;
-use std::ops::Range;
 use std::str::FromStr;
 
-use miette::Result;
+use fout::source::Span;
 
 use crate::error::ErrorKind;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Token {
     pub kind: TokenKind,
-    pub span: Range<usize>,
+    pub span: Span,
 }
 
 impl Token {
-    pub fn new(kind: TokenKind, span: Range<usize>) -> Token {
+    pub fn new(kind: TokenKind, span: Span) -> Token {
         Token { kind, span }
     }
 
     pub fn to_source_str<'src>(&self, source: &'src str) -> &'src str {
-        &source[self.span.clone()]
+        &source[self.span.to_range()]
     }
 }
 

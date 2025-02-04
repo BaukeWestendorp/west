@@ -1,6 +1,6 @@
 use std::collections::HashMap;
-use std::ops::Range;
 
+use fout::source::Span;
 use lexer::token::TokenKind;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -41,7 +41,7 @@ pub struct Module<'src> {
 pub struct Item<'src> {
     pub kind: ItemKind<'src>,
 
-    pub span: Range<usize>,
+    pub span: Span,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -67,7 +67,7 @@ pub struct FnParam<'src> {
 pub struct Block<'src> {
     pub statements: Vec<Statement<'src>>,
 
-    pub span: Range<usize>,
+    pub span: Span,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -87,7 +87,7 @@ pub enum StatementKind<'src> {
 pub struct Statement<'src> {
     pub kind: StatementKind<'src>,
 
-    pub span: Range<usize>,
+    pub span: Span,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -106,7 +106,7 @@ pub struct ExpressionId(pub usize);
 pub struct Expression<'src> {
     pub kind: ExpressionKind<'src>,
 
-    pub span: Range<usize>,
+    pub span: Span,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -206,14 +206,14 @@ pub enum LiteralKind<'src> {
 pub struct Literal<'src> {
     pub kind: LiteralKind<'src>,
 
-    pub span: Range<usize>,
+    pub span: Span,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Ident<'src> {
     pub name: &'src str,
 
-    pub span: Range<usize>,
+    pub span: Span,
 }
 
 impl<'src> Ident<'src> {

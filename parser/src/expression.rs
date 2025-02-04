@@ -1,10 +1,9 @@
 use ast::{Expression, ExpressionId, ExpressionKind, InfixOp, Op, PostfixOp, PrefixOp};
+use fout::{ErrorProducer, span};
 use lexer::token::TokenKind;
-use miette::{Context, Result};
-use west_error::ErrorProducer;
 
 use crate::Parser;
-use crate::error::ErrorKind;
+use crate::error::{ErrorKind, Result};
 
 impl<'src> Parser<'src> {
     pub fn parse_expression(&mut self) -> Result<Option<ExpressionId>> {
@@ -39,7 +38,10 @@ impl<'src> Parser<'src> {
                 Some(Err(_)) => {
                     return Err(self.eat().expect_err("should be checked for Err in match"));
                 }
-                _ => return Err(self.err_here(ErrorKind::UnexpectedEof)),
+                None => {
+                    let span = self.end_span();
+                    return Err(self.error_at(ErrorKind::UnexpectedEof, span));
+                }
             }
         };
 
@@ -95,7 +97,7 @@ impl<'src> Parser<'src> {
                     .wrap_err("on the right-hand side")?
                     .wrap_err("expected an expression")?;
 
-                let span = lhs.span.start..self.current_span().end;
+                let span = span!(lhs.span.start(), self.span().end());
                 lhs = Expression {
                     kind: ExpressionKind::BinaryOp {
                         lhs: self.ast.add_expression(lhs),
@@ -125,7 +127,7 @@ impl<'src> Parser<'src> {
         }
         self.eat_expected(TokenKind::ParenClose)?;
 
-        let span = callee.span.start..self.current_span().end;
+        let span = span!(callee.span.start(), self.span().end());
         Ok(Expression {
             kind: ExpressionKind::FnCall { callee: self.ast.add_expression(callee), args },
             span,
@@ -151,7 +153,7 @@ impl<'src> Parser<'src> {
             .wrap_err("expected an expression")?;
         Ok(Some(Expression {
             kind: ExpressionKind::UnaryOp { op, rhs: self.ast.add_expression(rhs) },
-            span: self.current_span(),
+            span: self.span(),
         }))
     }
 }
@@ -191,9 +193,13 @@ fn postfix_binding_power(op: &PostfixOp) -> (u8, ()) {
 #[cfg(test)]
 mod tests {
     use ast::{Expression, ExpressionKind, Ident, InfixOp, Literal, LiteralKind, PrefixOp};
+    use fout::{Error, span};
+    use lexer::token::TokenKind;
+
+    use crate::error::ErrorKind;
 
     fn check_simple(source: &str, expected: Option<&Expression>) {
-        let source = west_error::source::SourceFile::new("tests".to_string(), source);
+        let source = fout::source::SourceFile::new("tests".to_string(), source);
         let mut parser = crate::Parser::new(&source);
 
         let expr_id = parser.parse_expression().unwrap();
@@ -207,8 +213,11 @@ mod tests {
         check_simple(
             r#"1"#,
             Some(&Expression {
-                kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(1), span: 0..1 }),
-                span: 0..1,
+                kind: ExpressionKind::Literal(Literal {
+                    kind: LiteralKind::Int(1),
+                    span: span!(0, 1),
+                }),
+                span: span!(0, 1),
             }),
         )
     }
@@ -220,9 +229,9 @@ mod tests {
             Some(&Expression {
                 kind: ExpressionKind::Literal(Literal {
                     kind: LiteralKind::Str("hello"),
-                    span: 0..7,
+                    span: span!(0, 7),
                 }),
-                span: 0..7,
+                span: span!(0, 7),
             }),
         )
     }
@@ -232,8 +241,8 @@ mod tests {
         check_simple(
             r#"a"#,
             Some(&Expression {
-                kind: ExpressionKind::Ident(Ident { name: "a", span: 0..1 }),
-                span: 0..1,
+                kind: ExpressionKind::Ident(Ident { name: "a", span: span!(0, 1) }),
+                span: span!(0, 1),
             }),
         )
     }
@@ -244,7 +253,7 @@ mod tests {
     }
 
     fn check_prefix_op(source: &str, op: PrefixOp, rhs: &Expression) {
-        let source = west_error::source::SourceFile::new("tests".to_string(), source);
+        let source = fout::source::SourceFile::new("tests".to_string(), source);
         let mut parser = crate::Parser::new(&source);
 
         let expr_id = parser.parse_expression().unwrap();
@@ -264,21 +273,24 @@ mod tests {
     #[test]
     fn prefix_minus() {
         check_prefix_op(r#"-1"#, PrefixOp::Minus, &Expression {
-            kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(1), span: 1..2 }),
-            span: 1..2,
+            kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(1), span: span!(1, 2) }),
+            span: span!(1, 2),
         })
     }
 
     #[test]
     fn prefix_negate() {
         check_prefix_op(r#"!true"#, PrefixOp::Negate, &Expression {
-            kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Bool(true), span: 1..5 }),
-            span: 1..5,
+            kind: ExpressionKind::Literal(Literal {
+                kind: LiteralKind::Bool(true),
+                span: span!(1, 5),
+            }),
+            span: span!(1, 5),
         })
     }
 
     fn check_infix_op(source: &str, op: InfixOp, lhs: &Expression, rhs: &Expression) {
-        let source = west_error::source::SourceFile::new("tests".to_string(), source);
+        let source = fout::source::SourceFile::new("tests".to_string(), source);
         let mut parser = crate::Parser::new(&source);
 
         let expr_id = parser.parse_expression().unwrap();
@@ -304,12 +316,18 @@ mod tests {
             r#"1 + 2"#,
             InfixOp::Add,
             &Expression {
-                kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(1), span: 0..1 }),
-                span: 0..1,
+                kind: ExpressionKind::Literal(Literal {
+                    kind: LiteralKind::Int(1),
+                    span: span!(0, 1),
+                }),
+                span: span!(0, 1),
             },
             &Expression {
-                kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(2), span: 4..5 }),
-                span: 4..5,
+                kind: ExpressionKind::Literal(Literal {
+                    kind: LiteralKind::Int(2),
+                    span: span!(4, 5),
+                }),
+                span: span!(4, 5),
             },
         );
     }
@@ -320,12 +338,18 @@ mod tests {
             r#"1 - 2"#,
             InfixOp::Subtract,
             &Expression {
-                kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(1), span: 0..1 }),
-                span: 0..1,
+                kind: ExpressionKind::Literal(Literal {
+                    kind: LiteralKind::Int(1),
+                    span: span!(0, 1),
+                }),
+                span: span!(0, 1),
             },
             &Expression {
-                kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(2), span: 4..5 }),
-                span: 4..5,
+                kind: ExpressionKind::Literal(Literal {
+                    kind: LiteralKind::Int(2),
+                    span: span!(4, 5),
+                }),
+                span: span!(4, 5),
             },
         );
     }
@@ -336,12 +360,18 @@ mod tests {
             r#"1 * 2"#,
             InfixOp::Multiply,
             &Expression {
-                kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(1), span: 0..1 }),
-                span: 0..1,
+                kind: ExpressionKind::Literal(Literal {
+                    kind: LiteralKind::Int(1),
+                    span: span!(0, 1),
+                }),
+                span: span!(0, 1),
             },
             &Expression {
-                kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(2), span: 4..5 }),
-                span: 4..5,
+                kind: ExpressionKind::Literal(Literal {
+                    kind: LiteralKind::Int(2),
+                    span: span!(4, 5),
+                }),
+                span: span!(4, 5),
             },
         );
     }
@@ -352,12 +382,18 @@ mod tests {
             r#"1 / 2"#,
             InfixOp::Divide,
             &Expression {
-                kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(1), span: 0..1 }),
-                span: 0..1,
+                kind: ExpressionKind::Literal(Literal {
+                    kind: LiteralKind::Int(1),
+                    span: span!(0, 1),
+                }),
+                span: span!(0, 1),
             },
             &Expression {
-                kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(2), span: 4..5 }),
-                span: 4..5,
+                kind: ExpressionKind::Literal(Literal {
+                    kind: LiteralKind::Int(2),
+                    span: span!(4, 5),
+                }),
+                span: span!(4, 5),
             },
         );
     }
@@ -368,12 +404,18 @@ mod tests {
             r#"1 == 2"#,
             InfixOp::Equals,
             &Expression {
-                kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(1), span: 0..1 }),
-                span: 0..1,
+                kind: ExpressionKind::Literal(Literal {
+                    kind: LiteralKind::Int(1),
+                    span: span!(0, 1),
+                }),
+                span: span!(0, 1),
             },
             &Expression {
-                kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(2), span: 5..6 }),
-                span: 5..6,
+                kind: ExpressionKind::Literal(Literal {
+                    kind: LiteralKind::Int(2),
+                    span: span!(5, 6),
+                }),
+                span: span!(5, 6),
             },
         );
     }
@@ -384,12 +426,18 @@ mod tests {
             r#"1 && 2"#,
             InfixOp::And,
             &Expression {
-                kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(1), span: 0..1 }),
-                span: 0..1,
+                kind: ExpressionKind::Literal(Literal {
+                    kind: LiteralKind::Int(1),
+                    span: span!(0, 1),
+                }),
+                span: span!(0, 1),
             },
             &Expression {
-                kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(2), span: 5..6 }),
-                span: 5..6,
+                kind: ExpressionKind::Literal(Literal {
+                    kind: LiteralKind::Int(2),
+                    span: span!(5, 6),
+                }),
+                span: span!(5, 6),
             },
         );
     }
@@ -400,12 +448,18 @@ mod tests {
             r#"1 || 2"#,
             InfixOp::Or,
             &Expression {
-                kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(1), span: 0..1 }),
-                span: 0..1,
+                kind: ExpressionKind::Literal(Literal {
+                    kind: LiteralKind::Int(1),
+                    span: span!(0, 1),
+                }),
+                span: span!(0, 1),
             },
             &Expression {
-                kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(2), span: 5..6 }),
-                span: 5..6,
+                kind: ExpressionKind::Literal(Literal {
+                    kind: LiteralKind::Int(2),
+                    span: span!(5, 6),
+                }),
+                span: span!(5, 6),
             },
         );
     }
@@ -416,12 +470,18 @@ mod tests {
             r#"1 <= 2"#,
             InfixOp::LessThanEqual,
             &Expression {
-                kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(1), span: 0..1 }),
-                span: 0..1,
+                kind: ExpressionKind::Literal(Literal {
+                    kind: LiteralKind::Int(1),
+                    span: span!(0, 1),
+                }),
+                span: span!(0, 1),
             },
             &Expression {
-                kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(2), span: 5..6 }),
-                span: 5..6,
+                kind: ExpressionKind::Literal(Literal {
+                    kind: LiteralKind::Int(2),
+                    span: span!(5, 6),
+                }),
+                span: span!(5, 6),
             },
         );
     }
@@ -432,12 +492,18 @@ mod tests {
             r#"1 >= 2"#,
             InfixOp::MoreThanEqual,
             &Expression {
-                kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(1), span: 0..1 }),
-                span: 0..1,
+                kind: ExpressionKind::Literal(Literal {
+                    kind: LiteralKind::Int(1),
+                    span: span!(0, 1),
+                }),
+                span: span!(0, 1),
             },
             &Expression {
-                kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(2), span: 5..6 }),
-                span: 5..6,
+                kind: ExpressionKind::Literal(Literal {
+                    kind: LiteralKind::Int(2),
+                    span: span!(5, 6),
+                }),
+                span: span!(5, 6),
             },
         );
     }
@@ -448,18 +514,24 @@ mod tests {
             r#"1 != 2"#,
             InfixOp::NotEqual,
             &Expression {
-                kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(1), span: 0..1 }),
-                span: 0..1,
+                kind: ExpressionKind::Literal(Literal {
+                    kind: LiteralKind::Int(1),
+                    span: span!(0, 1),
+                }),
+                span: span!(0, 1),
             },
             &Expression {
-                kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(2), span: 5..6 }),
-                span: 5..6,
+                kind: ExpressionKind::Literal(Literal {
+                    kind: LiteralKind::Int(2),
+                    span: span!(5, 6),
+                }),
+                span: span!(5, 6),
             },
         );
     }
 
     fn check_call(source: &str, callee: &Expression, args: Vec<&Expression>) {
-        let source = west_error::source::SourceFile::new("tests".to_string(), source);
+        let source = fout::source::SourceFile::new("tests".to_string(), source);
         let mut parser = crate::Parser::new(&source);
 
         let expr_id = parser.parse_expression().unwrap();
@@ -483,8 +555,8 @@ mod tests {
         check_call(
             r#"test()"#,
             &Expression {
-                kind: ExpressionKind::Ident(Ident { name: "test", span: 0..4 }),
-                span: 0..4,
+                kind: ExpressionKind::Ident(Ident { name: "test", span: span!(0, 4) }),
+                span: span!(0, 4),
             },
             vec![],
         )
@@ -495,12 +567,15 @@ mod tests {
         check_call(
             r#"test(1)"#,
             &Expression {
-                kind: ExpressionKind::Ident(Ident { name: "test", span: 0..4 }),
-                span: 0..4,
+                kind: ExpressionKind::Ident(Ident { name: "test", span: span!(0, 4) }),
+                span: span!(0, 4),
             },
             vec![&Expression {
-                kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(1), span: 5..6 }),
-                span: 5..6,
+                kind: ExpressionKind::Literal(Literal {
+                    kind: LiteralKind::Int(1),
+                    span: span!(5, 6),
+                }),
+                span: span!(5, 6),
             }],
         )
     }
@@ -510,30 +585,30 @@ mod tests {
         check_call(
             r#"test(1, 2, 3)"#,
             &Expression {
-                kind: ExpressionKind::Ident(Ident { name: "test", span: 0..4 }),
-                span: 0..4,
+                kind: ExpressionKind::Ident(Ident { name: "test", span: span!(0, 4) }),
+                span: span!(0, 4),
             },
             vec![
                 &Expression {
                     kind: ExpressionKind::Literal(Literal {
                         kind: LiteralKind::Int(1),
-                        span: 5..6,
+                        span: span!(5, 6),
                     }),
-                    span: 5..6,
+                    span: span!(5, 6),
                 },
                 &Expression {
                     kind: ExpressionKind::Literal(Literal {
                         kind: LiteralKind::Int(2),
-                        span: 8..9,
+                        span: span!(8, 9),
                     }),
-                    span: 8..9,
+                    span: span!(8, 9),
                 },
                 &Expression {
                     kind: ExpressionKind::Literal(Literal {
                         kind: LiteralKind::Int(3),
-                        span: 11..12,
+                        span: span!(11, 12),
                     }),
-                    span: 11..12,
+                    span: span!(11, 12),
                 },
             ],
         )
@@ -544,30 +619,30 @@ mod tests {
         check_call(
             r#"test(1, 2, 3,)"#,
             &Expression {
-                kind: ExpressionKind::Ident(Ident { name: "test", span: 0..4 }),
-                span: 0..4,
+                kind: ExpressionKind::Ident(Ident { name: "test", span: span!(0, 4) }),
+                span: span!(0, 4),
             },
             vec![
                 &Expression {
                     kind: ExpressionKind::Literal(Literal {
                         kind: LiteralKind::Int(1),
-                        span: 5..6,
+                        span: span!(5, 6),
                     }),
-                    span: 5..6,
+                    span: span!(5, 6),
                 },
                 &Expression {
                     kind: ExpressionKind::Literal(Literal {
                         kind: LiteralKind::Int(2),
-                        span: 8..9,
+                        span: span!(8, 9),
                     }),
-                    span: 8..9,
+                    span: span!(8, 9),
                 },
                 &Expression {
                     kind: ExpressionKind::Literal(Literal {
                         kind: LiteralKind::Int(3),
-                        span: 11..12,
+                        span: span!(11, 12),
                     }),
-                    span: 11..12,
+                    span: span!(11, 12),
                 },
             ],
         )
@@ -575,12 +650,18 @@ mod tests {
 
     #[test]
     fn fn_call_double_trailing_comma() {
-        let source = west_error::source::SourceFile::new("tests".to_string(), r#"add(1, 2, 3,,)"#);
+        let source = fout::source::SourceFile::new("tests".to_string(), r#"add(1, 2, 3,,)"#);
         let mut parser = crate::Parser::new(&source);
 
         let actual = parser.parse_expression().unwrap_err();
-        let expected = miette::miette!("expected ), found ,");
+        let expected = Error {
+            kind: ErrorKind::ExpectedToken {
+                expected: TokenKind::ParenClose,
+                found: ",".to_string(),
+            },
+            span,
+        };
 
-        assert_eq!(actual.to_string(), expected.to_string());
+        assert_eq!(actual, expected);
     }
 }

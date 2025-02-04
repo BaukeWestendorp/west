@@ -1,14 +1,13 @@
 use std::str::FromStr;
 
 use cursor::Cursor;
-use error::ErrorKind;
-use miette::Result;
+use error::{ErrorKind, Result};
+use fout::ErrorProducer;
+use fout::source::SourceFile;
 use token::{Keyword, Literal, Token, TokenKind};
-use west_error::ErrorProducer;
-use west_error::source::SourceFile;
 
 mod cursor;
-mod error;
+pub mod error;
 pub mod token;
 
 pub struct Lexer<'src> {
@@ -113,11 +112,13 @@ impl Cursor<'_> {
             }
 
             _ => {
-                return Some(Err(self.err_here(ErrorKind::UnknownChar(first_char))));
+                let span = self.span();
+                let error = self.error_at(ErrorKind::UnknownChar(first_char), span);
+                return Some(Err(error));
             }
         };
 
-        let token = Token::new(token_kind, self.current_span());
+        let token = Token::new(token_kind, self.span());
         Some(Ok(token))
     }
 }

@@ -1,7 +1,7 @@
 use ast::Module;
-use miette::Result;
 
 use crate::Parser;
+use crate::error::Result;
 
 impl<'src> Parser<'src> {
     pub fn parse_module(&mut self) -> Result<Module<'src>> {
@@ -20,7 +20,9 @@ impl<'src> Parser<'src> {
 #[cfg(test)]
 mod tests {
     use ast::{Block, Fn, Ident, Item, ItemKind, Module};
+    use fout::{Error, span};
 
+    use crate::error::ErrorKind;
     use crate::{check_parser, check_parser_error};
 
     #[test]
@@ -32,12 +34,12 @@ mod tests {
                 items: vec![
                     Item {
                         kind: ItemKind::Fn(Fn {
-                            name: Ident { span: 3..7, name: "main" },
+                            name: Ident { span: span!(3, 7), name: "main" },
                             params: vec![],
                             return_type: None,
-                            body: Block { statements: vec![], span: 10..12 },
+                            body: Block { statements: vec![], span: span!(10, 12) },
                         }),
-                        span: 0..12
+                        span: span!(0, 12)
                     }
                 ],
             }
@@ -64,21 +66,21 @@ mod tests {
                 items: vec![
                     Item {
                         kind: ItemKind::Fn(Fn {
-                            name: Ident { span: 3..4, name: "a" },
+                            name: Ident { span: span!(3, 4), name: "a" },
                             params: vec![],
                             return_type: None,
-                            body: Block { statements: vec![], span: 7..9 },
+                            body: Block { statements: vec![], span: span!(7, 9) }
                         }),
-                        span: 0..9
+                        span: span!(0, 9)
                     },
                     Item {
                         kind: ItemKind::Fn(Fn {
-                            name: Ident { span: 13..14, name: "b" },
+                            name: Ident { span: span!(13, 14), name: "b" },
                             params: vec![],
                             return_type: None,
-                            body: Block { statements: vec![], span: 17..19 },
+                            body: Block { statements: vec![], span: span!(17, 19) },
                         }),
-                        span: 10..19
+                        span: span!(10, 19)
                     }
                 ],
             }
@@ -90,7 +92,7 @@ mod tests {
         check_parser_error! {
             source: r#"1.0; fn a() {}"#,
             fn: parse_module,
-            expected: "expected item"
+            expected: Error { kind: ErrorKind::ExpectedItem, span: span!(0, 4) }
         };
     }
 
@@ -99,7 +101,7 @@ mod tests {
         check_parser_error! {
             source: r#"fn a() {} 1.0"#,
             fn: parse_module,
-            expected: "expected item"
+            expected: Error { kind: ErrorKind::ExpectedItem, span: span!(9, 13) }
         };
     }
 
@@ -108,7 +110,7 @@ mod tests {
         check_parser_error! {
             source: r#"1.0"#,
             fn: parse_module,
-            expected: "expected item"
+            expected: Error { kind: ErrorKind::ExpectedItem, span: span!(0, 4) }
         };
     }
 }

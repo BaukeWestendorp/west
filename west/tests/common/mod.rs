@@ -4,7 +4,7 @@ macro_rules! expect_output_for {
         source: $src:expr,
         expected: $expected:expr,
     } => {{
-        let source = west_error::source::SourceFile::new("tests".to_string(), $src);
+        let source = fout::source::SourceFile::new("tests".to_string(), $src);
         let ast = parser::Parser::new(&source).parse().expect("should parse file");
         typechecker::Typechecker::new(&ast, &source).check().expect("should typecheck");
         let mut compiler = compiler::Compiler::new(&ast);

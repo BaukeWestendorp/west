@@ -1,7 +1,7 @@
 [workspace]
 members = [
     "ast",
-    "west_error",
+    "fout",
     "lexer",
     "parser",
     "typechecker",
@@ -17,7 +17,7 @@ version = "0.1.0"
 edition = "2021"
 
 [workspace.dependencies]
-west_error = { path = "west_error" }
+fout = { path = "fout" }
 typechecker = { path = "typechecker" }
 ast = { path = "ast" }
 parser = { path = "parser" }

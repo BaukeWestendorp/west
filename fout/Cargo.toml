@@ -1,7 +1,4 @@
 [package]
-name = "west_error"
+name = "fout"
 version.workspace = true
 edition.workspace = true
-
-[dependencies]
-miette.workspace = true

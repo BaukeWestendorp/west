@@ -6,5 +6,3 @@ edition.workspace = true
 [dependencies]
 ast.workspace = true
 bytecode.workspace = true
-
-miette.workspace = true

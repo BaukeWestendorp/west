@@ -1,10 +1,9 @@
 use ast::{FnParam, Item, ItemKind};
+use fout::ErrorProducer;
 use lexer::token::{Keyword, TokenKind};
-use miette::{Context, Result};
-use west_error::ErrorProducer;
 
 use crate::Parser;
-use crate::error::ErrorKind;
+use crate::error::{ErrorKind, Result};
 
 impl<'src> Parser<'src> {
     pub fn parse_item(&mut self) -> Result<Option<Item<'src>>> {
@@ -13,7 +12,7 @@ impl<'src> Parser<'src> {
             Ok(Some(Item { kind: ItemKind::Fn(fn_item), span: self.end_span() }))
         } else {
             match self.eat_or_eof()? {
-                Some(_) => Err(self.err_here(ErrorKind::ExpectedItem)),
+                Some(_) => Err(self.error_here(ErrorKind::ExpectedItem)),
                 _ => Ok(None),
             }
         }
@@ -67,7 +66,9 @@ impl<'src> Parser<'src> {
 #[cfg(test)]
 mod tests {
     use ast::{Block, FnParam, Ident, Item, ItemKind};
+    use fout::{Error, span};
 
+    use crate::error::ErrorKind;
     use crate::{check_parser, check_parser_error};
 
     #[test]
@@ -77,12 +78,12 @@ mod tests {
             fn: parse_item,
             expected: Some(Item {
                 kind: ItemKind::Fn(ast::Fn {
-                    name: Ident { name: "a", span: 3..4 },
+                    name: Ident { name: "a", span: span!(3, 4) },
                     params: vec![],
                     return_type: None,
-                    body: Block { statements: vec![], span: 7..9 } }
+                    body: Block { statements: vec![], span: span!(7, 9) } }
                 ),
-                span: 0..9
+                span: span!(0, 9)
             })
         };
     }
@@ -94,12 +95,12 @@ mod tests {
             fn: parse_item,
             expected: Some(Item {
                 kind: ItemKind::Fn(ast::Fn {
-                    name: Ident { name: "a", span: 3..4 },
+                    name: Ident { name: "a", span: span!(3, 4) },
                     params: vec![],
                     return_type: None,
-                    body: Block { statements: vec![], span: 5..7 } }
+                    body: Block { statements: vec![], span: span!(5, 7) } }
                 ),
-                span: 0..7
+                span: span!(0, 7)
             })
         };
     }
@@ -111,12 +112,12 @@ mod tests {
             fn: parse_item,
             expected: Some(Item {
                 kind: ItemKind::Fn(ast::Fn {
-                    name: Ident { name: "a_very_long_name_here", span: 3..24 },
+                    name: Ident { name: "a_very_long_name_here", span: span!(3, 24) },
                     params: vec![],
                     return_type: None,
-                    body: Block { statements: vec![], span: 27..29 } }
+                    body: Block { statements: vec![], span: span!(27, 29) } }
                 ),
-                span: 0..29
+                span: span!(0, 29),
             })
         };
     }
@@ -128,12 +129,12 @@ mod tests {
             fn: parse_item,
             expected: Some(Item {
                 kind: ItemKind::Fn(ast::Fn {
-                    name: Ident { name: "a", span: 3..4 },
+                    name: Ident { name: "a", span: span!(3, 4) },
                     params: vec![],
-                    return_type: Some(Ident { name: "int", span: 8..11 }),
-                    body: Block { statements: vec![], span: 12..14 } }
+                    return_type: Some(Ident { name: "int", span: span!(8, 11) }),
+                    body: Block { statements: vec![], span: span!(12, 14) } }
                 ),
-                span: 0..14
+                span: span!(0, 14),
             })
         };
     }
@@ -143,7 +144,7 @@ mod tests {
         check_parser_error! {
             source: r#"fn a() {"#,
             fn: parse_item,
-            expected: "unexpected EOF"
+            expected: Error { kind: ErrorKind::UnexpectedEof, span: span!(8, 8) }
         };
     }
 
@@ -152,7 +153,7 @@ mod tests {
         check_parser_error! {
             source: r#"fn () {}"#,
             fn: parse_item,
-            expected: "expected function name"
+            expected: Error { kind: ErrorKind::ExpectedFunctionName, span: span!(3, 3) }
         };
     }
 
@@ -163,12 +164,12 @@ mod tests {
             fn: parse_item,
             expected: Some(Item {
                 kind: ItemKind::Fn(ast::Fn {
-                    name: Ident { name: "a", span: 3..4 },
-                    params: vec![FnParam { name: Ident { name: "x", span: 5..6 }, ty: Ident { name: "int", span: 8..11 }}],
+                    name: Ident { name: "a", span: span!(3, 4) },
+                    params: vec![FnParam { name: Ident { name: "x", span: span!(5, 6) }, ty: Ident { name: "int", span: span!(8, 11) }}],
                     return_type: None,
-                    body: Block { statements: vec![], span: 13..15 } }
+                    body: Block { statements: vec![], span: span!(13, 15) } }
                 ),
-                span: 0..15
+                span: span!(0, 15)
             })
         };
     }
@@ -180,15 +181,15 @@ mod tests {
             fn: parse_item,
             expected: Some(Item {
                 kind: ItemKind::Fn(ast::Fn {
-                    name: Ident { name: "a", span: 3..4 },
+                    name: Ident { name: "a", span: span!(3, 4) },
                     params: vec![
-                        FnParam { name: Ident { name: "x", span: 5..6 }, ty: Ident { name: "int", span: 8..11 }},
-                        FnParam { name: Ident { name: "y", span: 13..14 }, ty: Ident { name: "str", span: 16..19 }}
+                        FnParam { name: Ident { name: "x", span: span!(5, 6) }, ty: Ident { name: "int", span: span!(8, 11) }},
+                        FnParam { name: Ident { name: "y", span: span!(13, 14) }, ty: Ident { name: "str", span: span!(16, 19) }}
                     ],
                     return_type: None,
-                    body: Block { statements: vec![], span: 21..23 } }
+                    body: Block { statements: vec![], span: span!(21, 23) } }
                 ),
-                span: 0..23
+                span: span!(0, 23)
             })
         };
     }

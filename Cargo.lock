@@ -71,6 +71,7 @@ dependencies = [
 name = "ast"
 version = "0.1.0"
 dependencies = [
+ "fout",
  "lexer",
 ]
 
@@ -184,6 +185,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "fout"
+version = "0.1.0"
+
+[[package]]
 name = "gimli"
 version = "0.31.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -211,9 +216,8 @@ checksum = "7943c866cc5cd64cbc25b2e01621d07fa8eb2a1a23160ee81ce38704e97b8ecf"
 name = "lexer"
 version = "0.1.0"
 dependencies = [
- "miette",
+ "fout",
  "thiserror 2.0.11",
- "west_error",
 ]
 
 [[package]]
@@ -300,10 +304,9 @@ name = "parser"
 version = "0.1.0"
 dependencies = [
  "ast",
+ "fout",
  "lexer",
- "miette",
  "thiserror 2.0.11",
- "west_error",
 ]
 
 [[package]]
@@ -446,10 +449,9 @@ name = "typechecker"
 version = "0.1.0"
 dependencies = [
  "ast",
- "miette",
+ "fout",
  "parser",
  "thiserror 2.0.11",
- "west_error",
 ]
 
 [[package]]
@@ -482,7 +484,6 @@ version = "0.1.0"
 dependencies = [
  "ast",
  "bytecode",
- "miette",
 ]
 
 [[package]]
@@ -491,18 +492,10 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "compiler",
- "miette",
+ "fout",
  "parser",
  "typechecker",
  "vm",
- "west_error",
-]
-
-[[package]]
-name = "west_error"
-version = "0.1.0"
-dependencies = [
- "miette",
 ]
 
 [[package]]

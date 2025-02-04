@@ -8,9 +8,8 @@ use ast::{
     LiteralKind, Module, PrefixOp, Statement, StatementKind,
 };
 use error::ErrorKind;
-use miette::Result;
-use west_error::ErrorProducer;
-use west_error::source::SourceFile;
+use fout::ErrorProducer;
+use fout::source::{SourceFile, Span};
 
 mod error;
 
@@ -50,7 +49,7 @@ pub struct Typechecker<'src> {
 
     expected_return_type: Option<Ty>,
 
-    current_span: &'src Range<usize>,
+    current_span: &'src Span,
 }
 
 impl<'src> Typechecker<'src> {
@@ -335,15 +334,15 @@ impl<'src> ErrorProducer for Typechecker<'src> {
         self.source
     }
 
-    fn current_span(&mut self) -> Range<usize> {
+    fn span(&mut self) -> Span {
         self.current_span.clone()
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use fout::source::SourceFile;
     use parser::Parser;
-    use west_error::source::SourceFile;
 
     use crate::Typechecker;
 

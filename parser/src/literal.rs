@@ -1,8 +1,8 @@
 use ast::{Literal, LiteralKind};
 use lexer::token::{Token, TokenKind};
-use miette::Result;
 
 use crate::Parser;
+use crate::error::Result;
 
 impl<'src> Parser<'src> {
     pub fn parse_literal(&mut self) -> Result<Option<Literal<'src>>> {
@@ -11,7 +11,7 @@ impl<'src> Parser<'src> {
                 let literal = *literal;
                 let span = self.eat()?.span;
 
-                let origin = &self.source.as_str()[span.clone()];
+                let origin = &self.source.as_str()[span.to_range()];
                 let literal = match literal {
                     lexer::token::Literal::Int => {
                         let int = origin.parse().unwrap();
@@ -42,6 +42,7 @@ impl<'src> Parser<'src> {
 #[cfg(test)]
 mod tests {
     use ast::{Literal, LiteralKind};
+    use fout::span;
 
     use crate::check_parser;
 
@@ -51,7 +52,7 @@ mod tests {
             check_parser! {
                 source: input,
                 fn: parse_literal,
-                expected: Some(Literal { kind: LiteralKind::Int(expected), span: 0..input.len() })
+                expected: Some(Literal { kind: LiteralKind::Int(expected), span: span!(0, input.len())  })
             };
         };
 
@@ -69,7 +70,7 @@ mod tests {
             check_parser! {
                 source: input,
                 fn: parse_literal,
-                expected: Some(Literal { kind: LiteralKind::Float(expected), span: 0..input.len() })
+                expected: Some(Literal { kind: LiteralKind::Float(expected), span: span!(0, input.len()) })
             };
         };
 
@@ -88,7 +89,7 @@ mod tests {
         check_parser! {
             source: r#""hello""#,
             fn: parse_literal,
-            expected: Some(Literal { kind: LiteralKind::Str("hello"), span: 0..7 })
+            expected: Some(Literal { kind: LiteralKind::Str("hello"), span: span!(0, 7) })
         }
     }
 
@@ -97,13 +98,13 @@ mod tests {
         check_parser! {
             source: "true",
             fn: parse_literal,
-            expected: Some(Literal { kind: LiteralKind::Bool(true), span: 0..4 })
+            expected: Some(Literal { kind: LiteralKind::Bool(true), span: span!(0, 4) })
         }
 
         check_parser! {
             source: "false",
             fn: parse_literal,
-            expected: Some(Literal { kind: LiteralKind::Bool(false), span: 0..5 })
+            expected: Some(Literal { kind: LiteralKind::Bool(false), span: span!(0, 5) })
         }
     }
 

@@ -4,11 +4,10 @@ use std::path::PathBuf;
 
 use clap::Parser as ClapParser;
 use compiler::Compiler;
-use miette::{Context, Result, bail};
+use fout::source::SourceFile;
 use parser::Parser;
 use typechecker::Typechecker;
 use vm::Vm;
-use west_error::source::SourceFile;
 
 /// West runner
 #[derive(ClapParser, Debug)]

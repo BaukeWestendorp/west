@@ -1,5 +1,4 @@
 use ast::{Ident, InfixOp};
-use miette::Diagnostic;
 use thiserror::Error;
 
 use crate::Ty;

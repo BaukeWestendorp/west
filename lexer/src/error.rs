@@ -1,13 +1,11 @@
-use miette::Diagnostic;
 use thiserror::Error;
 
-#[derive(Error, Diagnostic, Debug)]
+pub type Result<T> = std::result::Result<T, fout::Error<ErrorKind>>;
+
+#[derive(Error, Debug, PartialEq)]
 pub enum ErrorKind {
     #[error("unknown character: '{0}'")]
-    #[diagnostic(code(west::lexer::unknown_char))]
     UnknownChar(char),
-
     #[error("unkknown keyword: '{0}'")]
-    #[diagnostic(code(west::lexer::unknown_keyword))]
     UnknownKeyword(String),
 }

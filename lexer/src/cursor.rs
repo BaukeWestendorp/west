@@ -1,8 +1,7 @@
-use std::ops::Range;
 use std::str::Chars;
 
-use west_error::ErrorProducer;
-use west_error::source::SourceFile;
+use fout::source::SourceFile;
+use fout::{ErrorProducer, span};
 
 pub struct Cursor<'src> {
     source: &'src SourceFile<'src>,
@@ -39,7 +38,7 @@ impl<'src> Cursor<'src> {
 
     /// Returns the current token as a string.
     pub fn current_token_str(&mut self) -> &'src str {
-        &self.source.as_str()[self.current_span()]
+        &self.source.as_str()[self.span().to_range()]
     }
 
     /// Moves to the next character.
@@ -66,9 +65,9 @@ impl ErrorProducer for Cursor<'_> {
         self.source
     }
 
-    fn current_span(&mut self) -> Range<usize> {
+    fn span(&mut self) -> fout::source::Span {
         let start = self.span_start;
         let end = self.source.as_str().len() - self.rest.as_str().len();
-        start..end
+        span!(start, end)
     }
 }

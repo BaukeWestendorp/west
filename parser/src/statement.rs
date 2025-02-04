@@ -1,8 +1,8 @@
 use ast::{Statement, StatementKind};
 use lexer::token::{Keyword, TokenKind};
-use miette::{Context, Result};
 
 use crate::Parser;
+use crate::error::Result;
 
 impl<'src> Parser<'src> {
     pub fn parse_statement(&mut self) -> Result<Option<Statement<'src>>> {
@@ -130,7 +130,8 @@ impl<'src> Parser<'src> {
 #[cfg(test)]
 mod tests {
     use ast::{Expression, ExpressionKind, Ident, Literal, LiteralKind, StatementKind};
-    use west_error::source::SourceFile;
+    use fout::source::SourceFile;
+    use fout::span;
 
     use crate::check_parser;
 
@@ -156,8 +157,11 @@ mod tests {
         let value = parser.ast.get_expression(&expression);
 
         assert_eq!(value, &Expression {
-            kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Float(1.0), span: 0..3 }),
-            span: 0..3,
+            kind: ExpressionKind::Literal(Literal {
+                kind: LiteralKind::Float(1.0),
+                span: span!(0, 3)
+            }),
+            span: span!(0, 3),
         });
     }
 
@@ -173,10 +177,10 @@ mod tests {
         };
         let value = parser.ast.get_expression(&value);
 
-        assert_eq!(name, Ident { name: "x", span: 4..5 });
+        assert_eq!(name, Ident { name: "x", span: span!(4, 5) });
         assert_eq!(value, &Expression {
-            kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(1), span: 8..9 }),
-            span: 8..9,
+            kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(1), span: span!(8, 9) }),
+            span: span!(8, 9),
         });
     }
 
@@ -193,8 +197,8 @@ mod tests {
         let value = parser.ast.get_expression(&value);
 
         assert_eq!(value, &Expression {
-            kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(1), span: 6..7 }),
-            span: 6..7,
+            kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(1), span: span!(6, 7) }),
+            span: span!(6, 7),
         });
     }
 
@@ -225,8 +229,8 @@ mod tests {
 
         let value = parser.ast.get_expression(&value);
         assert_eq!(value, &Expression {
-            kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(1), span: 7..8 }),
-            span: 7..8,
+            kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(1), span: span!(7, 8) }),
+            span: span!(7, 8),
         });
     }
 
@@ -240,7 +244,7 @@ mod tests {
             panic!();
         };
 
-        assert_eq!(body.span, 5..7);
+        assert_eq!(body.span, span!(5, 7));
     }
 
     #[test]
@@ -256,11 +260,14 @@ mod tests {
         let condition = parser.ast.get_expression(&condition);
 
         assert_eq!(condition, &Expression {
-            kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Bool(true), span: 6..10 }),
-            span: 6..10,
+            kind: ExpressionKind::Literal(Literal {
+                kind: LiteralKind::Bool(true),
+                span: span!(6, 10)
+            }),
+            span: span!(6, 10),
         });
 
-        assert_eq!(body.span, 11..13);
+        assert_eq!(body.span, span!(11, 13));
     }
 
     #[test]
@@ -275,8 +282,11 @@ mod tests {
 
         let condition = parser.ast.get_expression(&condition);
         assert_eq!(condition, &Expression {
-            kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Bool(true), span: 3..7 }),
-            span: 3..7,
+            kind: ExpressionKind::Literal(Literal {
+                kind: LiteralKind::Bool(true),
+                span: span!(3, 7)
+            }),
+            span: span!(3, 7),
         });
 
         assert_eq!(then_block.statements.len(), 0);
@@ -295,8 +305,11 @@ mod tests {
 
         let condition = parser.ast.get_expression(&condition);
         assert_eq!(condition, &Expression {
-            kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Bool(true), span: 3..7 }),
-            span: 3..7,
+            kind: ExpressionKind::Literal(Literal {
+                kind: LiteralKind::Bool(true),
+                span: span!(3, 7)
+            }),
+            span: span!(3, 7),
         });
 
         assert_eq!(then_block.statements.len(), 0);
