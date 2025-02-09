@@ -1,15 +1,10 @@
-#![feature(assert_matches)]
-
-use std::assert_matches::assert_matches;
-use std::ops::Range;
-
 use ast::{
     Ast, Block, Expression, ExpressionId, ExpressionKind, Fn, Ident, InfixOp, Item, ItemKind,
     LiteralKind, Module, PrefixOp, Statement, StatementKind,
 };
-use error::ErrorKind;
-use fout::ErrorProducer;
+use error::{ErrorKind, Result};
 use fout::source::{SourceFile, Span};
+use fout::{ErrorProducer, span};
 
 mod error;
 
@@ -49,7 +44,7 @@ pub struct Typechecker<'src> {
 
     expected_return_type: Option<Ty>,
 
-    current_span: &'src Span,
+    current_span: Span,
 }
 
 impl<'src> Typechecker<'src> {
@@ -60,7 +55,7 @@ impl<'src> Typechecker<'src> {
             depth: 0,
             locals: Vec::new(),
             expected_return_type: None,
-            current_span: &(0..0),
+            current_span: span!(0, 0),
         }
     }
 
@@ -74,7 +69,7 @@ impl<'src> Typechecker<'src> {
 
     pub fn check_module(&mut self, module: &'src Module<'src>) -> Result<()> {
         for item in &module.items {
-            self.current_span = &item.span;
+            self.current_span = item.span;
             self.check_item(item)?;
         }
 
@@ -97,19 +92,21 @@ impl<'src> Typechecker<'src> {
             self.locals.push(local);
         }
 
+        let mut return_ty_span = self.span();
         if let Some(return_ty) = &f.return_type {
+            return_ty_span = return_ty.span;
             self.expected_return_type = Some(self.check_type(return_ty)?);
         }
 
-        self.check_block(&f.body)?;
+        self.check_block(&f.body, return_ty_span)?;
 
         self.expected_return_type = None;
 
         Ok(())
     }
 
-    pub fn check_block(&mut self, block: &'src Block<'src>) -> Result<()> {
-        self.current_span = &block.span;
+    pub fn check_block(&mut self, block: &'src Block<'src>, return_type_span: Span) -> Result<()> {
+        self.current_span = block.span;
         self.enter_scope();
 
         let mut has_return = false;
@@ -119,12 +116,14 @@ impl<'src> Typechecker<'src> {
                 has_return = true;
             }
 
-            self.check_statement(statement)?;
+            self.check_statement(statement, return_type_span)?;
         }
 
         if !has_return {
             if let Some(expected) = self.expected_return_type {
-                return Err(self.err_here(ErrorKind::MissingReturnValue { expected }));
+                return Err(
+                    self.error_at(ErrorKind::MissingReturnValue { expected }, return_type_span)
+                );
             }
         }
 
@@ -133,8 +132,12 @@ impl<'src> Typechecker<'src> {
         Ok(())
     }
 
-    pub fn check_statement(&mut self, statement: &'src Statement<'src>) -> Result<()> {
-        self.current_span = &statement.span;
+    pub fn check_statement(
+        &mut self,
+        statement: &'src Statement<'src>,
+        return_type_span: Span,
+    ) -> Result<()> {
+        self.current_span = statement.span;
         match &statement.kind {
             StatementKind::Expression(expression) => {
                 self.check_expression(expression)?;
@@ -146,47 +149,58 @@ impl<'src> Typechecker<'src> {
             StatementKind::Return { value } => match (self.expected_return_type, value) {
                 (Some(expected), Some(value)) => {
                     let ty = self.check_expression(value)?;
+
                     if ty != expected {
-                        return Err(self.err_here(ErrorKind::InvalidReturnValue { expected, ty }));
+                        let span = self.ast.get_expression(value).span;
+                        return Err(
+                            self.error_at(ErrorKind::InvalidReturnValue { expected, ty }, span)
+                        );
                     }
                 }
-                (Some(expected), None) => {
-                    return Err(self.err_here(ErrorKind::MissingReturnValue { expected }));
+                (Some(expected), _) => {
+                    return Err(
+                        self.error_at(ErrorKind::MissingReturnValue { expected }, statement.span)
+                    );
                 }
-                (None, Some(_)) => {
-                    return Err(self.err_here(ErrorKind::UnexpectedReturnValue));
+                (_, Some(value)) => {
+                    let span = self.ast.get_expression(value).span;
+                    return Err(self.error_at(ErrorKind::UnexpectedReturnValue, span));
                 }
-                (None, None) => {}
+                (_, _) => {}
             },
             StatementKind::IfElse { condition, then_block, else_block } => {
                 let condition_ty = self.check_expression(condition)?;
                 if condition_ty != Ty::Bool {
-                    return Err(
-                        self.err_here(ErrorKind::ExpectedBoolInIfCondition { ty: condition_ty })
-                    );
+                    let span = self.ast.get_expression(condition).span;
+                    return Err(self.error_at(
+                        ErrorKind::ExpectedBoolInIfCondition { ty: condition_ty },
+                        span,
+                    ));
                 }
 
-                self.check_block(then_block)?;
+                self.check_block(then_block, return_type_span)?;
 
                 if let Some(else_block) = else_block {
-                    self.check_block(else_block)?;
+                    self.check_block(else_block, return_type_span)?;
                 }
             }
             StatementKind::Print { value } => {
                 self.check_expression(value)?;
             }
             StatementKind::Loop { body } => {
-                self.check_block(body)?;
+                self.check_block(body, return_type_span)?;
             }
             StatementKind::While { condition, body } => {
                 let condition_ty = self.check_expression(condition)?;
                 if condition_ty != Ty::Bool {
-                    return Err(
-                        self.err_here(ErrorKind::ExpectedBoolInWhileCondition { ty: condition_ty })
-                    );
+                    let span = self.ast.get_expression(condition).span;
+                    return Err(self.error_at(
+                        ErrorKind::ExpectedBoolInWhileCondition { ty: condition_ty },
+                        span,
+                    ));
                 }
 
-                self.check_block(body)?;
+                self.check_block(body, return_type_span)?;
             }
         }
 
@@ -195,7 +209,7 @@ impl<'src> Typechecker<'src> {
 
     pub fn check_expression(&mut self, expr_id: &ExpressionId) -> Result<Ty> {
         let expr = self.ast.get_expression(expr_id);
-        self.current_span = &expr.span;
+        self.current_span = expr.span;
 
         let ty = match &expr.kind {
             ExpressionKind::Literal(literal) => match &literal.kind {
@@ -211,7 +225,10 @@ impl<'src> Typechecker<'src> {
                     }
                 }
 
-                return Err(self.err_here(ErrorKind::UnknownVariable { ident: ident.clone() }));
+                return Err(self.error_at(
+                    ErrorKind::UnknownVariable { ident: ident.to_string() },
+                    ident.span,
+                ));
             }
             ExpressionKind::UnaryOp { op, rhs } => {
                 let rhs_ty = self.check_expression(rhs)?;
@@ -220,11 +237,11 @@ impl<'src> Typechecker<'src> {
                     PrefixOp::Minus => match rhs_ty {
                         Ty::Int => Ty::Int,
                         Ty::Float => Ty::Float,
-                        _ => return Err(self.err_here(ErrorKind::CannotNegate)),
+                        _ => return Err(self.error_at(ErrorKind::CannotNegate, expr.span)),
                     },
                     PrefixOp::Negate => match rhs_ty {
                         Ty::Bool => Ty::Bool,
-                        _ => return Err(self.err_here(ErrorKind::CannotInvert)),
+                        _ => return Err(self.error_at(ErrorKind::CannotInvert, expr.span)),
                     },
                 }
             }
@@ -238,12 +255,13 @@ impl<'src> Typechecker<'src> {
                             (Ty::Int, Ty::Int) => Ty::Int,
                             (Ty::Float, Ty::Float) => Ty::Float,
                             _ => {
-                                return Err(self.err_here(
+                                return Err(self.error_at(
                                     ErrorKind::InvalidTypeCombinationInInfixOp {
                                         lhs: lhs_ty,
                                         op: *op,
                                         rhs: rhs_ty,
                                     },
+                                    expr.span,
                                 ));
                             }
                         }
@@ -257,12 +275,13 @@ impl<'src> Typechecker<'src> {
                         if lhs_ty == rhs_ty {
                             Ty::Bool
                         } else {
-                            return Err(self.err_here(
+                            return Err(self.error_at(
                                 ErrorKind::InvalidTypeCombinationInInfixOp {
                                     lhs: lhs_ty,
                                     op: *op,
                                     rhs: rhs_ty,
                                 },
+                                expr.span,
                             ));
                         }
                     }
@@ -270,12 +289,13 @@ impl<'src> Typechecker<'src> {
                         if lhs_ty == Ty::Bool && rhs_ty == Ty::Bool {
                             Ty::Bool
                         } else {
-                            return Err(self.err_here(
+                            return Err(self.error_at(
                                 ErrorKind::InvalidTypeCombinationInInfixOp {
                                     lhs: lhs_ty,
                                     op: *op,
                                     rhs: rhs_ty,
                                 },
+                                expr.span,
                             ));
                         }
                     }
@@ -283,9 +303,11 @@ impl<'src> Typechecker<'src> {
                 }
             }
             ExpressionKind::FnCall { callee, args } => {
-                assert_matches!(
-                    self.ast.get_expression(callee),
-                    Expression { kind: ExpressionKind::Ident(_), .. },
+                assert!(
+                    matches!(self.ast.get_expression(callee), Expression {
+                        kind: ExpressionKind::Ident(_),
+                        ..
+                    }),
                     "invalid fn call. expected callee to be an ident"
                 );
 
@@ -308,7 +330,7 @@ impl<'src> Typechecker<'src> {
             "float" => Ok(Ty::Float),
             "str" => Ok(Ty::Str),
             "bool" => Ok(Ty::Bool),
-            _ => Err(self.err_here(ErrorKind::UnknownType { ident: ty.clone() })),
+            _ => Err(self.error_at(ErrorKind::UnknownType { ident: ty.to_string() }, ty.span)),
         }
     }
 
@@ -324,7 +346,7 @@ impl<'src> Typechecker<'src> {
 }
 
 impl<'src> ErrorProducer for Typechecker<'src> {
-    type ErrorKind = ErrorKind<'src>;
+    type ErrorKind = ErrorKind;
 
     fn name(&self) -> &str {
         "typechecker"
@@ -341,17 +363,17 @@ impl<'src> ErrorProducer for Typechecker<'src> {
 
 #[cfg(test)]
 mod tests {
+    use ast::InfixOp;
     use fout::source::SourceFile;
+    use fout::{Error, span};
     use parser::Parser;
 
-    use crate::Typechecker;
+    use crate::error::ErrorKind;
+    use crate::{Ty, Typechecker};
 
     #[test]
     fn incompatible_types() {
-        let source = r#"
-            fn main() {
-                true + 1;
-            }
+        let source = r#"fn main() { true + 1; }
         "#;
 
         let source = SourceFile::new("tests".to_string(), source);
@@ -360,10 +382,14 @@ mod tests {
 
         let result = typechecker.check();
         assert!(result.is_err());
-        assert_eq!(
-            result.unwrap_err().to_string(),
-            "invalid type combination in operator: <bool> + <int>"
-        );
+        assert_eq!(result.unwrap_err(), Error {
+            kind: ErrorKind::InvalidTypeCombinationInInfixOp {
+                lhs: Ty::Bool,
+                op: InfixOp::Add,
+                rhs: Ty::Int
+            },
+            span: span!(12, 20)
+        });
     }
 
     #[test]
@@ -376,10 +402,10 @@ mod tests {
 
         let actual = typechecker.check();
 
-        assert_eq!(
-            actual.unwrap_err().to_string(),
-            "missing return value: expected a value of type <int>".to_string()
-        )
+        assert_eq!(actual.unwrap_err(), Error {
+            kind: ErrorKind::MissingReturnValue { expected: Ty::Int },
+            span: span!(8, 11)
+        })
     }
 
     #[test]
@@ -392,7 +418,10 @@ mod tests {
 
         let actual = typechecker.check();
 
-        assert_eq!(actual.unwrap_err().to_string(), "unexpected return value".to_string())
+        assert_eq!(actual.unwrap_err(), Error {
+            kind: ErrorKind::UnexpectedReturnValue,
+            span: span!(16, 17)
+        })
     }
 
     #[test]
@@ -418,10 +447,10 @@ mod tests {
 
         let actual = typechecker.check();
 
-        assert_eq!(
-            actual.unwrap_err().to_string(),
-            "invalid return type: expected <int>, got <bool>".to_string()
-        )
+        assert_eq!(actual.unwrap_err(), Error {
+            kind: ErrorKind::InvalidReturnValue { expected: Ty::Int, ty: Ty::Bool },
+            span: span!(21, 25)
+        })
     }
 
     #[test]
@@ -439,11 +468,7 @@ mod tests {
 
     #[test]
     fn if_else_with_non_bool_condition() {
-        let source = r#"
-            fn main() {
-                if 1 {}
-            }
-        "#;
+        let source = r#"fn main() { if 1 {} }"#;
 
         let source = SourceFile::new("tests".to_string(), source);
         let ast = Parser::new(&source).parse().unwrap();
@@ -451,10 +476,10 @@ mod tests {
 
         let actual = typechecker.check();
 
-        assert_eq!(
-            actual.unwrap_err().to_string(),
-            "expected a <bool> in condition of if statement, but found <int>".to_string()
-        )
+        assert_eq!(actual.unwrap_err(), Error {
+            kind: ErrorKind::ExpectedBoolInIfCondition { ty: Ty::Int },
+            span: span!(15, 16)
+        })
     }
 
     #[test]
@@ -527,11 +552,7 @@ mod tests {
 
     #[test]
     fn while_with_non_bool_condition() {
-        let source = r#"
-            fn main() {
-                while 1 {}
-            }
-        "#;
+        let source = r#"fn main() { while 1 {} }"#;
 
         let source = SourceFile::new("tests".to_string(), source);
         let ast = Parser::new(&source).parse().unwrap();
@@ -539,9 +560,9 @@ mod tests {
 
         let actual = typechecker.check();
 
-        assert_eq!(
-            actual.unwrap_err().to_string(),
-            "expected a <bool> in condition of while statement, but found <int>".to_string()
-        )
+        assert_eq!(actual.unwrap_err(), Error {
+            kind: ErrorKind::ExpectedBoolInWhileCondition { ty: Ty::Int },
+            span: span!(18, 19)
+        })
     }
 }

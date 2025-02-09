@@ -21,24 +21,30 @@ struct Args {
     emit_bytecode: bool,
 }
 
-fn main() -> Result<()> {
+fn main() {
     let Args { file, emit_bytecode } = Args::parse();
 
-    let Ok(mut source_file) = File::open(&file) else {
-        bail!("file not found: {:?}", file);
+    let mut source = String::new();
+    File::open(&file)
+        .expect("failed to open file")
+        .read_to_string(&mut source)
+        .expect("failed to read file");
+
+    let file_name = file.file_name().expect("argument `file` is not a file.");
+
+    let source = SourceFile::new(file_name.to_string_lossy(), &source);
+
+    let ast = match Parser::new(&source).parse() {
+        Ok(ast) => ast,
+        Err(errors) => {
+            dbg!(errors);
+            panic!("do something with errors")
+        }
     };
 
-    let mut source = String::new();
-    match source_file.read_to_string(&mut source) {
-        Err(err) => bail!(err),
-        _ => {}
+    if let Err(err) = Typechecker::new(&ast, &source).check() {
+        panic!("failed to typecheck file: {}", err.kind.to_string());
     }
-
-    let file_name = file.file_name().wrap_err("argument `file` is not a file.")?.to_string_lossy();
-    let source = SourceFile::new(file_name, &source);
-
-    let ast = Parser::new(&source).parse().wrap_err("failed to parse file")?;
-    Typechecker::new(&ast, &source).check()?;
 
     let mut compiler = Compiler::new(&ast);
 
@@ -52,6 +58,4 @@ fn main() -> Result<()> {
 
     let mut stdout = std::io::stdout();
     Vm::new(bytecode_modules.remove(0), &mut stdout).run();
-
-    Ok(())
 }

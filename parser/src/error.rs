@@ -5,6 +5,9 @@ pub type Result<T> = std::result::Result<T, fout::Error<ErrorKind>>;
 
 #[derive(Error, Debug, PartialEq)]
 pub enum ErrorKind {
+    #[error("tokenizer error")]
+    TokenizerError(#[from] lexer::error::ErrorKind),
+
     #[error("expected block")]
     ExpectedBlock,
 
@@ -19,6 +22,12 @@ pub enum ErrorKind {
 
     #[error("expected EOF")]
     ExpectedEof,
+
+    #[error("expected identifier")]
+    ExpectedIdent,
+
+    #[error("expected type")]
+    ExpectedType,
 
     #[error("unexpected EOF")]
     UnexpectedEof,

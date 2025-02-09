@@ -1,8 +1,9 @@
 use ast::{Statement, StatementKind};
+use fout::{Error, ErrorProducer};
 use lexer::token::{Keyword, TokenKind};
 
 use crate::Parser;
-use crate::error::Result;
+use crate::error::{ErrorKind, Result};
 
 impl<'src> Parser<'src> {
     pub fn parse_statement(&mut self) -> Result<Option<Statement<'src>>> {
@@ -49,7 +50,10 @@ impl<'src> Parser<'src> {
 
         let name = self.eat_ident(TokenKind::Ident)?;
         self.eat_expected(TokenKind::Eq)?;
-        let value = self.parse_expression()?.wrap_err("expected expression")?;
+        let value = self
+            .parse_expression()?
+            .ok_or(Error { kind: ErrorKind::ExpectedExpression, span: self.span() })?;
+
         self.eat_expected(TokenKind::Semi)?;
         Ok(Some(Statement { kind: StatementKind::Let { name, value }, span: self.end_span() }))
     }
@@ -61,7 +65,9 @@ impl<'src> Parser<'src> {
             return Ok(None);
         }
 
-        let condition = self.parse_expression()?.wrap_err("expected expression")?;
+        let condition = self
+            .parse_expression()?
+            .ok_or(Error { kind: ErrorKind::ExpectedExpression, span: self.span() })?;
 
         let then_block = self.parse_block()?;
 
@@ -83,7 +89,10 @@ impl<'src> Parser<'src> {
             return Ok(None);
         }
 
-        let value = self.parse_expression()?.wrap_err("expected expression")?;
+        let value = self
+            .parse_expression()?
+            .ok_or(Error { kind: ErrorKind::ExpectedExpression, span: self.span() })?;
+
         self.eat_expected(TokenKind::Semi)?;
         Ok(Some(Statement { kind: StatementKind::Print { value }, span: self.end_span() }))
     }
@@ -118,7 +127,9 @@ impl<'src> Parser<'src> {
             return Ok(None);
         }
 
-        let condition = self.parse_expression()?.wrap_err("expected expression")?;
+        let condition = self
+            .parse_expression()?
+            .ok_or(Error { kind: ErrorKind::ExpectedExpression, span: self.span() })?;
         let body = self.parse_block()?;
         Ok(Some(Statement {
             kind: StatementKind::While { condition, body },

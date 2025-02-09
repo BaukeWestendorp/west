@@ -49,7 +49,8 @@ impl<'src> Parser<'src> {
     pub(crate) fn eat(&mut self) -> Result<Token> {
         self.prev_span = self.span();
         match self.lexer.next() {
-            Some(token) => token,
+            Some(token) => token
+                .map_err(|err| Error { kind: ErrorKind::TokenizerError(err.kind), span: err.span }),
             _ => Err(self.err_unexpected_eof(None)),
         }
     }
@@ -95,7 +96,9 @@ impl<'src> Parser<'src> {
         self.prev_span = self.span();
         match self.lexer.next() {
             Some(Ok(token)) => Ok(Some(token)),
-            Some(Err(err)) => Err(err),
+            Some(Err(err)) => {
+                Err(Error { kind: ErrorKind::TokenizerError(err.kind), span: err.span })
+            }
             _ => Ok(None),
         }
     }

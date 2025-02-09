@@ -29,3 +29,4 @@ bytecode = { path = "backend/bytecode" }
 
 thiserror = { version = "2" }
 miette = { version = "7.4.0", features = ["fancy"] }
+ariadne = "0.5.0"

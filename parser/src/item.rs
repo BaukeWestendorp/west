@@ -1,5 +1,5 @@
 use ast::{FnParam, Item, ItemKind};
-use fout::ErrorProducer;
+use fout::{Error, ErrorProducer};
 use lexer::token::{Keyword, TokenKind};
 
 use crate::Parser;
@@ -23,7 +23,9 @@ impl<'src> Parser<'src> {
             return Ok(None);
         }
 
-        let name = self.parse_ident()?.wrap_err("expected function name")?;
+        let name = self
+            .parse_ident()?
+            .ok_or(Error { kind: ErrorKind::ExpectedIdent, span: self.span() })?;
 
         let mut params = vec![];
         if self.try_eat(TokenKind::ParenOpen).is_some() {
@@ -50,7 +52,9 @@ impl<'src> Parser<'src> {
         loop {
             let Some(name) = self.parse_ident()? else { return Ok(None) };
             self.eat_expected(TokenKind::Colon)?;
-            let ty = self.parse_ident()?.wrap_err("expected parameter type")?;
+            let ty = self
+                .parse_ident()?
+                .ok_or(Error { kind: ErrorKind::ExpectedType, span: self.span() })?;
 
             params.push(FnParam { name, ty });
 
@@ -153,7 +157,7 @@ mod tests {
         check_parser_error! {
             source: r#"fn () {}"#,
             fn: parse_item,
-            expected: Error { kind: ErrorKind::ExpectedFunctionName, span: span!(3, 3) }
+            expected: Error { kind: ErrorKind::ExpectedIdent, span: span!(3, 3) }
         };
     }
 

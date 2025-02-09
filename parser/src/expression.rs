@@ -1,5 +1,5 @@
 use ast::{Expression, ExpressionId, ExpressionKind, InfixOp, Op, PostfixOp, PrefixOp};
-use fout::{ErrorProducer, span};
+use fout::{Error, ErrorProducer, span};
 use lexer::token::TokenKind;
 
 use crate::Parser;
@@ -28,9 +28,9 @@ impl<'src> Parser<'src> {
                 Some(Ok(token)) if token.kind == TokenKind::ParenOpen => {
                     self.eat()?;
                     let expr = self
-                        .parse_expression_bp(0)
-                        .wrap_err("in parentheses")?
-                        .wrap_err("expected an expression")?;
+                        .parse_expression_bp(0)?
+                        .ok_or(Error { kind: ErrorKind::ExpectedExpression, span: self.span() })?;
+
                     self.eat_expected(TokenKind::ParenClose)?;
                     expr
                 }
@@ -38,7 +38,7 @@ impl<'src> Parser<'src> {
                 Some(Err(_)) => {
                     return Err(self.eat().expect_err("should be checked for Err in match"));
                 }
-                None => {
+                _ => {
                     let span = self.end_span();
                     return Err(self.error_at(ErrorKind::UnexpectedEof, span));
                 }
@@ -93,9 +93,8 @@ impl<'src> Parser<'src> {
                 self.eat()?;
 
                 let rhs = self
-                    .parse_expression_bp(r_bp)
-                    .wrap_err("on the right-hand side")?
-                    .wrap_err("expected an expression")?;
+                    .parse_expression_bp(r_bp)?
+                    .ok_or(Error { kind: ErrorKind::ExpectedExpression, span: self.span() })?;
 
                 let span = span!(lhs.span.start(), self.span().end());
                 lhs = Expression {
@@ -148,9 +147,8 @@ impl<'src> Parser<'src> {
 
         let ((), r_bp) = prefix_binding_power(&op);
         let rhs = self
-            .parse_expression_bp(r_bp)
-            .wrap_err("in right-hand side")?
-            .wrap_err("expected an expression")?;
+            .parse_expression_bp(r_bp)?
+            .ok_or(Error { kind: ErrorKind::ExpectedExpression, span: self.span() })?;
         Ok(Some(Expression {
             kind: ExpressionKind::UnaryOp { op, rhs: self.ast.add_expression(rhs) },
             span: self.span(),
@@ -659,7 +657,7 @@ mod tests {
                 expected: TokenKind::ParenClose,
                 found: ",".to_string(),
             },
-            span,
+            span: span!(12, 13),
         };
 
         assert_eq!(actual, expected);
