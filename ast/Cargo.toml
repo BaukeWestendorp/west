@@ -1,9 +1,0 @@
-[package]
-name = "ast"
-version.workspace = true
-edition.workspace = true
-
-[dependencies]
-lexer.workspace = true
-
-fout.workspace = true

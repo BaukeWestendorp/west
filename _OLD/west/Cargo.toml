@@ -1,0 +1,9 @@
+[package]
+name = "west"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+clap = { version = "4.5.26", features = ["derive"] }
+thiserror.workspace = true
+ariadne.workspace = true
