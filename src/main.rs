@@ -35,12 +35,15 @@ fn main() {
     let ast = match Parser::new(&source).parse() {
         Ok(ast) => ast,
         Err(errors) => {
-            dbg!(errors);
-            panic!("do something with errors")
+            for error in errors {
+                let source = ariadne::Source::from(source.as_str());
+                error.eprint(source).unwrap();
+            }
+            std::process::exit(1);
         }
     };
 
-    dbg!(ast);
+    println!("{:#?}", ast);
 
     // if let Err(err) = Typechecker::new(&ast, &source).check() {
     //     panic!("failed to typecheck file: {}", err.kind.to_string());

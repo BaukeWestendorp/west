@@ -1,16 +1,18 @@
 use crate::ast::Module;
 
-use super::Parser;
+use super::{Parser, error::ParserError};
 
 impl<'src> Parser<'src> {
     pub fn parse_module(&mut self) -> Module<'src> {
         let mut items = Vec::new();
 
-        while let Some(item) = self.parse_item() {
+        while let Ok(item) = self.parse_item() {
             items.push(item);
         }
 
-        self.expect_eof();
+        if !self.at_eof() {
+            self.error_here(ParserError::ExpectedEofOrItem);
+        }
 
         Module { items }
     }
@@ -22,7 +24,7 @@ mod tests {
 
     use crate::parser::error::ParserError;
     use crate::source::Spanned;
-    use crate::{check_parser, check_parser_errors, span};
+    use crate::{check_parser, span};
 
     #[test]
     fn module_main_fn() {
@@ -41,7 +43,8 @@ mod tests {
                         span: span!(0, 12)
                     }
                 ],
-            }
+            },
+            expected_errors: vec![]
         };
     }
 
@@ -52,7 +55,8 @@ mod tests {
             fn: parse_module,
             expected: Module {
                 items: vec![]
-            }
+            },
+            expected_errors: vec![]
         };
     }
 
@@ -82,34 +86,72 @@ mod tests {
                         span: span!(10, 19)
                     }
                 ],
-            }
+            },
+            expected_errors: vec![]
         };
     }
 
     #[test]
     fn module_invalid_first_item() {
-        check_parser_errors! {
+        check_parser! {
             source: r#"1.0; fn a() {}"#,
             fn: parse_module,
-            expected: vec![Spanned::new(ParserError::ExpectedItem, span!(0, 4))]
+            expected: Module { items: vec![] },
+            expected_errors: vec![
+                Spanned::new(ParserError::ExpectedEofOrItem, span!(0, 3))
+            ]
         };
     }
 
     #[test]
     fn module_invalid_last_item() {
-        check_parser_errors! {
+        check_parser! {
+            source: r#"fn a {} 1.0"#,
+            fn: parse_module,
+            expected: Module { items: vec![
+                Item {
+                    kind: ItemKind::Fn(Fn {
+                        name: Ident { span: span!(3, 4), name: "a" },
+                        params: vec![],
+                        return_type: None,
+                        body: Block { statements: vec![], span: span!(5, 7) }
+                    }),
+                    span: span!(0, 7)
+                }
+            ] },
+            expected_errors: vec![
+                Spanned::new(ParserError::ExpectedEofOrItem, span!(8, 11)),
+            ]
+        };
+    }
+
+    #[test]
+    fn module_invalid_last_item_parens() {
+        check_parser! {
             source: r#"fn a() {} 1.0"#,
             fn: parse_module,
-            expected: vec![Spanned::new(ParserError::ExpectedItem, span!(10, 13))]
+            expected: Module { items: vec![
+                Item {
+                    kind: ItemKind::Fn(Fn {
+                        name: Ident { span: span!(3, 4), name: "a" },
+                        params: vec![],
+                        return_type: None,
+                        body: Block { statements: vec![], span: span!(7, 9) }
+                    }),
+                    span: span!(0, 9)
+                }
+            ] },
+            expected_errors: vec![Spanned::new(ParserError::ExpectedEofOrItem, span!(10, 13))]
         };
     }
 
     #[test]
     fn module_invalid_root() {
-        check_parser_errors! {
+        check_parser! {
             source: r#"1.0"#,
             fn: parse_module,
-            expected: vec![Spanned::new(ParserError::ExpectedItem, span!(0, 3))]
+            expected: Module { items: vec![] },
+            expected_errors: vec![Spanned::new(ParserError::ExpectedEofOrItem, span!(0, 3))]
         };
     }
 }

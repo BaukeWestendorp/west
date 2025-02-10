@@ -1,13 +1,13 @@
-use ariadne::{Report, ReportKind};
-
 use crate::{
     lexer::{error::LexerError, token::TokenKind},
     source::{Span, Spanned},
 };
 
+use ariadne::{Label, Report, ReportKind};
+
 #[derive(Debug, PartialEq, thiserror::Error)]
 pub enum ParserError {
-    #[error("lexer error")]
+    #[error("{0}")]
     LexerError(#[from] LexerError),
 
     #[error("expected block")]
@@ -16,14 +16,8 @@ pub enum ParserError {
     #[error("expected expression")]
     ExpectedExpression,
 
-    #[error("expected item")]
-    ExpectedItem,
-
-    #[error("expected {expected}, found {found}")]
+    #[error("expected '{expected}', found '{found}'")]
     ExpectedToken { expected: TokenKind, found: TokenKind },
-
-    #[error("expected EOF")]
-    ExpectedEof,
 
     #[error("expected identifier")]
     ExpectedIdent,
@@ -31,12 +25,46 @@ pub enum ParserError {
     #[error("expected type")]
     ExpectedType,
 
+    #[error("expected EOF")]
+    ExpectedEof,
+
+    #[error("expected EOF or item")]
+    ExpectedEofOrItem,
+
+    #[error("expected item")]
+    ExpectedItem,
+
     #[error("unexpected EOF")]
     UnexpectedEof,
 }
 
+impl ParserError {
+    pub fn code(&self) -> &str {
+        match self {
+            Self::LexerError(lexer_error) => match lexer_error {
+                LexerError::InvalidCharacter(_) => "invalid-character",
+                LexerError::UnknownKeyword(_) => "unknown-keyword",
+            },
+            Self::ExpectedBlock => "expected-block",
+            Self::ExpectedExpression => "expected-expression",
+            Self::ExpectedToken { .. } => "expected-token",
+            Self::ExpectedIdent => "expected-ident",
+            Self::ExpectedType => "expected-type",
+            Self::ExpectedEof => "expected-eof",
+            Self::ExpectedEofOrItem => "expected-eof-or-item",
+            Self::ExpectedItem => "expected-item",
+            Self::UnexpectedEof => "unexpected-eof",
+        }
+    }
+}
+
 impl From<Spanned<ParserError>> for Report<'_, Span> {
     fn from(error: Spanned<ParserError>) -> Self {
-        Report::build(ReportKind::Error, error.span).with_message(error.value.to_string()).finish()
+        let report = Report::build(ReportKind::Error, error.span)
+            .with_code(error.value.code())
+            .with_message(error.value.to_string())
+            .with_label(Label::new(error.span).with_message(error.value.to_string()));
+
+        report.finish()
     }
 }

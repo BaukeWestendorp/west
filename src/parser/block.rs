@@ -1,17 +1,18 @@
 use crate::ast::Block;
 use crate::lexer::token::TokenKind;
+use crate::source::Spanned;
 
 use super::Parser;
 use super::error::ParserError;
 
 impl<'src> Parser<'src> {
-    pub fn parse_block(&mut self) -> Result<Block<'src>, ParserError> {
+    pub fn parse_block(&mut self) -> Result<Block<'src>, Spanned<ParserError>> {
         self.start_span();
         self.eat_expected(TokenKind::BraceOpen)?;
-        let mut statements = Vec::new();
-        while let Some(statement) = self.parse_statement()? {
-            statements.push(statement);
-        }
+        let statements = Vec::new();
+        // while let Some(statement) = self.parse_statement()? {
+        //     statements.push(statement);
+        // }
         self.eat_expected(TokenKind::BraceClose)?;
         Ok(Block { statements, span: self.end_span() })
     }

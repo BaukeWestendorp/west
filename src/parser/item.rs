@@ -1,67 +1,57 @@
 use crate::ast::Fn;
 use crate::ast::{FnParam, Item, ItemKind};
 use crate::lexer::token::{Keyword, TokenKind};
+use crate::source::Spanned;
 
 use super::Parser;
 use super::error::ParserError;
 
 impl<'src> Parser<'src> {
-    pub fn parse_item(&mut self) -> Option<Item<'src>> {
+    pub fn parse_item(&mut self) -> Result<Item<'src>, Spanned<ParserError>> {
         self.start_span();
-        if let Some(fn_item) = self.parse_item_fn() {
-            Some(Item { kind: ItemKind::Fn(fn_item), span: self.end_span() })
-        } else {
-            if self.eat_or_expect_eof().is_some() {
-                self.error_here(ParserError::ExpectedItem);
-            }
-            None
-        }
+        let fn_item = self.parse_item_fn()?;
+        Ok(Item { kind: ItemKind::Fn(fn_item), span: self.end_span() })
     }
 
-    pub fn parse_item_fn(&mut self) -> Option<Fn<'src>> {
+    pub fn parse_item_fn(&mut self) -> Result<Fn<'src>, Spanned<ParserError>> {
         if !self.try_eat_keyword(Keyword::Fn) {
-            return None;
+            return Err(Spanned::new(ParserError::ExpectedItem, self.span()));
         }
 
         let name = self.parse_ident()?;
 
         let mut params = vec![];
-        if self.try_eat_expected(TokenKind::ParenOpen).is_some() {
-            if let Some(p) = self.parse_item_fn_params() {
-                params = p;
-            }
-
+        if self.try_eat_expected(TokenKind::ParenOpen) {
+            params = self.parse_item_fn_params()?;
             self.eat_expected(TokenKind::ParenClose)?;
         };
 
         let mut return_type = None;
-        if self.try_eat_expected(TokenKind::Colon).is_some() {
-            return_type = self.parse_ident();
+        if self.try_eat_expected(TokenKind::Colon) {
+            return_type = Some(self.parse_ident()?);
         }
 
-        // FIXME: Parse body.
-        // let body = self.parse_block();
-        let body = crate::ast::Block { statements: vec![], span: self.span() };
+        let body = self.parse_block()?;
 
-        Some(Fn { name, params, return_type, body })
+        Ok(Fn { name, params, return_type, body })
     }
 
-    fn parse_item_fn_params(&mut self) -> Option<Vec<FnParam<'src>>> {
+    fn parse_item_fn_params(&mut self) -> Result<Vec<FnParam<'src>>, Spanned<ParserError>> {
         let mut params = vec![];
 
         loop {
-            let Some(name) = self.parse_ident() else { return None };
+            let Ok(name) = self.parse_ident() else { break };
             self.eat_expected(TokenKind::Colon)?;
             let ty = self.parse_type()?;
 
             params.push(FnParam { name, ty });
 
-            if self.try_eat_expected(TokenKind::Comma).is_none() {
+            if !self.try_eat_expected(TokenKind::Comma) {
                 break;
             }
         }
 
-        Some(params)
+        Ok(params)
     }
 }
 

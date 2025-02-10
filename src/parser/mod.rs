@@ -2,7 +2,7 @@ use ariadne::Report;
 use error::ParserError;
 
 use crate::{
-    ast::{Ast, Ident},
+    ast::Ast,
     lexer::{
         Lexer,
         token::{Keyword, Token, TokenKind},
@@ -11,7 +11,7 @@ use crate::{
     span,
 };
 
-// mod block;
+mod block;
 // mod expression;
 mod ident;
 mod item;
@@ -52,39 +52,37 @@ impl<'src> Parser<'src> {
 
         self.ast.modules.push(module);
 
+        if !self.errors.is_empty() {
+            return Err(self.errors.into_iter().map(|error| error.into()).collect());
+        }
+
         Ok(self.ast)
     }
 
-    pub fn eat(&mut self) -> Option<Token> {
+    pub fn eat(&mut self) -> Result<Token, Spanned<ParserError>> {
         self.prev_span = self.span();
         match self.lexer.next() {
-            Some(token) => match token {
-                Ok(token) => Some(token),
-                Err(error) => {
-                    self.errors.push(error.into());
-                    None
-                }
-            },
-            _ => None,
+            Some(token) => token.map_err(|err| err.into()),
+            _ => Err(Spanned::new(ParserError::UnexpectedEof, self.prev_span)),
         }
     }
 
-    pub fn eat_expected(&mut self, expected: TokenKind) -> Option<Token> {
+    pub fn eat_expected(&mut self, expected: TokenKind) -> Result<Token, Spanned<ParserError>> {
         match self.eat()? {
-            token @ Token { kind, .. } if kind == expected => Some(token),
+            token @ Token { kind, .. } if kind == expected => Ok(token),
             Token { kind, span } => {
-                self.error(ParserError::ExpectedToken { expected, found: kind }, span);
-                // Recover.
-                self.eat();
-                None
+                Err(Spanned::new(ParserError::ExpectedToken { expected, found: kind }, span))
             }
         }
     }
 
-    pub fn try_eat_expected(&mut self, expected: TokenKind) -> Option<Token> {
+    pub fn try_eat_expected(&mut self, expected: TokenKind) -> bool {
         match self.lexer.peek() {
-            Some(Ok(Token { kind, .. })) if kind == &expected => self.eat(),
-            _ => None,
+            Some(Ok(Token { kind, .. })) if kind == &expected => {
+                self.eat().expect("checked if token exist in match");
+                true
+            }
+            _ => false,
         }
     }
 
@@ -95,18 +93,6 @@ impl<'src> Parser<'src> {
                 true
             }
             _ => false,
-        }
-    }
-
-    pub fn eat_ident(&mut self, expected: TokenKind) -> Option<Ident<'src>> {
-        match self.eat()? {
-            Token { kind: TokenKind::Ident, span } => {
-                Some(Ident { name: &self.source.as_str()[span.to_range()], span })
-            }
-            Token { kind, span } => {
-                self.error(ParserError::ExpectedToken { expected, found: kind }, span);
-                None
-            }
         }
     }
 
@@ -121,23 +107,6 @@ impl<'src> Parser<'src> {
             _ => None,
         }
     }
-
-    pub fn expect_eof(&mut self) {
-        if !self.at_eof() {
-            self.error_here(ParserError::ExpectedEof);
-        }
-    }
-
-    // fn err_unexpected_eof(&mut self, token: Option<&Token>) {
-    //     let span = match token {
-    //         Some(token) => token.span.clone(),
-    //         _ => {
-    //             let end = self.source.as_str().len().saturating_sub(1);
-    //             span!(end)
-    //         }
-    //     };
-    //     self.error(ParserError::UnexpectedEof, span);
-    // }
 
     fn at_eof(&mut self) -> bool {
         self.lexer.peek().is_none()
@@ -181,32 +150,19 @@ mod tests {
         {
             source: $src:expr,
             fn: $parse_fn:ident,
-            expected: $expected:expr
+            expected: $expected:expr,
+            expected_errors: $expected_errors:expr
         } => {{
             let source = crate::source::SourceFile::new("tests".to_string(), $src);
             let mut parser = crate::parser::Parser::new(&source);
+
+            eprintln!("source:\n{:?}\n", source.as_str());
 
             let actual = parser.$parse_fn();
-
             assert_eq!(actual, $expected);
-        }};
-    }
 
-    #[macro_export]
-    macro_rules! check_parser_errors {
-        {
-            source: $src:expr,
-            fn: $parse_fn:ident,
-            expected: $expected:expr
-        } => {{
-            let source = crate::source::SourceFile::new("tests".to_string(), $src);
-            let mut parser = crate::parser::Parser::new(&source);
-
-            parser.$parse_fn();
-
-            let actual = parser.errors;
-
-            assert_eq!(actual, $expected);
+            let actual_errors = parser.errors;
+            assert_eq!(actual_errors, $expected_errors);
         }};
     }
 }

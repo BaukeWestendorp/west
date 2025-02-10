@@ -1,8 +1,3 @@
-mod expressions;
-mod items;
-mod statements;
-mod variables;
-
 #[macro_export]
 macro_rules! expect_output_for {
     {

@@ -1,4 +1,4 @@
-use crate::expect_output_for;
+mod common;
 
 #[test]
 fn print_statement() {
