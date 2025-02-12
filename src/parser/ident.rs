@@ -13,7 +13,7 @@ impl<'src> Parser<'src> {
                 Ok(Ident { name: &self.source.as_str()[span.to_range()], span })
             }
 
-            _ => Err(Spanned::new(ParserError::ExpectedIdent, self.span())),
+            _ => Err(Spanned::new(ParserError::ExpectedIdent, self.current_span())),
         }
     }
 
@@ -24,7 +24,7 @@ impl<'src> Parser<'src> {
                 Ok(Ident { name: &self.source.as_str()[span.to_range()], span })
             }
 
-            _ => Err(Spanned::new(ParserError::ExpectedType, self.span())),
+            _ => Err(Spanned::new(ParserError::ExpectedType, self.current_span())),
         }
     }
 

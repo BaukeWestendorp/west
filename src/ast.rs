@@ -1,27 +1,13 @@
-use std::collections::HashMap;
-
 use crate::{lexer::token::TokenKind, source::Span};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Ast<'src> {
     pub modules: Vec<Module<'src>>,
-
-    pub(crate) expressions: HashMap<ExpressionId, Expression<'src>>,
 }
 
 impl<'src> Ast<'src> {
     pub fn new() -> Self {
-        Self { modules: Vec::new(), expressions: HashMap::new() }
-    }
-
-    pub fn add_expression(&mut self, expression: Expression<'src>) -> ExpressionId {
-        let id = ExpressionId(self.expressions.len());
-        self.expressions.insert(id, expression);
-        id
-    }
-
-    pub fn get_expression(&self, id: &ExpressionId) -> &Expression<'src> {
-        self.expressions.get(id).expect("expression should exist")
+        Self { modules: Vec::new() }
     }
 }
 
@@ -71,15 +57,15 @@ pub struct Block<'src> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum StatementKind<'src> {
-    Expression(ExpressionId),
+    Expression(Expression<'src>),
 
-    Let { name: Ident<'src>, value: ExpressionId },
-    Return { value: Option<ExpressionId> },
-    Print { value: ExpressionId },
+    Let { name: Ident<'src>, value: Expression<'src> },
+    Return { value: Option<Expression<'src>> },
+    Print { value: Expression<'src> },
 
     Loop { body: Block<'src> },
-    While { condition: ExpressionId, body: Block<'src> },
-    IfElse { condition: ExpressionId, then_block: Block<'src>, else_block: Option<Block<'src>> },
+    While { condition: Expression<'src>, body: Block<'src> },
+    IfElse { condition: Expression<'src>, then_block: Block<'src>, else_block: Option<Block<'src>> },
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -93,13 +79,10 @@ pub struct Statement<'src> {
 pub enum ExpressionKind<'src> {
     Literal(Literal<'src>),
     Ident(Ident<'src>),
-    UnaryOp { op: PrefixOp, rhs: ExpressionId },
-    BinaryOp { lhs: ExpressionId, op: InfixOp, rhs: ExpressionId },
-    FnCall { callee: ExpressionId, args: Vec<ExpressionId> },
+    UnaryOp { op: PrefixOp, rhs: Box<Expression<'src>> },
+    BinaryOp { lhs: Box<Expression<'src>>, op: InfixOp, rhs: Box<Expression<'src>> },
+    FnCall { callee: Box<Expression<'src>>, args: Vec<Box<Expression<'src>>> },
 }
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct ExpressionId(pub usize);
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Expression<'src> {

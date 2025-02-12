@@ -199,13 +199,13 @@ mod tests {
     fn check_lexer(src: &str, expect: Vec<Token>) {
         let source = SourceFile::new("tests".to_string(), src);
         let actual = Lexer::new(&source).map(Result::unwrap).collect::<Vec<_>>();
-        assert_eq!(actual, expect);
+        assert_eq!(actual, expect, "actual == expected");
     }
 
     fn check_lexer_with_reports(src: &str, expect: Vec<Result<Token, Spanned<LexerError>>>) {
         let source = SourceFile::new("tests".to_string(), src);
         let actual = Lexer::new(&source).collect::<Vec<_>>();
-        assert_eq!(actual, expect);
+        assert_eq!(actual, expect, "actual == expected");
     }
 
     #[test]

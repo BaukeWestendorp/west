@@ -12,12 +12,12 @@ use crate::{
 };
 
 mod block;
-// mod expression;
+mod expression;
 mod ident;
 mod item;
-// mod literal;
+mod literal;
 mod module;
-// mod statement;
+mod statement;
 
 pub mod error;
 
@@ -60,7 +60,7 @@ impl<'src> Parser<'src> {
     }
 
     pub fn eat(&mut self) -> Result<Token, Spanned<ParserError>> {
-        self.prev_span = self.span();
+        self.prev_span = self.current_span();
         match self.lexer.next() {
             Some(token) => token.map_err(|err| err.into()),
             _ => Err(Spanned::new(ParserError::UnexpectedEof, self.prev_span)),
@@ -97,7 +97,7 @@ impl<'src> Parser<'src> {
     }
 
     pub fn eat_or_expect_eof(&mut self) -> Option<Token> {
-        self.prev_span = self.span();
+        self.prev_span = self.current_span();
         match self.lexer.next() {
             Some(Ok(token)) => Some(token),
             Some(Err(error)) => {
@@ -113,7 +113,7 @@ impl<'src> Parser<'src> {
     }
 
     pub fn start_span(&mut self) {
-        let start = self.span().start();
+        let start = self.current_span().start();
         self.span_stack.push(span!(start));
     }
 
@@ -123,11 +123,11 @@ impl<'src> Parser<'src> {
         span!(initial.start(), end)
     }
 
-    fn span(&mut self) -> Span {
+    fn current_span(&mut self) -> Span {
         match self.lexer.peek() {
             Some(Ok(Token { span, .. })) => span.clone(),
             _ => {
-                let end = self.source.as_str().len().saturating_sub(1);
+                let end = self.source.as_str().len();
                 span!(end)
             }
         }
@@ -138,7 +138,7 @@ impl<'src> Parser<'src> {
     }
 
     fn error_here(&mut self, error: ParserError) {
-        let span = self.span();
+        let span = self.current_span();
         self.error(error, span);
     }
 }
@@ -159,10 +159,10 @@ mod tests {
             eprintln!("source:\n{:?}\n", source.as_str());
 
             let actual = parser.$parse_fn();
-            assert_eq!(actual, $expected);
+            assert_eq!(actual, $expected, "actual == expected");
 
             let actual_errors = parser.errors;
-            assert_eq!(actual_errors, $expected_errors);
+            assert_eq!(actual_errors, $expected_errors, "actual_errors == expected_errors");
         }};
     }
 }

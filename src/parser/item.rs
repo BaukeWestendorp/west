@@ -15,7 +15,7 @@ impl<'src> Parser<'src> {
 
     pub fn parse_item_fn(&mut self) -> Result<Fn<'src>, Spanned<ParserError>> {
         if !self.try_eat_keyword(Keyword::Fn) {
-            return Err(Spanned::new(ParserError::ExpectedItem, self.span()));
+            return Err(Spanned::new(ParserError::ExpectedItem, self.current_span()));
         }
 
         let name = self.parse_ident()?;

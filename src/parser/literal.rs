@@ -1,11 +1,13 @@
 use crate::ast::{Literal, LiteralKind};
+use crate::lexer::token;
 use crate::lexer::token::{Token, TokenKind};
+use crate::source::Spanned;
 
-use crate::Parser;
-use crate::error::Result;
+use super::Parser;
+use super::error::ParserError;
 
 impl<'src> Parser<'src> {
-    pub fn parse_literal(&mut self) -> Result<Option<Literal<'src>>> {
+    pub fn parse_literal(&mut self) -> Result<Option<Literal<'src>>, Spanned<ParserError>> {
         match self.lexer.peek() {
             Some(Ok(Token { kind: TokenKind::Literal(literal), .. })) => {
                 let literal = *literal;
@@ -13,20 +15,20 @@ impl<'src> Parser<'src> {
 
                 let origin = &self.source.as_str()[span.to_range()];
                 let literal = match literal {
-                    lexer::token::Literal::Int => {
+                    token::Literal::Int => {
                         let int = origin.parse().unwrap();
                         Literal { kind: LiteralKind::Int(int), span }
                     }
-                    lexer::token::Literal::Float => {
+                    token::Literal::Float => {
                         let float = origin.parse().unwrap();
                         Literal { kind: LiteralKind::Float(float), span }
                     }
-                    lexer::token::Literal::Str => {
+                    token::Literal::Str => {
                         // FIXME: We should properly unescape the string.
                         let str = &origin[1..origin.len() - 1];
                         Literal { kind: LiteralKind::Str(str), span }
                     }
-                    lexer::token::Literal::Bool => {
+                    token::Literal::Bool => {
                         let bool = origin.parse().unwrap();
                         Literal { kind: LiteralKind::Bool(bool), span }
                     }
@@ -41,10 +43,10 @@ impl<'src> Parser<'src> {
 
 #[cfg(test)]
 mod tests {
-    use crate::ast::{Literal, LiteralKind};
-    use fout::span;
-
-    use crate::check_parser;
+    use crate::{
+        ast::{Literal, LiteralKind},
+        check_parser, span,
+    };
 
     #[test]
     fn literal_int() {
@@ -52,7 +54,8 @@ mod tests {
             check_parser! {
                 source: input,
                 fn: parse_literal,
-                expected: Some(Literal { kind: LiteralKind::Int(expected), span: span!(0, input.len())  })
+                expected: Ok(Some(Literal { kind: LiteralKind::Int(expected), span: span!(0, input.len()) })),
+                expected_errors: vec![]
             };
         };
 
@@ -70,7 +73,8 @@ mod tests {
             check_parser! {
                 source: input,
                 fn: parse_literal,
-                expected: Some(Literal { kind: LiteralKind::Float(expected), span: span!(0, input.len()) })
+                expected: Ok(Some(Literal{ kind: LiteralKind::Float(expected), span: span!(0, input.len()) })),
+                expected_errors: vec![]
             };
         };
 
@@ -89,7 +93,8 @@ mod tests {
         check_parser! {
             source: r#""hello""#,
             fn: parse_literal,
-            expected: Some(Literal { kind: LiteralKind::Str("hello"), span: span!(0, 7) })
+            expected: Ok(Some(Literal { kind: LiteralKind::Str("hello"), span: span!(0, 7) })),
+            expected_errors: vec![]
         }
     }
 
@@ -98,13 +103,15 @@ mod tests {
         check_parser! {
             source: "true",
             fn: parse_literal,
-            expected: Some(Literal { kind: LiteralKind::Bool(true), span: span!(0, 4) })
+            expected: Ok(Some(Literal { kind: LiteralKind::Bool(true), span: span!(0, 4) })),
+            expected_errors: vec![]
         }
 
         check_parser! {
             source: "false",
             fn: parse_literal,
-            expected: Some(Literal { kind: LiteralKind::Bool(false), span: span!(0, 5) })
+            expected: Ok(Some(Literal { kind: LiteralKind::Bool(false), span: span!(0, 5) })),
+            expected_errors: vec![]
         }
     }
 
@@ -113,7 +120,8 @@ mod tests {
         check_parser! {
             source: "hello",
             fn: parse_literal,
-            expected: None
+            expected: Ok(None),
+            expected_errors: vec![]
         }
     }
 }

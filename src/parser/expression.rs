@@ -1,35 +1,43 @@
-use crate::ast::{Expression, ExpressionId, ExpressionKind, InfixOp, Op, PostfixOp, PrefixOp};
+use crate::ast::{Expression, ExpressionKind, InfixOp, Op, PostfixOp, PrefixOp};
 use crate::lexer::token::TokenKind;
-use fout::{Error, ErrorProducer, span};
+use crate::source::Spanned;
+use crate::span;
 
-use crate::Parser;
-use crate::error::{ErrorKind, Result};
+use super::Parser;
+use super::error::ParserError;
 
 impl<'src> Parser<'src> {
-    pub fn parse_expression(&mut self) -> Result<Option<ExpressionId>> {
-        if let Some(expression) = self.parse_expression_bp(0)? {
-            Ok(Some(self.ast.add_expression(expression)))
+    pub fn parse_expression(&mut self) -> Result<Option<Expression<'src>>, Spanned<ParserError>> {
+        let span_start = self.current_span().start();
+        if let Some(expression) = self.parse_expression_bp(0, span_start)? {
+            Ok(Some(expression))
         } else {
             Ok(None)
         }
     }
 
-    fn parse_expression_bp(&mut self, min_bp: u8) -> Result<Option<Expression<'src>>> {
-        let mut lhs = if let Some(ident) = self.parse_ident()? {
-            let span = ident.span.clone();
+    fn parse_expression_bp(
+        &mut self,
+        min_bp: u8,
+        span_start: usize,
+    ) -> Result<Option<Expression<'src>>, Spanned<ParserError>> {
+        let mut lhs = if let Ok(ident) = self.parse_ident() {
+            let span = span!(span_start, self.current_span().end());
             Expression { kind: ExpressionKind::Ident(ident), span }
         } else if let Some(literal) = self.parse_literal()? {
-            let span = literal.span.clone();
+            let span = span!(span_start, self.current_span().end());
             Expression { kind: ExpressionKind::Literal(literal), span }
         } else if let Some(expr) = self.parse_prefix_expression()? {
             expr
         } else {
+            let span_start = self.current_span().start();
             match self.lexer.peek() {
                 Some(Ok(token)) if token.kind == TokenKind::ParenOpen => {
                     self.eat()?;
-                    let expr = self
-                        .parse_expression_bp(0)?
-                        .ok_or(Error { kind: ErrorKind::ExpectedExpression, span: self.span() })?;
+                    let expr = self.parse_expression_bp(0, span_start)?.ok_or(Spanned::new(
+                        ParserError::ExpectedExpression,
+                        self.current_span(),
+                    ))?;
 
                     self.eat_expected(TokenKind::ParenClose)?;
                     expr
@@ -39,8 +47,7 @@ impl<'src> Parser<'src> {
                     return Err(self.eat().expect_err("should be checked for Err in match"));
                 }
                 _ => {
-                    let span = self.end_span();
-                    return Err(self.error_at(ErrorKind::UnexpectedEof, span));
+                    return Err(Spanned::new(ParserError::UnexpectedEof, self.current_span()));
                 }
             }
         };
@@ -92,18 +99,14 @@ impl<'src> Parser<'src> {
 
                 self.eat()?;
 
+                let span_start = self.current_span().start();
                 let rhs = self
-                    .parse_expression_bp(r_bp)?
-                    .ok_or(Error { kind: ErrorKind::ExpectedExpression, span: self.span() })?;
+                    .parse_expression_bp(r_bp, span_start)?
+                    .ok_or(Spanned::new(ParserError::ExpectedExpression, self.current_span()))?;
 
-                let span = span!(lhs.span.start(), self.span().end());
                 lhs = Expression {
-                    kind: ExpressionKind::BinaryOp {
-                        lhs: self.ast.add_expression(lhs),
-                        op,
-                        rhs: self.ast.add_expression(rhs),
-                    },
-                    span,
+                    kind: ExpressionKind::BinaryOp { lhs: Box::new(lhs), op, rhs: Box::new(rhs) },
+                    span: self.current_span(),
                 };
                 continue;
             }
@@ -114,26 +117,30 @@ impl<'src> Parser<'src> {
         Ok(Some(lhs))
     }
 
-    fn parse_fn_call(&mut self, callee: Expression<'src>) -> Result<Expression<'src>> {
+    fn parse_fn_call(
+        &mut self,
+        callee: Expression<'src>,
+    ) -> Result<Expression<'src>, Spanned<ParserError>> {
         self.eat()?;
         let mut args = Vec::new();
         while let Some(expression) = self.parse_expression()? {
-            args.push(expression);
-            if self.try_eat(TokenKind::Comma).is_none() {
+            args.push(Box::new(expression));
+            if !self.try_eat_expected(TokenKind::Comma) {
                 // A single trailing comma is allowed.
                 break;
             }
         }
         self.eat_expected(TokenKind::ParenClose)?;
 
-        let span = span!(callee.span.start(), self.span().end());
         Ok(Expression {
-            kind: ExpressionKind::FnCall { callee: self.ast.add_expression(callee), args },
-            span,
+            kind: ExpressionKind::FnCall { callee: Box::new(callee), args },
+            span: self.current_span(),
         })
     }
 
-    fn parse_prefix_expression(&mut self) -> Result<Option<Expression<'src>>> {
+    fn parse_prefix_expression(
+        &mut self,
+    ) -> Result<Option<Expression<'src>>, Spanned<ParserError>> {
         let op = match self.lexer.peek() {
             Some(Ok(token)) => match token.kind {
                 TokenKind::Minus => PrefixOp::Minus,
@@ -146,12 +153,13 @@ impl<'src> Parser<'src> {
         self.eat().expect("next token should be an operator");
 
         let ((), r_bp) = prefix_binding_power(&op);
+        let span_start = self.current_span().start();
         let rhs = self
-            .parse_expression_bp(r_bp)?
-            .ok_or(Error { kind: ErrorKind::ExpectedExpression, span: self.span() })?;
+            .parse_expression_bp(r_bp, span_start)?
+            .ok_or(Spanned::new(ParserError::ExpectedExpression, self.current_span()))?;
         Ok(Some(Expression {
-            kind: ExpressionKind::UnaryOp { op, rhs: self.ast.add_expression(rhs) },
-            span: self.span(),
+            kind: ExpressionKind::UnaryOp { op, rhs: Box::new(rhs) },
+            span: self.current_span(),
         }))
     }
 }
@@ -191,26 +199,22 @@ fn postfix_binding_power(op: &PostfixOp) -> (u8, ()) {
 #[cfg(test)]
 mod tests {
     use crate::ast::{Expression, ExpressionKind, Ident, InfixOp, Literal, LiteralKind, PrefixOp};
-    use crate::lexer::token::TokenKind;
-    use fout::{Error, span};
+    use crate::span;
 
-    use crate::error::ErrorKind;
+    fn check(source: &str, expected: Option<Expression>) {
+        let source = crate::source::SourceFile::new("tests".to_string(), source);
+        let mut parser = crate::parser::Parser::new(&source);
 
-    fn check_simple(source: &str, expected: Option<&Expression>) {
-        let source = fout::source::SourceFile::new("tests".to_string(), source);
-        let mut parser = crate::Parser::new(&source);
+        let actual = parser.parse_expression().unwrap();
 
-        let expr_id = parser.parse_expression().unwrap();
-
-        let actual = expr_id.map(|id| parser.ast.get_expression(&id));
-        assert_eq!(actual, expected);
+        assert_eq!(actual, expected, "actual == expected");
     }
 
     #[test]
     fn expression_literal_int() {
-        check_simple(
+        check(
             r#"1"#,
-            Some(&Expression {
+            Some(Expression {
                 kind: ExpressionKind::Literal(Literal {
                     kind: LiteralKind::Int(1),
                     span: span!(0, 1),
@@ -222,9 +226,9 @@ mod tests {
 
     #[test]
     fn expression_literal_str() {
-        check_simple(
+        check(
             r#""hello""#,
-            Some(&Expression {
+            Some(Expression {
                 kind: ExpressionKind::Literal(Literal {
                     kind: LiteralKind::Str("hello"),
                     span: span!(0, 7),
@@ -236,9 +240,9 @@ mod tests {
 
     #[test]
     fn expression_ident() {
-        check_simple(
+        check(
             r#"a"#,
-            Some(&Expression {
+            Some(Expression {
                 kind: ExpressionKind::Ident(Ident { name: "a", span: span!(0, 1) }),
                 span: span!(0, 1),
             }),
@@ -247,419 +251,511 @@ mod tests {
 
     #[test]
     fn invalid_expression() {
-        check_simple(r#"*"#, None)
-    }
-
-    fn check_prefix_op(source: &str, op: PrefixOp, rhs: &Expression) {
-        let source = fout::source::SourceFile::new("tests".to_string(), source);
-        let mut parser = crate::Parser::new(&source);
-
-        let expr_id = parser.parse_expression().unwrap();
-        let expr = expr_id.map(|id| parser.ast.get_expression(&id)).unwrap();
-
-        match &expr.kind {
-            ExpressionKind::UnaryOp { op: actual_op, rhs: actual_rhs } => {
-                assert_eq!(*actual_op, op);
-
-                let actual_rhs = parser.ast.get_expression(actual_rhs);
-                assert_eq!(actual_rhs, rhs);
-            }
-            _ => panic!(),
-        }
+        check(r#"*"#, None)
     }
 
     #[test]
     fn prefix_minus() {
-        check_prefix_op(r#"-1"#, PrefixOp::Minus, &Expression {
-            kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(1), span: span!(1, 2) }),
-            span: span!(1, 2),
-        })
+        check(
+            r#"-1"#,
+            Some(Expression {
+                kind: ExpressionKind::UnaryOp {
+                    op: PrefixOp::Minus,
+                    rhs: Box::new(Expression {
+                        kind: ExpressionKind::Literal(Literal {
+                            kind: LiteralKind::Int(1),
+                            span: span!(1, 2),
+                        }),
+                        span: span!(1, 2),
+                    }),
+                },
+                span: span!(0, 2),
+            }),
+        )
     }
 
     #[test]
     fn prefix_negate() {
-        check_prefix_op(r#"!true"#, PrefixOp::Negate, &Expression {
-            kind: ExpressionKind::Literal(Literal {
-                kind: LiteralKind::Bool(true),
-                span: span!(1, 5),
+        check(
+            r#"!true"#,
+            Some(Expression {
+                kind: ExpressionKind::UnaryOp {
+                    op: PrefixOp::Negate,
+                    rhs: Box::new(Expression {
+                        kind: ExpressionKind::Literal(Literal {
+                            kind: LiteralKind::Bool(true),
+                            span: span!(1, 5),
+                        }),
+                        span: span!(1, 5),
+                    }),
+                },
+                span: span!(0, 5),
             }),
-            span: span!(1, 5),
-        })
-    }
-
-    fn check_infix_op(source: &str, op: InfixOp, lhs: &Expression, rhs: &Expression) {
-        let source = fout::source::SourceFile::new("tests".to_string(), source);
-        let mut parser = crate::Parser::new(&source);
-
-        let expr_id = parser.parse_expression().unwrap();
-        let expr = expr_id.map(|id| parser.ast.get_expression(&id)).unwrap();
-
-        match &expr.kind {
-            ExpressionKind::BinaryOp { op: actual_op, lhs: actual_lhs, rhs: actual_rhs } => {
-                assert_eq!(*actual_op, op);
-
-                let actual_lhs = parser.ast.get_expression(actual_lhs);
-                assert_eq!(actual_lhs, lhs);
-
-                let actual_rhs = parser.ast.get_expression(actual_rhs);
-                assert_eq!(actual_rhs, rhs);
-            }
-            _ => panic!(),
-        }
+        );
     }
 
     #[test]
     fn infix_add() {
-        check_infix_op(
+        check(
             r#"1 + 2"#,
-            InfixOp::Add,
-            &Expression {
-                kind: ExpressionKind::Literal(Literal {
-                    kind: LiteralKind::Int(1),
-                    span: span!(0, 1),
-                }),
-                span: span!(0, 1),
-            },
-            &Expression {
-                kind: ExpressionKind::Literal(Literal {
-                    kind: LiteralKind::Int(2),
-                    span: span!(4, 5),
-                }),
-                span: span!(4, 5),
-            },
+            Some(Expression {
+                kind: ExpressionKind::BinaryOp {
+                    lhs: Box::new(Expression {
+                        kind: ExpressionKind::Literal(Literal {
+                            kind: LiteralKind::Int(1),
+                            span: span!(0, 1),
+                        }),
+                        span: span!(0, 1),
+                    }),
+                    op: InfixOp::Add,
+                    rhs: Box::new(Expression {
+                        kind: ExpressionKind::Literal(Literal {
+                            kind: LiteralKind::Int(2),
+                            span: span!(4, 5),
+                        }),
+                        span: span!(4, 5),
+                    }),
+                },
+                span: span!(0, 5),
+            }),
         );
     }
 
     #[test]
     fn infix_subtract() {
-        check_infix_op(
+        check(
             r#"1 - 2"#,
-            InfixOp::Subtract,
-            &Expression {
-                kind: ExpressionKind::Literal(Literal {
-                    kind: LiteralKind::Int(1),
-                    span: span!(0, 1),
-                }),
-                span: span!(0, 1),
-            },
-            &Expression {
-                kind: ExpressionKind::Literal(Literal {
-                    kind: LiteralKind::Int(2),
-                    span: span!(4, 5),
-                }),
-                span: span!(4, 5),
-            },
+            Some(Expression {
+                kind: ExpressionKind::BinaryOp {
+                    lhs: Box::new(Expression {
+                        kind: ExpressionKind::Literal(Literal {
+                            kind: LiteralKind::Int(1),
+                            span: span!(0, 1),
+                        }),
+                        span: span!(0, 1),
+                    }),
+                    op: InfixOp::Subtract,
+                    rhs: Box::new(Expression {
+                        kind: ExpressionKind::Literal(Literal {
+                            kind: LiteralKind::Int(2),
+                            span: span!(4, 5),
+                        }),
+                        span: span!(4, 5),
+                    }),
+                },
+                span: span!(0, 5),
+            }),
         );
     }
 
     #[test]
     fn infix_multiply() {
-        check_infix_op(
+        check(
             r#"1 * 2"#,
-            InfixOp::Multiply,
-            &Expression {
-                kind: ExpressionKind::Literal(Literal {
-                    kind: LiteralKind::Int(1),
-                    span: span!(0, 1),
-                }),
-                span: span!(0, 1),
-            },
-            &Expression {
-                kind: ExpressionKind::Literal(Literal {
-                    kind: LiteralKind::Int(2),
-                    span: span!(4, 5),
-                }),
-                span: span!(4, 5),
-            },
+            Some(Expression {
+                kind: ExpressionKind::BinaryOp {
+                    lhs: Box::new(Expression {
+                        kind: ExpressionKind::Literal(Literal {
+                            kind: LiteralKind::Int(1),
+                            span: span!(0, 1),
+                        }),
+                        span: span!(0, 1),
+                    }),
+                    op: InfixOp::Multiply,
+                    rhs: Box::new(Expression {
+                        kind: ExpressionKind::Literal(Literal {
+                            kind: LiteralKind::Int(2),
+                            span: span!(4, 5),
+                        }),
+                        span: span!(4, 5),
+                    }),
+                },
+                span: span!(0, 5),
+            }),
         );
     }
 
     #[test]
     fn infix_divide() {
-        check_infix_op(
+        check(
             r#"1 / 2"#,
-            InfixOp::Divide,
-            &Expression {
-                kind: ExpressionKind::Literal(Literal {
-                    kind: LiteralKind::Int(1),
-                    span: span!(0, 1),
-                }),
-                span: span!(0, 1),
-            },
-            &Expression {
-                kind: ExpressionKind::Literal(Literal {
-                    kind: LiteralKind::Int(2),
-                    span: span!(4, 5),
-                }),
-                span: span!(4, 5),
-            },
+            Some(Expression {
+                kind: ExpressionKind::BinaryOp {
+                    lhs: Box::new(Expression {
+                        kind: ExpressionKind::Literal(Literal {
+                            kind: LiteralKind::Int(1),
+                            span: span!(0, 1),
+                        }),
+                        span: span!(0, 1),
+                    }),
+                    op: InfixOp::Divide,
+                    rhs: Box::new(Expression {
+                        kind: ExpressionKind::Literal(Literal {
+                            kind: LiteralKind::Int(2),
+                            span: span!(4, 5),
+                        }),
+                        span: span!(4, 5),
+                    }),
+                },
+                span: span!(0, 5),
+            }),
+        );
+    }
+
+    #[test]
+    fn infix_less_than() {
+        check(
+            r#"1 < 2"#,
+            Some(Expression {
+                kind: ExpressionKind::BinaryOp {
+                    lhs: Box::new(Expression {
+                        kind: ExpressionKind::Literal(Literal {
+                            kind: LiteralKind::Int(1),
+                            span: span!(0, 1),
+                        }),
+                        span: span!(0, 1),
+                    }),
+                    op: InfixOp::LessThan,
+                    rhs: Box::new(Expression {
+                        kind: ExpressionKind::Literal(Literal {
+                            kind: LiteralKind::Int(2),
+                            span: span!(4, 5),
+                        }),
+                        span: span!(4, 5),
+                    }),
+                },
+                span: span!(0, 5),
+            }),
+        );
+    }
+
+    #[test]
+    fn infix_more_than() {
+        check(
+            r#"1 > 2"#,
+            Some(Expression {
+                kind: ExpressionKind::BinaryOp {
+                    lhs: Box::new(Expression {
+                        kind: ExpressionKind::Literal(Literal {
+                            kind: LiteralKind::Int(1),
+                            span: span!(0, 1),
+                        }),
+                        span: span!(0, 1),
+                    }),
+                    op: InfixOp::MoreThan,
+                    rhs: Box::new(Expression {
+                        kind: ExpressionKind::Literal(Literal {
+                            kind: LiteralKind::Int(2),
+                            span: span!(4, 5),
+                        }),
+                        span: span!(4, 5),
+                    }),
+                },
+                span: span!(0, 5),
+            }),
         );
     }
 
     #[test]
     fn infix_equals() {
-        check_infix_op(
+        check(
             r#"1 == 2"#,
-            InfixOp::Equals,
-            &Expression {
-                kind: ExpressionKind::Literal(Literal {
-                    kind: LiteralKind::Int(1),
-                    span: span!(0, 1),
-                }),
-                span: span!(0, 1),
-            },
-            &Expression {
-                kind: ExpressionKind::Literal(Literal {
-                    kind: LiteralKind::Int(2),
-                    span: span!(5, 6),
-                }),
-                span: span!(5, 6),
-            },
+            Some(Expression {
+                kind: ExpressionKind::BinaryOp {
+                    lhs: Box::new(Expression {
+                        kind: ExpressionKind::Literal(Literal {
+                            kind: LiteralKind::Int(1),
+                            span: span!(0, 1),
+                        }),
+                        span: span!(0, 1),
+                    }),
+                    op: InfixOp::Equals,
+                    rhs: Box::new(Expression {
+                        kind: ExpressionKind::Literal(Literal {
+                            kind: LiteralKind::Int(2),
+                            span: span!(5, 6),
+                        }),
+                        span: span!(5, 6),
+                    }),
+                },
+                span: span!(0, 6),
+            }),
         );
     }
 
     #[test]
     fn infix_and() {
-        check_infix_op(
+        check(
             r#"1 && 2"#,
-            InfixOp::And,
-            &Expression {
-                kind: ExpressionKind::Literal(Literal {
-                    kind: LiteralKind::Int(1),
-                    span: span!(0, 1),
-                }),
-                span: span!(0, 1),
-            },
-            &Expression {
-                kind: ExpressionKind::Literal(Literal {
-                    kind: LiteralKind::Int(2),
-                    span: span!(5, 6),
-                }),
-                span: span!(5, 6),
-            },
+            Some(Expression {
+                kind: ExpressionKind::BinaryOp {
+                    lhs: Box::new(Expression {
+                        kind: ExpressionKind::Literal(Literal {
+                            kind: LiteralKind::Int(1),
+                            span: span!(0, 1),
+                        }),
+                        span: span!(0, 1),
+                    }),
+                    op: InfixOp::And,
+                    rhs: Box::new(Expression {
+                        kind: ExpressionKind::Literal(Literal {
+                            kind: LiteralKind::Int(2),
+                            span: span!(5, 6),
+                        }),
+                        span: span!(5, 6),
+                    }),
+                },
+                span: span!(0, 6),
+            }),
         );
     }
 
     #[test]
     fn infix_or() {
-        check_infix_op(
+        check(
             r#"1 || 2"#,
-            InfixOp::Or,
-            &Expression {
-                kind: ExpressionKind::Literal(Literal {
-                    kind: LiteralKind::Int(1),
-                    span: span!(0, 1),
-                }),
-                span: span!(0, 1),
-            },
-            &Expression {
-                kind: ExpressionKind::Literal(Literal {
-                    kind: LiteralKind::Int(2),
-                    span: span!(5, 6),
-                }),
-                span: span!(5, 6),
-            },
+            Some(Expression {
+                kind: ExpressionKind::BinaryOp {
+                    lhs: Box::new(Expression {
+                        kind: ExpressionKind::Literal(Literal {
+                            kind: LiteralKind::Int(1),
+                            span: span!(0, 1),
+                        }),
+                        span: span!(0, 1),
+                    }),
+                    op: InfixOp::Or,
+                    rhs: Box::new(Expression {
+                        kind: ExpressionKind::Literal(Literal {
+                            kind: LiteralKind::Int(2),
+                            span: span!(5, 6),
+                        }),
+                        span: span!(5, 6),
+                    }),
+                },
+                span: span!(0, 6),
+            }),
         );
     }
 
     #[test]
     fn infix_less_than_equal() {
-        check_infix_op(
+        check(
             r#"1 <= 2"#,
-            InfixOp::LessThanEqual,
-            &Expression {
-                kind: ExpressionKind::Literal(Literal {
-                    kind: LiteralKind::Int(1),
-                    span: span!(0, 1),
-                }),
-                span: span!(0, 1),
-            },
-            &Expression {
-                kind: ExpressionKind::Literal(Literal {
-                    kind: LiteralKind::Int(2),
-                    span: span!(5, 6),
-                }),
-                span: span!(5, 6),
-            },
+            Some(Expression {
+                kind: ExpressionKind::BinaryOp {
+                    lhs: Box::new(Expression {
+                        kind: ExpressionKind::Literal(Literal {
+                            kind: LiteralKind::Int(1),
+                            span: span!(0, 1),
+                        }),
+                        span: span!(0, 1),
+                    }),
+                    op: InfixOp::LessThanEqual,
+                    rhs: Box::new(Expression {
+                        kind: ExpressionKind::Literal(Literal {
+                            kind: LiteralKind::Int(2),
+                            span: span!(5, 6),
+                        }),
+                        span: span!(5, 6),
+                    }),
+                },
+                span: span!(0, 6),
+            }),
         );
     }
 
     #[test]
     fn infix_more_than_equal() {
-        check_infix_op(
+        check(
             r#"1 >= 2"#,
-            InfixOp::MoreThanEqual,
-            &Expression {
-                kind: ExpressionKind::Literal(Literal {
-                    kind: LiteralKind::Int(1),
-                    span: span!(0, 1),
-                }),
-                span: span!(0, 1),
-            },
-            &Expression {
-                kind: ExpressionKind::Literal(Literal {
-                    kind: LiteralKind::Int(2),
-                    span: span!(5, 6),
-                }),
-                span: span!(5, 6),
-            },
+            Some(Expression {
+                kind: ExpressionKind::BinaryOp {
+                    lhs: Box::new(Expression {
+                        kind: ExpressionKind::Literal(Literal {
+                            kind: LiteralKind::Int(1),
+                            span: span!(0, 1),
+                        }),
+                        span: span!(0, 1),
+                    }),
+                    op: InfixOp::MoreThanEqual,
+                    rhs: Box::new(Expression {
+                        kind: ExpressionKind::Literal(Literal {
+                            kind: LiteralKind::Int(2),
+                            span: span!(5, 6),
+                        }),
+                        span: span!(5, 6),
+                    }),
+                },
+                span: span!(0, 6),
+            }),
         );
     }
 
     #[test]
     fn infix_not_equal() {
-        check_infix_op(
+        check(
             r#"1 != 2"#,
-            InfixOp::NotEqual,
-            &Expression {
-                kind: ExpressionKind::Literal(Literal {
-                    kind: LiteralKind::Int(1),
-                    span: span!(0, 1),
-                }),
-                span: span!(0, 1),
-            },
-            &Expression {
-                kind: ExpressionKind::Literal(Literal {
-                    kind: LiteralKind::Int(2),
-                    span: span!(5, 6),
-                }),
-                span: span!(5, 6),
-            },
+            Some(Expression {
+                kind: ExpressionKind::BinaryOp {
+                    lhs: Box::new(Expression {
+                        kind: ExpressionKind::Literal(Literal {
+                            kind: LiteralKind::Int(1),
+                            span: span!(0, 1),
+                        }),
+                        span: span!(0, 1),
+                    }),
+                    op: InfixOp::NotEqual,
+                    rhs: Box::new(Expression {
+                        kind: ExpressionKind::Literal(Literal {
+                            kind: LiteralKind::Int(2),
+                            span: span!(5, 6),
+                        }),
+                        span: span!(5, 6),
+                    }),
+                },
+                span: span!(0, 6),
+            }),
         );
-    }
-
-    fn check_call(source: &str, callee: &Expression, args: Vec<&Expression>) {
-        let source = fout::source::SourceFile::new("tests".to_string(), source);
-        let mut parser = crate::Parser::new(&source);
-
-        let expr_id = parser.parse_expression().unwrap();
-        let expr = expr_id.map(|id| parser.ast.get_expression(&id)).unwrap();
-
-        match &expr.kind {
-            ExpressionKind::FnCall { callee: actual_callee, args: actual_args } => {
-                let actual_callee = parser.ast.get_expression(actual_callee);
-                assert_eq!(actual_callee, callee);
-
-                let actual_args =
-                    actual_args.iter().map(|id| parser.ast.get_expression(id)).collect::<Vec<_>>();
-                assert_eq!(actual_args, args);
-            }
-            expr => panic!("expected a function call, found {:?}", expr),
-        }
     }
 
     #[test]
     fn fn_call_no_args() {
-        check_call(
+        check(
             r#"test()"#,
-            &Expression {
-                kind: ExpressionKind::Ident(Ident { name: "test", span: span!(0, 4) }),
-                span: span!(0, 4),
-            },
-            vec![],
+            Some(Expression {
+                kind: ExpressionKind::FnCall {
+                    callee: Box::new(Expression {
+                        kind: ExpressionKind::Ident(Ident { name: "test", span: span!(0, 4) }),
+                        span: span!(0, 4),
+                    }),
+                    args: vec![],
+                },
+                span: span!(0, 6),
+            }),
         )
     }
 
     #[test]
     fn fn_call_single_arg() {
-        check_call(
+        check(
             r#"test(1)"#,
-            &Expression {
-                kind: ExpressionKind::Ident(Ident { name: "test", span: span!(0, 4) }),
-                span: span!(0, 4),
-            },
-            vec![&Expression {
-                kind: ExpressionKind::Literal(Literal {
-                    kind: LiteralKind::Int(1),
-                    span: span!(5, 6),
-                }),
-                span: span!(5, 6),
-            }],
+            Some(Expression {
+                kind: ExpressionKind::FnCall {
+                    callee: Box::new(Expression {
+                        kind: ExpressionKind::Ident(Ident { name: "test", span: span!(0, 4) }),
+                        span: span!(0, 4),
+                    }),
+                    args: vec![Box::new(Expression {
+                        kind: ExpressionKind::Literal(Literal {
+                            kind: LiteralKind::Int(1),
+                            span: span!(5, 6),
+                        }),
+                        span: span!(5, 6),
+                    })],
+                },
+                span: span!(0, 7),
+            }),
         )
     }
 
     #[test]
     fn fn_call_multiple_args() {
-        check_call(
-            r#"test(1, 2, 3)"#,
-            &Expression {
-                kind: ExpressionKind::Ident(Ident { name: "test", span: span!(0, 4) }),
-                span: span!(0, 4),
-            },
-            vec![
-                &Expression {
-                    kind: ExpressionKind::Literal(Literal {
-                        kind: LiteralKind::Int(1),
-                        span: span!(5, 6),
+        check(
+            r#"test(1, 2,3)"#,
+            Some(Expression {
+                kind: ExpressionKind::FnCall {
+                    callee: Box::new(Expression {
+                        kind: ExpressionKind::Ident(Ident { name: "test", span: span!(0, 4) }),
+                        span: span!(0, 4),
                     }),
-                    span: span!(5, 6),
+                    args: vec![
+                        Box::new(Expression {
+                            kind: ExpressionKind::Literal(Literal {
+                                kind: LiteralKind::Int(1),
+                                span: span!(5, 6),
+                            }),
+                            span: span!(5, 6),
+                        }),
+                        Box::new(Expression {
+                            kind: ExpressionKind::Literal(Literal {
+                                kind: LiteralKind::Int(2),
+                                span: span!(8, 9),
+                            }),
+                            span: span!(8, 9),
+                        }),
+                        Box::new(Expression {
+                            kind: ExpressionKind::Literal(Literal {
+                                kind: LiteralKind::Int(3),
+                                span: span!(10, 11),
+                            }),
+                            span: span!(10, 11),
+                        }),
+                    ],
                 },
-                &Expression {
-                    kind: ExpressionKind::Literal(Literal {
-                        kind: LiteralKind::Int(2),
-                        span: span!(8, 9),
-                    }),
-                    span: span!(8, 9),
-                },
-                &Expression {
-                    kind: ExpressionKind::Literal(Literal {
-                        kind: LiteralKind::Int(3),
-                        span: span!(11, 12),
-                    }),
-                    span: span!(11, 12),
-                },
-            ],
+                span: span!(0, 12),
+            }),
         )
     }
 
     #[test]
     fn fn_call_trailing_comma() {
-        check_call(
-            r#"test(1, 2, 3,)"#,
-            &Expression {
-                kind: ExpressionKind::Ident(Ident { name: "test", span: span!(0, 4) }),
-                span: span!(0, 4),
-            },
-            vec![
-                &Expression {
-                    kind: ExpressionKind::Literal(Literal {
-                        kind: LiteralKind::Int(1),
-                        span: span!(5, 6),
+        check(
+            r#"test(1, 2,3,  )"#,
+            Some(Expression {
+                kind: ExpressionKind::FnCall {
+                    callee: Box::new(Expression {
+                        kind: ExpressionKind::Ident(Ident { name: "test", span: span!(0, 4) }),
+                        span: span!(0, 4),
                     }),
-                    span: span!(5, 6),
+                    args: vec![
+                        Box::new(Expression {
+                            kind: ExpressionKind::Literal(Literal {
+                                kind: LiteralKind::Int(1),
+                                span: span!(5, 6),
+                            }),
+                            span: span!(5, 6),
+                        }),
+                        Box::new(Expression {
+                            kind: ExpressionKind::Literal(Literal {
+                                kind: LiteralKind::Int(2),
+                                span: span!(8, 9),
+                            }),
+                            span: span!(8, 9),
+                        }),
+                        Box::new(Expression {
+                            kind: ExpressionKind::Literal(Literal {
+                                kind: LiteralKind::Int(3),
+                                span: span!(10, 11),
+                            }),
+                            span: span!(10, 11),
+                        }),
+                    ],
                 },
-                &Expression {
-                    kind: ExpressionKind::Literal(Literal {
-                        kind: LiteralKind::Int(2),
-                        span: span!(8, 9),
-                    }),
-                    span: span!(8, 9),
-                },
-                &Expression {
-                    kind: ExpressionKind::Literal(Literal {
-                        kind: LiteralKind::Int(3),
-                        span: span!(11, 12),
-                    }),
-                    span: span!(11, 12),
-                },
-            ],
+                span: span!(0, 12),
+            }),
         )
     }
 
     #[test]
     fn fn_call_double_trailing_comma() {
-        let source = fout::source::SourceFile::new("tests".to_string(), r#"add(1, 2, 3,,)"#);
-        let mut parser = crate::Parser::new(&source);
-
-        let actual = parser.parse_expression().unwrap_err();
-        let expected = Error {
-            kind: ErrorKind::ExpectedToken {
-                expected: TokenKind::ParenClose,
-                found: ",".to_string(),
-            },
-            span: span!(12, 13),
-        };
-
-        assert_eq!(actual, expected);
+        check(
+            r#"test(1,,)"#,
+            Some(Expression {
+                kind: ExpressionKind::FnCall {
+                    callee: Box::new(Expression {
+                        kind: ExpressionKind::Ident(Ident { name: "test", span: span!(0, 4) }),
+                        span: span!(0, 4),
+                    }),
+                    args: vec![Box::new(Expression {
+                        kind: ExpressionKind::Literal(Literal {
+                            kind: LiteralKind::Int(1),
+                            span: span!(5, 6),
+                        }),
+                        span: span!(5, 6),
+                    })],
+                },
+                span: span!(0, 12),
+            }),
+        )
     }
 }
