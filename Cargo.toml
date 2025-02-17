@@ -12,3 +12,7 @@ clap = { version = "4.5.28", features = ["derive"] }
 # Error handling.
 thiserror = { version = "2" }
 ariadne = "0.5.0"
+tracing = { version = "0.1.41", features = ["log-always"] }
+
+[dev-dependencies]
+test-log = "0.2.17"

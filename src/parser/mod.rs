@@ -28,7 +28,6 @@ pub struct Parser<'src> {
 
     ast: Ast<'src>,
 
-    span_stack: Vec<Span>,
     prev_span: Span,
 
     errors: Vec<Spanned<ParserError>>,
@@ -40,13 +39,14 @@ impl<'src> Parser<'src> {
             source,
             lexer: Lexer::new(source).peekable(),
             ast: Ast::new(),
-            span_stack: Vec::new(),
+
             prev_span: Span::new(0, 0),
 
             errors: Vec::new(),
         }
     }
 
+    #[tracing::instrument(level = "trace", skip(self))]
     pub fn parse(mut self) -> Result<Ast<'src>, Vec<Report<'static, Span>>> {
         let module = self.parse_module();
 
@@ -112,15 +112,13 @@ impl<'src> Parser<'src> {
         self.lexer.peek().is_none()
     }
 
-    pub fn start_span(&mut self) {
-        let start = self.current_span().start();
-        self.span_stack.push(span!(start));
+    fn span_start(&mut self) -> usize {
+        self.current_span().start
     }
 
-    pub fn end_span(&mut self) -> Span {
-        let initial = self.span_stack.pop().expect("span stack should not be empty");
-        let end = self.prev_span.end();
-        span!(initial.start(), end)
+    fn end_span(&mut self, span_start: usize) -> Span {
+        let span_end = self.prev_span.end;
+        span!(span_start, span_end)
     }
 
     fn current_span(&mut self) -> Span {

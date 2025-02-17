@@ -6,6 +6,7 @@ use super::Parser;
 use super::error::ParserError;
 
 impl<'src> Parser<'src> {
+    #[tracing::instrument(level = "trace", skip(self))]
     pub fn parse_ident(&mut self) -> Result<Ident<'src>, Spanned<ParserError>> {
         match self.lexer.peek() {
             Some(Ok(Token { kind: TokenKind::Ident, .. })) => {
@@ -17,6 +18,7 @@ impl<'src> Parser<'src> {
         }
     }
 
+    #[tracing::instrument(level = "trace", skip(self))]
     pub fn parse_type(&mut self) -> Result<Ident<'src>, Spanned<ParserError>> {
         match self.lexer.peek() {
             Some(Ok(Token { kind: TokenKind::Ident, .. })) => {
@@ -43,6 +45,8 @@ impl<'src> Parser<'src> {
 
 // #[cfg(test)]
 // mod tests {
+//     use test_log::test;
+//
 //     #[test]
 //     fn ident() {
 //         check_parser! {

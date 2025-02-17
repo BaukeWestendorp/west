@@ -7,6 +7,7 @@ use super::Parser;
 use super::error::ParserError;
 
 impl<'src> Parser<'src> {
+    #[tracing::instrument(level = "trace", skip(self))]
     pub fn parse_literal(&mut self) -> Result<Option<Literal<'src>>, Spanned<ParserError>> {
         match self.lexer.peek() {
             Some(Ok(Token { kind: TokenKind::Literal(literal), .. })) => {
@@ -43,6 +44,8 @@ impl<'src> Parser<'src> {
 
 #[cfg(test)]
 mod tests {
+    use test_log::test;
+
     use crate::{
         ast::{Literal, LiteralKind},
         check_parser, span,

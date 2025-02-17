@@ -3,6 +3,7 @@ use crate::ast::Module;
 use super::{Parser, error::ParserError};
 
 impl<'src> Parser<'src> {
+    #[tracing::instrument(level = "trace", skip(self))]
     pub fn parse_module(&mut self) -> Module<'src> {
         let mut items = Vec::new();
 
@@ -20,6 +21,8 @@ impl<'src> Parser<'src> {
 
 #[cfg(test)]
 mod tests {
+    use test_log::test;
+
     use crate::ast::{Block, Fn, Ident, Item, ItemKind, Module};
 
     use crate::parser::error::ParserError;

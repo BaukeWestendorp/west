@@ -6,6 +6,7 @@ use super::Parser;
 use super::error::ParserError;
 
 impl<'src> Parser<'src> {
+    #[tracing::instrument(level = "trace", skip(self))]
     pub fn parse_statement(&mut self) -> Result<Option<Statement<'src>>, Spanned<ParserError>> {
         if let Some(expr_statement) = self.parse_statement_expression()? {
             Ok(Some(expr_statement))
@@ -29,24 +30,23 @@ impl<'src> Parser<'src> {
     pub fn parse_statement_expression(
         &mut self,
     ) -> Result<Option<Statement<'src>>, Spanned<ParserError>> {
-        self.start_span();
+        let span_start = self.span_start();
         let expression = self.parse_expression()?;
         if let Some(expression) = expression {
             self.eat_expected(TokenKind::Semi)?;
             Ok(Some(Statement {
                 kind: StatementKind::Expression(expression),
-                span: self.end_span(),
+                span: self.end_span(span_start),
             }))
         } else {
-            self.end_span();
             Ok(None)
         }
     }
 
     pub fn parse_statement_let(&mut self) -> Result<Option<Statement<'src>>, Spanned<ParserError>> {
-        self.start_span();
+        let span_start = self.span_start();
         if !self.try_eat_keyword(Keyword::Let) {
-            self.end_span();
+            self.end_span(span_start);
             return Ok(None);
         }
 
@@ -57,15 +57,18 @@ impl<'src> Parser<'src> {
             .ok_or(Spanned::new(ParserError::ExpectedExpression, self.current_span()))?;
 
         self.eat_expected(TokenKind::Semi)?;
-        Ok(Some(Statement { kind: StatementKind::Let { name, value }, span: self.end_span() }))
+        Ok(Some(Statement {
+            kind: StatementKind::Let { name, value },
+            span: self.end_span(span_start),
+        }))
     }
 
     pub fn parse_statement_if_else(
         &mut self,
     ) -> Result<Option<Statement<'src>>, Spanned<ParserError>> {
-        self.start_span();
+        let span_start = self.span_start();
         if !self.try_eat_keyword(Keyword::If) {
-            self.end_span();
+            self.end_span(span_start);
             return Ok(None);
         }
 
@@ -82,16 +85,16 @@ impl<'src> Parser<'src> {
 
         Ok(Some(Statement {
             kind: StatementKind::IfElse { condition, then_block, else_block },
-            span: self.end_span(),
+            span: self.end_span(span_start),
         }))
     }
 
     pub fn parse_statement_print(
         &mut self,
     ) -> Result<Option<Statement<'src>>, Spanned<ParserError>> {
-        self.start_span();
+        let span_start = self.span_start();
         if !self.try_eat_keyword(Keyword::Print) {
-            self.end_span();
+            self.end_span(span_start);
             return Ok(None);
         }
 
@@ -100,42 +103,48 @@ impl<'src> Parser<'src> {
             .ok_or(Spanned::new(ParserError::ExpectedExpression, self.current_span()))?;
 
         self.eat_expected(TokenKind::Semi)?;
-        Ok(Some(Statement { kind: StatementKind::Print { value }, span: self.end_span() }))
+        Ok(Some(Statement {
+            kind: StatementKind::Print { value },
+            span: self.end_span(span_start),
+        }))
     }
 
     pub fn parse_statement_return(
         &mut self,
     ) -> Result<Option<Statement<'src>>, Spanned<ParserError>> {
-        self.start_span();
+        let span_start = self.span_start();
         if !self.try_eat_keyword(Keyword::Return) {
-            self.end_span();
+            self.end_span(span_start);
             return Ok(None);
         }
 
         let value = self.parse_expression()?;
         self.eat_expected(TokenKind::Semi)?;
-        Ok(Some(Statement { kind: StatementKind::Return { value }, span: self.end_span() }))
+        Ok(Some(Statement {
+            kind: StatementKind::Return { value },
+            span: self.end_span(span_start),
+        }))
     }
 
     pub fn parse_statement_loop(
         &mut self,
     ) -> Result<Option<Statement<'src>>, Spanned<ParserError>> {
-        self.start_span();
+        let span_start = self.span_start();
         if !self.try_eat_keyword(Keyword::Loop) {
-            self.end_span();
+            self.end_span(span_start);
             return Ok(None);
         }
 
         let body = self.parse_block()?;
-        Ok(Some(Statement { kind: StatementKind::Loop { body }, span: self.end_span() }))
+        Ok(Some(Statement { kind: StatementKind::Loop { body }, span: self.end_span(span_start) }))
     }
 
     pub fn parse_statement_while(
         &mut self,
     ) -> Result<Option<Statement<'src>>, Spanned<ParserError>> {
-        self.start_span();
+        let span_start = self.span_start();
         if !self.try_eat_keyword(Keyword::While) {
-            self.end_span();
+            self.end_span(span_start);
             return Ok(None);
         }
 
@@ -145,13 +154,15 @@ impl<'src> Parser<'src> {
         let body = self.parse_block()?;
         Ok(Some(Statement {
             kind: StatementKind::While { condition, body },
-            span: self.end_span(),
+            span: self.end_span(span_start),
         }))
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use test_log::test;
+
     use crate::ast::{
         Block, Expression, ExpressionKind, Ident, Literal, LiteralKind, Statement, StatementKind,
     };

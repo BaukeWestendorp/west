@@ -190,6 +190,8 @@ fn is_bool_ident(ident: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use test_log::test;
+
     use crate::lexer::Lexer;
     use crate::lexer::error::LexerError;
     use crate::lexer::token::{Keyword, Literal, Token, TokenKind};

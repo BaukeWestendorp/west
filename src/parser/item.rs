@@ -8,11 +8,12 @@ use super::error::ParserError;
 
 impl<'src> Parser<'src> {
     pub fn parse_item(&mut self) -> Result<Item<'src>, Spanned<ParserError>> {
-        self.start_span();
+        let span_start = self.span_start();
         let fn_item = self.parse_item_fn()?;
-        Ok(Item { kind: ItemKind::Fn(fn_item), span: self.end_span() })
+        Ok(Item { kind: ItemKind::Fn(fn_item), span: self.end_span(span_start) })
     }
 
+    #[tracing::instrument(level = "trace", skip(self))]
     pub fn parse_item_fn(&mut self) -> Result<Fn<'src>, Spanned<ParserError>> {
         if !self.try_eat_keyword(Keyword::Fn) {
             return Err(Spanned::new(ParserError::ExpectedItem, self.current_span()));
@@ -36,6 +37,7 @@ impl<'src> Parser<'src> {
         Ok(Fn { name, params, return_type, body })
     }
 
+    #[tracing::instrument(level = "trace", skip(self))]
     fn parse_item_fn_params(&mut self) -> Result<Vec<FnParam<'src>>, Spanned<ParserError>> {
         let mut params = vec![];
 
@@ -57,6 +59,8 @@ impl<'src> Parser<'src> {
 
 // #[cfg(test)]
 // mod tests {
+//     use test_log::test;
+//
 //     use crate::ast::{Block, FnParam, Ident, Item, ItemKind};
 //     use fout::{Error, span};
 

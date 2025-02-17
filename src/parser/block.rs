@@ -6,20 +6,23 @@ use super::Parser;
 use super::error::ParserError;
 
 impl<'src> Parser<'src> {
+    #[tracing::instrument(level = "trace", skip(self))]
     pub fn parse_block(&mut self) -> Result<Block<'src>, Spanned<ParserError>> {
-        self.start_span();
+        let span_start = self.span_start();
         self.eat_expected(TokenKind::BraceOpen)?;
         let mut statements = Vec::new();
         while let Some(statement) = self.parse_statement()? {
             statements.push(statement);
         }
         self.eat_expected(TokenKind::BraceClose)?;
-        Ok(Block { statements, span: self.end_span() })
+        Ok(Block { statements, span: self.end_span(span_start) })
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use test_log::test;
+
     use crate::{
         ast::{
             Block, Expression, ExpressionKind, Ident, Literal, LiteralKind, Statement,

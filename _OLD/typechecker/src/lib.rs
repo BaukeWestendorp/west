@@ -363,6 +363,8 @@ impl<'src> ErrorProducer for Typechecker<'src> {
 
 #[cfg(test)]
 mod tests {
+    use test_log::test;
+
     use crate::ast::InfixOp;
     use fout::source::SourceFile;
     use fout::{Error, span};
