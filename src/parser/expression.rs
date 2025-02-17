@@ -1,14 +1,13 @@
 use crate::ast::{Expression, ExpressionKind, InfixOp, Op, PostfixOp, PrefixOp};
 use crate::lexer::token::TokenKind;
-use crate::source::Spanned;
-use crate::span;
+use crate::source::{Span, Spanned};
 
 use super::Parser;
 use super::error::ParserError;
 
 impl<'src> Parser<'src> {
     pub fn parse_expression(&mut self) -> Result<Option<Expression<'src>>, Spanned<ParserError>> {
-        let span_start = self.current_span().start();
+        let span_start = self.current_span();
         if let Some(expression) = self.parse_expression_bp(0, span_start)? {
             Ok(Some(expression))
         } else {
@@ -19,18 +18,16 @@ impl<'src> Parser<'src> {
     fn parse_expression_bp(
         &mut self,
         min_bp: u8,
-        span_start: usize,
+        span_start: Span,
     ) -> Result<Option<Expression<'src>>, Spanned<ParserError>> {
         let mut lhs = if let Ok(ident) = self.parse_ident() {
-            let span = span!(span_start, self.current_span().end());
-            Expression { kind: ExpressionKind::Ident(ident), span }
+            Expression { kind: ExpressionKind::Ident(ident), span: span_start }
         } else if let Some(literal) = self.parse_literal()? {
-            let span = span!(span_start, self.current_span().end());
-            Expression { kind: ExpressionKind::Literal(literal), span }
+            Expression { kind: ExpressionKind::Literal(literal), span: span_start }
         } else if let Some(expr) = self.parse_prefix_expression()? {
             expr
         } else {
-            let span_start = self.current_span().start();
+            let span_start = self.current_span();
             match self.lexer.peek() {
                 Some(Ok(token)) if token.kind == TokenKind::ParenOpen => {
                     self.eat()?;
@@ -99,7 +96,7 @@ impl<'src> Parser<'src> {
 
                 self.eat()?;
 
-                let span_start = self.current_span().start();
+                let span_start = self.current_span();
                 let rhs = self
                     .parse_expression_bp(r_bp, span_start)?
                     .ok_or(Spanned::new(ParserError::ExpectedExpression, self.current_span()))?;
@@ -153,7 +150,7 @@ impl<'src> Parser<'src> {
         self.eat().expect("next token should be an operator");
 
         let ((), r_bp) = prefix_binding_power(&op);
-        let span_start = self.current_span().start();
+        let span_start = self.current_span();
         let rhs = self
             .parse_expression_bp(r_bp, span_start)?
             .ok_or(Spanned::new(ParserError::ExpectedExpression, self.current_span()))?;

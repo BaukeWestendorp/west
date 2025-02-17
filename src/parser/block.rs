@@ -79,38 +79,38 @@ mod tests {
     #[test]
     fn block_multiple_statements() {
         check_parser! {
-            source: r#"{ let x = 1; let y = 2; }"#,
+            source: r#"{ let xx = 1; let yyy = 2; }"#,
             fn: parse_block,
             expected: Ok(Block {
                 statements: vec![
                     Statement {
                         kind: StatementKind::Let {
-                            name: Ident { name: "x", span: span!(6, 7) },
+                            name: Ident { name: "xx", span: span!(6, 8) },
                             value: Expression {
                                 kind: ExpressionKind::Literal(Literal {
                                     kind: LiteralKind::Int(1),
-                                    span: span!(10, 11)
+                                    span: span!(11, 12)
                                 }),
-                                span: span!(10, 11)
+                                span: span!(11, 12)
                             }
                         },
-                        span: span!(2, 12)
+                        span: span!(2, 13)
                     },
                     Statement {
                         kind: StatementKind::Let {
-                            name: Ident { name: "y", span: span!(17, 18) },
+                            name: Ident { name: "yyy", span: span!(18, 21) },
                             value: Expression {
                                 kind: ExpressionKind::Literal(Literal {
                                     kind: LiteralKind::Int(2),
-                                    span: span!(21, 22)
+                                    span: span!(24, 25)
                                 }),
-                                span: span!(21, 22)
+                                span: span!(24, 25)
                             }
                         },
-                        span: span!(13, 23)
+                        span: span!(14, 26)
                     }
                 ],
-                span: span!(0, 25)
+                span: span!(0, 28)
             }),
             expected_errors: vec![]
         }

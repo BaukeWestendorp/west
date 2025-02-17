@@ -192,7 +192,7 @@ mod tests {
             expected: Ok(Some(Statement {
                 kind: StatementKind::Let { name: Ident { name: "x", span: span!(4, 5) } , value: Expression {
                     kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Float(1.0), span: span!(8, 11)}),
-                    span: span!(9, 11),
+                    span: span!(8, 11),
                 } },
                 span: span!(0, 12),
             })),
@@ -252,7 +252,7 @@ mod tests {
             fn: parse_statement,
             expected: Ok(Some(Statement {
                 kind: StatementKind::Loop { body: Block { statements: vec![], span: span!(5, 7) } },
-                span: span!(0, 8),
+                span: span!(0, 7),
             })),
             expected_errors: vec![]
         };
