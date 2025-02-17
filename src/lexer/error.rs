@@ -1,9 +1,4 @@
-use ariadne::{Report, ReportKind};
-
-use crate::{
-    parser::error::ParserError,
-    source::{Span, Spanned},
-};
+use crate::{parser::error::ParserError, source::Spanned};
 
 #[derive(Debug, Clone, PartialEq, thiserror::Error)]
 pub enum LexerError {
@@ -12,12 +7,6 @@ pub enum LexerError {
 
     #[error("unknown keyword: {0}")]
     UnknownKeyword(String),
-}
-
-impl From<Spanned<LexerError>> for Report<'_, Span> {
-    fn from(error: Spanned<LexerError>) -> Self {
-        Report::build(ReportKind::Error, error.span).with_message(error.value.to_string()).finish()
-    }
 }
 
 impl From<Spanned<LexerError>> for Spanned<ParserError> {

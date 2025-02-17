@@ -59,7 +59,11 @@ impl From<Spanned<ParserError>> for Report<'_, Span> {
         let report = Report::build(ReportKind::Error, error.span)
             .with_code(error.value.code())
             .with_message(error.value.to_string())
-            .with_label(Label::new(error.span).with_message(error.value.to_string()));
+            .with_label(
+                Label::new(error.span)
+                    .with_message(error.value.to_string())
+                    .with_color(ariadne::Color::Red),
+            );
 
         report.finish()
     }
