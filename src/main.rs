@@ -3,8 +3,8 @@ use std::io::Read;
 use std::path::PathBuf;
 
 use clap::Parser as ClapParser;
-use west::parser::Parser;
 use west::source::SourceFile;
+use west::{parser::Parser, typechecker::Typechecker};
 
 use tracing_subscriber::{EnvFilter, fmt, prelude::*};
 
@@ -48,11 +48,13 @@ fn main() {
         }
     };
 
-    println!("{:#?}", ast);
-
-    // if let Err(err) = Typechecker::new(&ast, &source).check() {
-    //     panic!("failed to typecheck file: {}", err.kind.to_string());
-    // }
+    if let Err(errors) = Typechecker::new(&ast).check() {
+        for error in errors {
+            let source = ariadne::Source::from(source.as_str());
+            error.eprint(source).unwrap();
+        }
+        std::process::exit(1);
+    }
 
     // let mut compiler = Compiler::new(&ast);
 

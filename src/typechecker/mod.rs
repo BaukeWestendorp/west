@@ -1,12 +1,16 @@
-use crate::ast::{
-    Ast, Block, Expression, ExpressionId, ExpressionKind, Fn, Ident, InfixOp, Item, ItemKind,
-    LiteralKind, Module, PrefixOp, Statement, StatementKind,
-};
-use error::{ErrorKind, Result};
-use fout::source::{SourceFile, Span};
-use fout::{ErrorProducer, span};
+use ariadne::Report;
+use error::TypecheckerError;
 
-mod error;
+use crate::{
+    ast::{
+        Ast, Block, Expression, ExpressionKind, Fn, Ident, InfixOp, Item, ItemKind, LiteralKind,
+        Module, PrefixOp, Statement, StatementKind,
+    },
+    source::{Span, Spanned},
+    span,
+};
+
+pub mod error;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Ty {
@@ -35,7 +39,6 @@ struct Local<'src> {
 }
 
 pub struct Typechecker<'src> {
-    source: &'src SourceFile<'src>,
     ast: &'src Ast<'src>,
 
     depth: usize,
@@ -45,67 +48,79 @@ pub struct Typechecker<'src> {
     expected_return_type: Option<Ty>,
 
     current_span: Span,
+    errors: Vec<Spanned<TypecheckerError>>,
 }
 
 impl<'src> Typechecker<'src> {
-    pub fn new(ast: &'src Ast<'src>, source: &'src SourceFile<'src>) -> Self {
+    pub fn new(ast: &'src Ast<'src>) -> Self {
         Self {
             ast,
-            source,
             depth: 0,
             locals: Vec::new(),
             expected_return_type: None,
             current_span: span!(0, 0),
+            errors: Vec::new(),
         }
     }
 
-    pub fn check(&mut self) -> Result<()> {
+    pub fn check(&mut self) -> Result<(), Vec<Report<'static, Span>>> {
         for module in &self.ast.modules {
-            self.check_module(module)?;
+            self.check_module(module);
+        }
+
+        if !self.errors.is_empty() {
+            return Err(self.errors.clone().into_iter().map(|error| error.into()).collect());
         }
 
         Ok(())
     }
 
-    pub fn check_module(&mut self, module: &'src Module<'src>) -> Result<()> {
+    pub fn check_module(&mut self, module: &'src Module<'src>) {
         for item in &module.items {
             self.current_span = item.span;
-            self.check_item(item)?;
+            self.check_item(item);
         }
-
-        Ok(())
     }
 
-    pub fn check_item(&mut self, item: &'src Item<'src>) -> Result<()> {
+    pub fn check_item(&mut self, item: &'src Item<'src>) {
         match &item.kind {
             ItemKind::Fn(f) => self.check_fn_item(f),
         }
     }
 
-    pub fn check_fn_item(&mut self, f: &'src Fn<'src>) -> Result<()> {
+    pub fn check_fn_item(&mut self, f: &'src Fn<'src>) {
         for param in &f.params {
-            let local = Local {
-                name: param.name.clone(),
-                ty: self.check_type(&param.ty)?,
-                depth: self.depth,
+            let ty = match self.check_type(&param.ty) {
+                Ok(ty) => ty,
+                Err(err) => {
+                    self.errors.push(err);
+                    return;
+                }
             };
+
+            let local = Local { name: param.name.clone(), ty, depth: self.depth };
             self.locals.push(local);
         }
 
-        let mut return_ty_span = self.span();
+        let mut return_ty_span = self.current_span;
         if let Some(return_ty) = &f.return_type {
             return_ty_span = return_ty.span;
-            self.expected_return_type = Some(self.check_type(return_ty)?);
+            let ty = match self.check_type(return_ty) {
+                Ok(ty) => ty,
+                Err(err) => {
+                    self.errors.push(err);
+                    return;
+                }
+            };
+            self.expected_return_type = Some(ty);
         }
 
-        self.check_block(&f.body, return_ty_span)?;
+        self.check_block(&f.body, return_ty_span);
 
         self.expected_return_type = None;
-
-        Ok(())
     }
 
-    pub fn check_block(&mut self, block: &'src Block<'src>, return_type_span: Span) -> Result<()> {
+    pub fn check_block(&mut self, block: &'src Block<'src>, return_type_span: Span) {
         self.current_span = block.span;
         self.enter_scope();
 
@@ -116,99 +131,114 @@ impl<'src> Typechecker<'src> {
                 has_return = true;
             }
 
-            self.check_statement(statement, return_type_span)?;
+            self.check_statement(statement, return_type_span);
         }
 
         if !has_return {
             if let Some(expected) = self.expected_return_type {
-                return Err(
-                    self.error_at(ErrorKind::MissingReturnValue { expected }, return_type_span)
-                );
+                self.error(TypecheckerError::MissingReturnValue { expected }, return_type_span);
             }
         }
 
         self.exit_scope();
-
-        Ok(())
     }
 
-    pub fn check_statement(
-        &mut self,
-        statement: &'src Statement<'src>,
-        return_type_span: Span,
-    ) -> Result<()> {
+    pub fn check_statement(&mut self, statement: &'src Statement<'src>, return_type_span: Span) {
         self.current_span = statement.span;
         match &statement.kind {
             StatementKind::Expression(expression) => {
-                self.check_expression(expression)?;
+                self.check_expression_type(expression).map_err(|err| self.errors.push(err)).ok();
             }
             StatementKind::Let { name, value } => {
-                let ty = self.check_expression(value)?;
+                let ty = match self.check_expression_type(value) {
+                    Ok(ty) => ty,
+                    Err(err) => {
+                        self.errors.push(err);
+                        return;
+                    }
+                };
                 self.locals.push(Local { name: name.clone(), ty, depth: self.depth });
             }
             StatementKind::Return { value } => match (self.expected_return_type, value) {
                 (Some(expected), Some(value)) => {
-                    let ty = self.check_expression(value)?;
+                    let ty = match self.check_expression_type(value) {
+                        Ok(ty) => ty,
+                        Err(err) => {
+                            self.errors.push(err);
+                            return;
+                        }
+                    };
 
                     if ty != expected {
-                        let span = self.ast.get_expression(value).span;
-                        return Err(
-                            self.error_at(ErrorKind::InvalidReturnValue { expected, ty }, span)
-                        );
+                        let span = value.span;
+                        self.error(TypecheckerError::InvalidReturnValue { expected, ty }, span);
                     }
                 }
                 (Some(expected), _) => {
-                    return Err(
-                        self.error_at(ErrorKind::MissingReturnValue { expected }, statement.span)
-                    );
+                    self.error(TypecheckerError::MissingReturnValue { expected }, statement.span);
                 }
                 (_, Some(value)) => {
-                    let span = self.ast.get_expression(value).span;
-                    return Err(self.error_at(ErrorKind::UnexpectedReturnValue, span));
+                    let span = value.span;
+                    self.error(TypecheckerError::UnexpectedReturnValue, span);
                 }
                 (_, _) => {}
             },
             StatementKind::IfElse { condition, then_block, else_block } => {
-                let condition_ty = self.check_expression(condition)?;
+                let condition_ty = match self.check_expression_type(condition) {
+                    Ok(ty) => ty,
+                    Err(err) => {
+                        self.errors.push(err);
+                        return;
+                    }
+                };
+
                 if condition_ty != Ty::Bool {
-                    let span = self.ast.get_expression(condition).span;
-                    return Err(self.error_at(
-                        ErrorKind::ExpectedBoolInIfCondition { ty: condition_ty },
+                    let span = condition.span;
+                    self.error(
+                        TypecheckerError::ExpectedBoolInIfCondition { ty: condition_ty },
                         span,
-                    ));
+                    );
                 }
 
-                self.check_block(then_block, return_type_span)?;
+                self.check_block(then_block, return_type_span);
 
                 if let Some(else_block) = else_block {
-                    self.check_block(else_block, return_type_span)?;
+                    self.check_block(else_block, return_type_span);
                 }
             }
             StatementKind::Print { value } => {
-                self.check_expression(value)?;
+                self.check_expression_type(value).map_err(|err| self.errors.push(err)).ok();
             }
             StatementKind::Loop { body } => {
-                self.check_block(body, return_type_span)?;
+                self.check_block(body, return_type_span);
             }
             StatementKind::While { condition, body } => {
-                let condition_ty = self.check_expression(condition)?;
+                let condition_ty = match self.check_expression_type(condition) {
+                    Ok(ty) => ty,
+                    Err(err) => {
+                        self.errors.push(err);
+                        return;
+                    }
+                };
+
                 if condition_ty != Ty::Bool {
-                    let span = self.ast.get_expression(condition).span;
-                    return Err(self.error_at(
-                        ErrorKind::ExpectedBoolInWhileCondition { ty: condition_ty },
+                    let span = condition.span;
+                    self.error(
+                        TypecheckerError::ExpectedBoolInWhileCondition { ty: condition_ty },
                         span,
-                    ));
+                    );
                 }
 
-                self.check_block(body, return_type_span)?;
+                self.check_block(body, return_type_span);
             }
         }
-
-        Ok(())
     }
 
-    pub fn check_expression(&mut self, expr_id: &ExpressionId) -> Result<Ty> {
-        let expr = self.ast.get_expression(expr_id);
+    pub fn check_expression_type(
+        &mut self,
+        expr: &Expression,
+    ) -> Result<Ty, Spanned<TypecheckerError>> {
+        let expr = expr;
         self.current_span = expr.span;
 
         let ty = match &expr.kind {
@@ -225,29 +255,29 @@ impl<'src> Typechecker<'src> {
                     }
                 }
 
-                return Err(self.error_at(
-                    ErrorKind::UnknownVariable { ident: ident.to_string() },
+                return Err(Spanned::new(
+                    TypecheckerError::UnknownVariable { ident: ident.to_string() },
                     ident.span,
                 ));
             }
             ExpressionKind::UnaryOp { op, rhs } => {
-                let rhs_ty = self.check_expression(rhs)?;
+                let rhs_ty = self.check_expression_type(rhs)?;
 
                 match op {
                     PrefixOp::Minus => match rhs_ty {
                         Ty::Int => Ty::Int,
                         Ty::Float => Ty::Float,
-                        _ => return Err(self.error_at(ErrorKind::CannotNegate, expr.span)),
+                        _ => return Err(Spanned::new(TypecheckerError::CannotNegate, expr.span)),
                     },
                     PrefixOp::Negate => match rhs_ty {
                         Ty::Bool => Ty::Bool,
-                        _ => return Err(self.error_at(ErrorKind::CannotInvert, expr.span)),
+                        _ => return Err(Spanned::new(TypecheckerError::CannotInvert, expr.span)),
                     },
                 }
             }
             ExpressionKind::BinaryOp { lhs, op, rhs } => {
-                let lhs_ty = self.check_expression(lhs)?;
-                let rhs_ty = self.check_expression(rhs)?;
+                let lhs_ty = self.check_expression_type(lhs)?;
+                let rhs_ty = self.check_expression_type(rhs)?;
 
                 match op {
                     InfixOp::Add | InfixOp::Subtract | InfixOp::Multiply | InfixOp::Divide => {
@@ -255,8 +285,8 @@ impl<'src> Typechecker<'src> {
                             (Ty::Int, Ty::Int) => Ty::Int,
                             (Ty::Float, Ty::Float) => Ty::Float,
                             _ => {
-                                return Err(self.error_at(
-                                    ErrorKind::InvalidTypeCombinationInInfixOp {
+                                return Err(Spanned::new(
+                                    TypecheckerError::InvalidTypeCombinationInInfixOp {
                                         lhs: lhs_ty,
                                         op: *op,
                                         rhs: rhs_ty,
@@ -275,8 +305,8 @@ impl<'src> Typechecker<'src> {
                         if lhs_ty == rhs_ty {
                             Ty::Bool
                         } else {
-                            return Err(self.error_at(
-                                ErrorKind::InvalidTypeCombinationInInfixOp {
+                            return Err(Spanned::new(
+                                TypecheckerError::InvalidTypeCombinationInInfixOp {
                                     lhs: lhs_ty,
                                     op: *op,
                                     rhs: rhs_ty,
@@ -289,8 +319,8 @@ impl<'src> Typechecker<'src> {
                         if lhs_ty == Ty::Bool && rhs_ty == Ty::Bool {
                             Ty::Bool
                         } else {
-                            return Err(self.error_at(
-                                ErrorKind::InvalidTypeCombinationInInfixOp {
+                            return Err(Spanned::new(
+                                TypecheckerError::InvalidTypeCombinationInInfixOp {
                                     lhs: lhs_ty,
                                     op: *op,
                                     rhs: rhs_ty,
@@ -304,17 +334,14 @@ impl<'src> Typechecker<'src> {
             }
             ExpressionKind::FnCall { callee, args } => {
                 assert!(
-                    matches!(self.ast.get_expression(callee), Expression {
-                        kind: ExpressionKind::Ident(_),
-                        ..
-                    }),
+                    matches!(callee.as_ref(), Expression { kind: ExpressionKind::Ident(_), .. }),
                     "invalid fn call. expected callee to be an ident"
                 );
 
                 let _arg_tys = args
                     .iter()
-                    .map(|arg| self.check_expression(arg))
-                    .collect::<Result<Vec<_>>>()?;
+                    .map(|arg| self.check_expression_type(arg))
+                    .collect::<Result<Vec<_>, _>>()?;
 
                 // FIXME: Implement return types for functions
                 Ty::Int
@@ -324,13 +351,15 @@ impl<'src> Typechecker<'src> {
         Ok(ty)
     }
 
-    fn check_type(&mut self, ty: &Ident<'src>) -> Result<Ty> {
+    fn check_type(&mut self, ty: &Ident<'src>) -> Result<Ty, Spanned<TypecheckerError>> {
         match ty.name {
             "int" => Ok(Ty::Int),
             "float" => Ok(Ty::Float),
             "str" => Ok(Ty::Str),
             "bool" => Ok(Ty::Bool),
-            _ => Err(self.error_at(ErrorKind::UnknownType { ident: ty.to_string() }, ty.span)),
+            _ => {
+                Err(Spanned::new(TypecheckerError::UnknownType { ident: ty.to_string() }, ty.span))
+            }
         }
     }
 
@@ -343,21 +372,9 @@ impl<'src> Typechecker<'src> {
 
         self.locals.retain(|local| local.depth <= self.depth);
     }
-}
 
-impl<'src> ErrorProducer for Typechecker<'src> {
-    type ErrorKind = ErrorKind;
-
-    fn name(&self) -> &str {
-        "typechecker"
-    }
-
-    fn source(&self) -> &SourceFile {
-        self.source
-    }
-
-    fn span(&mut self) -> Span {
-        self.current_span.clone()
+    fn error(&mut self, error: TypecheckerError, span: Span) {
+        self.errors.push(Spanned::new(error, span));
     }
 }
 
@@ -365,33 +382,32 @@ impl<'src> ErrorProducer for Typechecker<'src> {
 mod tests {
     use test_log::test;
 
-    use crate::ast::InfixOp;
-    use fout::source::SourceFile;
-    use fout::{Error, span};
-    use parser::Parser;
-
-    use crate::error::ErrorKind;
-    use crate::{Ty, Typechecker};
+    use crate::{
+        ast::InfixOp,
+        parser::Parser,
+        source::{SourceFile, Spanned},
+        span,
+        typechecker::{Ty, Typechecker, error::TypecheckerError},
+    };
 
     #[test]
     fn incompatible_types() {
-        let source = r#"fn main() { true + 1; }
-        "#;
+        let source = r#"fn main() { true + 1; }"#;
 
         let source = SourceFile::new("tests".to_string(), source);
         let ast = Parser::new(&source).parse().unwrap();
-        let mut typechecker = Typechecker::new(&ast, &source);
+        let mut typechecker = Typechecker::new(&ast);
 
-        let result = typechecker.check();
-        assert!(result.is_err());
-        assert_eq!(result.unwrap_err(), Error {
-            kind: ErrorKind::InvalidTypeCombinationInInfixOp {
+        let _ = typechecker.check();
+
+        assert_eq!(typechecker.errors, vec![Spanned::new(
+            TypecheckerError::InvalidTypeCombinationInInfixOp {
                 lhs: Ty::Bool,
                 op: InfixOp::Add,
                 rhs: Ty::Int
             },
-            span: span!(12, 20)
-        });
+            span!(12, 20)
+        )]);
     }
 
     #[test]
@@ -400,14 +416,14 @@ mod tests {
 
         let source = SourceFile::new("tests".to_string(), source);
         let ast = Parser::new(&source).parse().unwrap();
-        let mut typechecker = Typechecker::new(&ast, &source);
+        let mut typechecker = Typechecker::new(&ast);
 
-        let actual = typechecker.check();
+        let _ = typechecker.check();
 
-        assert_eq!(actual.unwrap_err(), Error {
-            kind: ErrorKind::MissingReturnValue { expected: Ty::Int },
-            span: span!(8, 11)
-        })
+        assert_eq!(typechecker.errors, vec![Spanned::new(
+            TypecheckerError::MissingReturnValue { expected: Ty::Int },
+            span!(8, 11)
+        )])
     }
 
     #[test]
@@ -416,14 +432,14 @@ mod tests {
 
         let source = SourceFile::new("tests".to_string(), source);
         let ast = Parser::new(&source).parse().unwrap();
-        let mut typechecker = Typechecker::new(&ast, &source);
+        let mut typechecker = Typechecker::new(&ast);
 
-        let actual = typechecker.check();
+        let _ = typechecker.check();
 
-        assert_eq!(actual.unwrap_err(), Error {
-            kind: ErrorKind::UnexpectedReturnValue,
-            span: span!(16, 17)
-        })
+        assert_eq!(typechecker.errors, vec![Spanned::new(
+            TypecheckerError::UnexpectedReturnValue,
+            span!(16, 17)
+        )])
     }
 
     #[test]
@@ -432,7 +448,7 @@ mod tests {
 
         let source = SourceFile::new("tests".to_string(), source);
         let ast = Parser::new(&source).parse().unwrap();
-        let mut typechecker = Typechecker::new(&ast, &source);
+        let mut typechecker = Typechecker::new(&ast);
 
         let actual = typechecker.check();
 
@@ -445,14 +461,14 @@ mod tests {
 
         let source = SourceFile::new("tests".to_string(), source);
         let ast = Parser::new(&source).parse().unwrap();
-        let mut typechecker = Typechecker::new(&ast, &source);
+        let mut typechecker = Typechecker::new(&ast);
 
-        let actual = typechecker.check();
+        let _ = typechecker.check();
 
-        assert_eq!(actual.unwrap_err(), Error {
-            kind: ErrorKind::InvalidReturnValue { expected: Ty::Int, ty: Ty::Bool },
-            span: span!(21, 25)
-        })
+        assert_eq!(typechecker.errors, vec![Spanned::new(
+            TypecheckerError::InvalidReturnValue { expected: Ty::Int, ty: Ty::Bool },
+            span!(21, 25)
+        )])
     }
 
     #[test]
@@ -461,7 +477,7 @@ mod tests {
 
         let source = SourceFile::new("tests".to_string(), source);
         let ast = Parser::new(&source).parse().unwrap();
-        let mut typechecker = Typechecker::new(&ast, &source);
+        let mut typechecker = Typechecker::new(&ast);
 
         let actual = typechecker.check();
 
@@ -474,14 +490,14 @@ mod tests {
 
         let source = SourceFile::new("tests".to_string(), source);
         let ast = Parser::new(&source).parse().unwrap();
-        let mut typechecker = Typechecker::new(&ast, &source);
+        let mut typechecker = Typechecker::new(&ast);
 
-        let actual = typechecker.check();
+        let _ = typechecker.check();
 
-        assert_eq!(actual.unwrap_err(), Error {
-            kind: ErrorKind::ExpectedBoolInIfCondition { ty: Ty::Int },
-            span: span!(15, 16)
-        })
+        assert_eq!(typechecker.errors, vec![Spanned::new(
+            TypecheckerError::ExpectedBoolInIfCondition { ty: Ty::Int },
+            span!(15, 16)
+        )])
     }
 
     #[test]
@@ -494,7 +510,7 @@ mod tests {
 
         let source = SourceFile::new("tests".to_string(), source);
         let ast = Parser::new(&source).parse().unwrap();
-        let mut typechecker = Typechecker::new(&ast, &source);
+        let mut typechecker = Typechecker::new(&ast);
 
         let actual = typechecker.check();
 
@@ -511,7 +527,7 @@ mod tests {
 
         let source = SourceFile::new("tests".to_string(), source);
         let ast = Parser::new(&source).parse().unwrap();
-        let mut typechecker = Typechecker::new(&ast, &source);
+        let mut typechecker = Typechecker::new(&ast);
 
         let actual = typechecker.check();
 
@@ -528,7 +544,7 @@ mod tests {
 
         let source = SourceFile::new("tests".to_string(), source);
         let ast = Parser::new(&source).parse().unwrap();
-        let mut typechecker = Typechecker::new(&ast, &source);
+        let mut typechecker = Typechecker::new(&ast);
 
         let actual = typechecker.check();
 
@@ -545,7 +561,7 @@ mod tests {
 
         let source = SourceFile::new("tests".to_string(), source);
         let ast = Parser::new(&source).parse().unwrap();
-        let mut typechecker = Typechecker::new(&ast, &source);
+        let mut typechecker = Typechecker::new(&ast);
 
         let actual = typechecker.check();
 
@@ -558,13 +574,13 @@ mod tests {
 
         let source = SourceFile::new("tests".to_string(), source);
         let ast = Parser::new(&source).parse().unwrap();
-        let mut typechecker = Typechecker::new(&ast, &source);
+        let mut typechecker = Typechecker::new(&ast);
 
-        let actual = typechecker.check();
+        let _ = typechecker.check();
 
-        assert_eq!(actual.unwrap_err(), Error {
-            kind: ErrorKind::ExpectedBoolInWhileCondition { ty: Ty::Int },
-            span: span!(18, 19)
-        })
+        assert_eq!(typechecker.errors, vec![Spanned::new(
+            TypecheckerError::ExpectedBoolInWhileCondition { ty: Ty::Int },
+            span!(18, 19)
+        )])
     }
 }
