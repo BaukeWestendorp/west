@@ -6,6 +6,8 @@ use clap::Parser as ClapParser;
 use west::parser::Parser;
 use west::source::SourceFile;
 
+use tracing_subscriber::{EnvFilter, fmt, prelude::*};
+
 /// West runner
 #[derive(ClapParser, Debug)]
 #[command(version, about, long_about = None)]
@@ -20,6 +22,9 @@ struct Args {
 }
 
 fn main() {
+    tracing_subscriber::registry().with(fmt::layer()).with(EnvFilter::from_default_env()).init();
+    tracing::debug!("starting west");
+
     let Args { file, emit_bytecode: _ } = Args::parse();
 
     let mut source = String::new();

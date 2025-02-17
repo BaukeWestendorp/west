@@ -117,11 +117,13 @@ impl<'src> Parser<'src> {
     }
 
     fn span_start(&mut self) -> usize {
+        tracing::trace!("span started");
         self.current_span().start
     }
 
     fn end_span(&mut self, span_start: usize) -> Span {
         let span_end = self.prev_span.end;
+        tracing::trace!("span ended");
         span!(span_start, span_end)
     }
 
