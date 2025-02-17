@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::opcode::Opcode;
+use super::opcode::Opcode;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Label {

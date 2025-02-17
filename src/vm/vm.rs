@@ -2,10 +2,10 @@ use std::collections::HashMap;
 use std::io::Write;
 
 use crate::ast::InfixOp;
-use bytecode::module::{Address, BytecodeModule, Label};
-use bytecode::opcode::Opcode;
-use bytecode::reg::{RegOrImm, Register};
-use bytecode::value::Value;
+use crate::bytecode::module::{Address, BytecodeModule, Label};
+use crate::bytecode::opcode::Opcode;
+use crate::bytecode::reg::{RegOrImm, Register};
+use crate::bytecode::value::Value;
 
 pub struct Vm<'w, W>
 where

@@ -1,4 +1,4 @@
-use crate::value::Value;
+use super::value::Value;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Register(u32);

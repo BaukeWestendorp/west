@@ -1,7 +1,7 @@
 use crate::ast::InfixOp;
 
-use crate::module::Label;
-use crate::reg::{RegOrImm, Register};
+use super::module::Label;
+use super::reg::{RegOrImm, Register};
 
 #[derive(Debug, Clone)]
 pub enum Opcode {

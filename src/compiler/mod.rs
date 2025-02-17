@@ -1,11 +1,11 @@
 use crate::ast::{
-    Ast, Block, ExpressionId, ExpressionKind, Fn, InfixOp, ItemKind, LiteralKind, Module, PrefixOp,
+    Ast, Block, Expression, ExpressionKind, Fn, InfixOp, ItemKind, LiteralKind, Module, PrefixOp,
     Statement, StatementKind,
 };
-use bytecode::module::{BytecodeModule, Label};
-use bytecode::opcode::Opcode;
-use bytecode::reg::{RegOrImm, Register};
-use bytecode::value::Value;
+use crate::bytecode::module::{BytecodeModule, Label};
+use crate::bytecode::opcode::Opcode;
+use crate::bytecode::reg::{RegOrImm, Register};
+use crate::bytecode::value::Value;
 
 struct Local<'src> {
     depth: usize,
@@ -23,16 +23,11 @@ impl<'src> Compiler<'src> {
     }
 
     pub fn compile(&mut self) -> Vec<BytecodeModule> {
-        self.ast
-            .modules
-            .iter()
-            .map(|module| ModuleCompiler::new(&self.ast, module).compile())
-            .collect()
+        self.ast.modules.iter().map(|module| ModuleCompiler::new(module).compile()).collect()
     }
 }
 
 struct ModuleCompiler<'src> {
-    ast: &'src Ast<'src>,
     module: &'src Module<'src>,
     bc_module: BytecodeModule,
 
@@ -50,9 +45,8 @@ struct ModuleCompiler<'src> {
 }
 
 impl<'src> ModuleCompiler<'src> {
-    pub fn new(ast: &'src Ast<'src>, module: &'src Module<'src>) -> ModuleCompiler<'src> {
+    pub fn new(module: &'src Module<'src>) -> ModuleCompiler<'src> {
         ModuleCompiler {
-            ast,
             module,
             bc_module: BytecodeModule::new(),
 
@@ -131,7 +125,7 @@ impl<'src> ModuleCompiler<'src> {
                 self.push(Opcode::Print { value: value_reg.into() });
             }
             StatementKind::Return { value } => {
-                let value_reg = value.map(|v| RegOrImm::from(self.compile_expression(&v)));
+                let value_reg = value.as_ref().map(|v| RegOrImm::from(self.compile_expression(&v)));
                 self.push(Opcode::Return { value: value_reg });
                 self.has_return = true;
             }
@@ -186,8 +180,7 @@ impl<'src> ModuleCompiler<'src> {
         }
     }
 
-    fn compile_expression(&mut self, expression: &ExpressionId) -> Register {
-        let expression = &self.ast.get_expression(expression);
+    fn compile_expression(&mut self, expression: &Expression) -> Register {
         match &expression.kind {
             ExpressionKind::Literal(literal) => {
                 let value = match literal.kind {
@@ -279,8 +272,7 @@ impl<'src> ModuleCompiler<'src> {
                 dest_reg
             }
             ExpressionKind::FnCall { callee, args } => {
-                let ExpressionKind::Ident(callee_label) = &self.ast.get_expression(callee).kind
-                else {
+                let ExpressionKind::Ident(callee_label) = &callee.kind else {
                     panic!("invalid fn call. expected callee to be an ident");
                 };
 

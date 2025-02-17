@@ -3,7 +3,9 @@ use std::io::Read;
 use std::path::PathBuf;
 
 use clap::Parser as ClapParser;
+use west::compiler::Compiler;
 use west::source::SourceFile;
+use west::vm::Vm;
 use west::{parser::Parser, typechecker::Typechecker};
 
 use tracing_subscriber::{EnvFilter, fmt, prelude::*};
@@ -25,7 +27,7 @@ fn main() {
     tracing_subscriber::registry().with(fmt::layer()).with(EnvFilter::from_default_env()).init();
     tracing::debug!("starting west");
 
-    let Args { file, emit_bytecode: _ } = Args::parse();
+    let Args { file, emit_bytecode } = Args::parse();
 
     let mut source = String::new();
     File::open(&file)
@@ -56,16 +58,16 @@ fn main() {
         std::process::exit(1);
     }
 
-    // let mut compiler = Compiler::new(&ast);
+    let mut compiler = Compiler::new(&ast);
 
-    // let mut bytecode_modules = compiler.compile();
+    let mut bytecode_modules = compiler.compile();
 
-    // if emit_bytecode {
-    //     for module in &bytecode_modules {
-    //         println!("{}", module);
-    //     }
-    // }
+    if emit_bytecode {
+        for module in &bytecode_modules {
+            println!("{}", module);
+        }
+    }
 
-    // let mut stdout = std::io::stdout();
-    // Vm::new(bytecode_modules.remove(0), &mut stdout).run();
+    let mut stdout = std::io::stdout();
+    Vm::new(bytecode_modules.remove(0), &mut stdout).run();
 }
