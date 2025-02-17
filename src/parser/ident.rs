@@ -29,39 +29,31 @@ impl<'src> Parser<'src> {
             _ => Err(Spanned::new(ParserError::ExpectedType, self.current_span())),
         }
     }
-
-    // pub fn eat_ident(&mut self, expected: TokenKind) -> Result<Ident<'src>, Spanned<ParserError>> {
-    //     match self.eat()? {
-    //         Token { kind: TokenKind::Ident, span } => {
-    //             Ok(Ident { name: &self.source.as_str()[span.to_range()], span })
-    //         }
-    //         Token { kind, span } => {
-    //             self.error(ParserError::ExpectedToken { expected, found: kind }, span);
-    //             None
-    //         }
-    //     }
-    // }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use test_log::test;
-//
-//     #[test]
-//     fn ident() {
-//         check_parser! {
-//             source: "a",
-//             fn: parse_ident,
-//             expected: Some(Ident { name: "a", span: span!(0, 1) })
-//         };
-//     }
+#[cfg(test)]
+mod tests {
+    use test_log::test;
 
-//     #[test]
-//     fn ident_invalid() {
-//         check_parser! {
-//             source: "1",
-//             fn: parse_ident,
-//             expected: None
-//         };
-//     }
-// }
+    use crate::{ast::Ident, check_parser, parser::error::ParserError, source::Spanned, span};
+
+    #[test]
+    fn ident() {
+        check_parser! {
+            source: "a",
+            fn: parse_ident,
+            expected: Ok(Ident { name: "a", span: span!(0, 1) }),
+            expected_errors: vec![]
+        };
+    }
+
+    #[test]
+    fn ident_invalid() {
+        check_parser! {
+            source: "1",
+            fn: parse_ident,
+            expected: Err(Spanned::new(ParserError::ExpectedIdent, span!(0, 1))),
+            expected_errors: vec![]
+        };
+    }
+}
