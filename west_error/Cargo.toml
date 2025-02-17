@@ -1,7 +1,0 @@
-[package]
-name = "west_error"
-version.workspace = true
-edition.workspace = true
-
-[dependencies]
-miette.workspace = true

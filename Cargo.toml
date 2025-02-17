@@ -1,31 +1,20 @@
-[workspace]
-members = [
-    "ast",
-    "west_error",
-    "lexer",
-    "parser",
-    "typechecker",
-    "west",
-    "backend/compiler",
-    "backend/vm",
-    "backend/bytecode",
-]
-resolver = "2"
-
-[workspace.package]
+[package]
+name = "west"
 version = "0.1.0"
 edition = "2021"
 
-[workspace.dependencies]
-west_error = { path = "west_error" }
-typechecker = { path = "typechecker" }
-ast = { path = "ast" }
-parser = { path = "parser" }
-lexer = { path = "lexer" }
+[lib]
+doctest = false
 
-compiler = { path = "backend/compiler" }
-vm = { path = "backend/vm" }
-bytecode = { path = "backend/bytecode" }
+[dependencies]
+clap = { version = "4.5.28", features = ["derive"] }
 
+# Error handling.
 thiserror = { version = "2" }
-miette = { version = "7.4.0", features = ["fancy"] }
+ariadne = "0.5.0"
+
+tracing = "0.1.41"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[dev-dependencies]
+test-log = "0.2.17"
