@@ -75,12 +75,12 @@ macro_rules! span {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Spanned<T> {
+pub struct Spanned<T: Clone> {
     pub value: T,
     pub span: Span,
 }
 
-impl<T> Spanned<T> {
+impl<T: Clone> Spanned<T> {
     pub fn new(value: T, span: Span) -> Self {
         Self { value, span }
     }

@@ -1,4 +1,8 @@
-use crate::ast::Module;
+use crate::{
+    ast::Module,
+    lexer::token::{Keyword, TokenKind},
+    source::Spanned,
+};
 
 use super::{Parser, error::ParserError};
 
@@ -7,15 +11,52 @@ impl<'src> Parser<'src> {
     pub fn parse_module(&mut self) -> Module<'src> {
         let mut items = Vec::new();
 
-        while let Ok(item) = self.parse_item() {
-            items.push(item);
+        loop {
+            if self.at_eof() {
+                break;
+            }
+
+            match self.parse_item() {
+                Ok(item) => items.push(item),
+                Err(error) => {
+                    self.errors.push(error);
+                    if let Err(err) = self.skip_to_next_item() {
+                        self.errors.push(err);
+                    };
+                }
+            }
         }
 
         if !self.at_eof() {
-            self.error_here(ParserError::ExpectedEofOrItem);
+            self.error_here(ParserError::ExpectedItem);
         }
 
         Module { items }
+    }
+
+    fn skip_to_next_item(&mut self) -> Result<(), Spanned<ParserError>> {
+        let mut current_scope_depth = self.scope_depth;
+        while current_scope_depth > 0 {
+            if self.eat()?.kind == TokenKind::BraceClose {
+                current_scope_depth -= 1;
+            }
+        }
+
+        while let Some(token) = self.lexer.peek() {
+            match token {
+                Ok(token) => match token.kind {
+                    TokenKind::Keyword(Keyword::Fn) => {
+                        break;
+                    }
+                    _ => {
+                        self.eat()?;
+                    }
+                },
+                Err(err) => return Err(err.clone().into()),
+            }
+        }
+
+        Ok(())
     }
 }
 
@@ -99,9 +140,19 @@ mod tests {
         check_parser! {
             source: r#"1.0; fn a() {}"#,
             fn: parse_module,
-            expected: Module { items: vec![] },
+            expected: Module { items: vec![
+                Item {
+                    kind: ItemKind::Fn(Fn {
+                        name: Ident { span: span!(8, 9), name: "a" },
+                        params: vec![],
+                        return_type: None,
+                        body: Block { statements: vec![], span: span!(12, 14) }
+                    }),
+                    span: span!(5, 14)
+                }
+            ] },
             expected_errors: vec![
-                Spanned::new(ParserError::ExpectedEofOrItem, span!(0, 3))
+                Spanned::new(ParserError::ExpectedItem, span!(0, 3))
             ]
         };
     }
@@ -123,7 +174,7 @@ mod tests {
                 }
             ] },
             expected_errors: vec![
-                Spanned::new(ParserError::ExpectedEofOrItem, span!(8, 11)),
+                Spanned::new(ParserError::ExpectedItem, span!(8, 11)),
             ]
         };
     }
@@ -144,7 +195,7 @@ mod tests {
                     span: span!(0, 9)
                 }
             ] },
-            expected_errors: vec![Spanned::new(ParserError::ExpectedEofOrItem, span!(10, 13))]
+            expected_errors: vec![Spanned::new(ParserError::ExpectedItem, span!(10, 13))]
         };
     }
 
@@ -154,7 +205,39 @@ mod tests {
             source: r#"1.0"#,
             fn: parse_module,
             expected: Module { items: vec![] },
-            expected_errors: vec![Spanned::new(ParserError::ExpectedEofOrItem, span!(0, 3))]
+            expected_errors: vec![Spanned::new(ParserError::ExpectedItem, span!(0, 3))]
+        };
+    }
+
+    #[test]
+    fn module_multiple_item_errors() {
+        check_parser! {
+            source: r#"1.0; fn a() {} 1.0; fn b() {}"#,
+            fn: parse_module,
+            expected: Module { items: vec![
+                Item {
+                    kind: ItemKind::Fn(Fn {
+                        name: Ident { span: span!(8, 9), name: "a" },
+                        params: vec![],
+                        return_type: None,
+                        body: Block { statements: vec![], span: span!(12, 14) }
+                    }),
+                    span: span!(5, 14)
+                },
+                Item {
+                    kind: ItemKind::Fn(Fn {
+                        name: Ident { span: span!(23, 24), name: "b" },
+                        params: vec![],
+                        return_type: None,
+                        body: Block { statements: vec![], span: span!(27, 29) }
+                    }),
+                    span: span!(20, 29)
+                }
+            ] },
+            expected_errors: vec![
+                Spanned::new(ParserError::ExpectedItem, span!(0, 3)),
+                Spanned::new(ParserError::ExpectedItem, span!(15, 18)),
+            ]
         };
     }
 }

@@ -626,6 +626,11 @@ mod tests {
     }
 
     #[test]
+    fn infix_incomplete() {
+        check(r#"1 + "#, Err(Spanned::new(ParserError::UnexpectedEof, span!(4, 4))));
+    }
+
+    #[test]
     fn fn_call_no_args() {
         check(
             r#"test()"#,

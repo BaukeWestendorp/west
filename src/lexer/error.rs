@@ -5,7 +5,7 @@ use crate::{
     source::{Span, Spanned},
 };
 
-#[derive(Debug, PartialEq, thiserror::Error)]
+#[derive(Debug, Clone, PartialEq, thiserror::Error)]
 pub enum LexerError {
     #[error("invalid character: {0}")]
     InvalidCharacter(char),

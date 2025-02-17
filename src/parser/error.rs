@@ -5,7 +5,7 @@ use crate::{
 
 use ariadne::{Label, Report, ReportKind};
 
-#[derive(Debug, PartialEq, thiserror::Error)]
+#[derive(Debug, Clone, PartialEq, thiserror::Error)]
 pub enum ParserError {
     #[error("{0}")]
     LexerError(#[from] LexerError),
@@ -28,9 +28,6 @@ pub enum ParserError {
     #[error("expected EOF")]
     ExpectedEof,
 
-    #[error("expected EOF or item")]
-    ExpectedEofOrItem,
-
     #[error("expected item")]
     ExpectedItem,
 
@@ -51,7 +48,6 @@ impl ParserError {
             Self::ExpectedIdent => "expected-ident",
             Self::ExpectedType => "expected-type",
             Self::ExpectedEof => "expected-eof",
-            Self::ExpectedEofOrItem => "expected-eof-or-item",
             Self::ExpectedItem => "expected-item",
             Self::UnexpectedEof => "unexpected-eof",
         }

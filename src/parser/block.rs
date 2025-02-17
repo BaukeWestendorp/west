@@ -8,6 +8,7 @@ use super::error::ParserError;
 impl<'src> Parser<'src> {
     #[tracing::instrument(level = "trace", skip(self))]
     pub fn parse_block(&mut self) -> Result<Block<'src>, Spanned<ParserError>> {
+        self.scope_depth += 1;
         let span_start = self.span_start();
         self.eat_expected(TokenKind::BraceOpen)?;
         let mut statements = Vec::new();
@@ -15,6 +16,7 @@ impl<'src> Parser<'src> {
             statements.push(statement);
         }
         self.eat_expected(TokenKind::BraceClose)?;
+        self.scope_depth -= 1;
         Ok(Block { statements, span: self.end_span(span_start) })
     }
 }

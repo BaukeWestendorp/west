@@ -30,6 +30,8 @@ pub struct Parser<'src> {
 
     prev_span: Span,
 
+    scope_depth: u32,
+
     errors: Vec<Spanned<ParserError>>,
 }
 
@@ -41,6 +43,8 @@ impl<'src> Parser<'src> {
             ast: Ast::new(),
 
             prev_span: Span::new(0, 0),
+
+            scope_depth: 0,
 
             errors: Vec::new(),
         }
