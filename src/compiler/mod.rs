@@ -120,6 +120,17 @@ impl<'src> ModuleCompiler<'src> {
             StmtKind::Expr(expr) => {
                 self.compile_expr(expr);
             }
+            StmtKind::Assignment { target, value } => {
+                let value_reg = self.compile_expr(value);
+
+                let target = match &target.kind {
+                    ExprKind::Ident(ident) => ident.as_str(),
+                    _ => todo!("invalid assignment target"),
+                };
+
+                let target_reg = self.get_local(target).reg;
+                self.push(Opcode::Load { value: value_reg.into(), dest: target_reg });
+            }
             StmtKind::Print { value } => {
                 let value_reg = self.compile_expr(value);
                 self.push(Opcode::Print { value: value_reg.into() });
