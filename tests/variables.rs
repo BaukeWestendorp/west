@@ -1,7 +1,7 @@
 mod common;
 
 #[test]
-fn print_statement() {
+fn print_stmt() {
     expect_output_for! {
         source: r#"
             fn main() {

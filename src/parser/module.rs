@@ -82,7 +82,7 @@ mod tests {
                             name: Ident { span: span!(3, 7), name: "main" },
                             params: vec![],
                             return_type: None,
-                            body: Block { statements: vec![], span: span!(10, 12) },
+                            body: Block { stmts: vec![], span: span!(10, 12) },
                         }),
                         span: span!(0, 12)
                     }
@@ -116,7 +116,7 @@ mod tests {
                             name: Ident { span: span!(3, 4), name: "a" },
                             params: vec![],
                             return_type: None,
-                            body: Block { statements: vec![], span: span!(7, 9) }
+                            body: Block { stmts: vec![], span: span!(7, 9) }
                         }),
                         span: span!(0, 9)
                     },
@@ -125,7 +125,7 @@ mod tests {
                             name: Ident { span: span!(13, 14), name: "b" },
                             params: vec![],
                             return_type: None,
-                            body: Block { statements: vec![], span: span!(17, 19) },
+                            body: Block { stmts: vec![], span: span!(17, 19) },
                         }),
                         span: span!(10, 19)
                     }
@@ -146,7 +146,7 @@ mod tests {
                         name: Ident { span: span!(8, 9), name: "a" },
                         params: vec![],
                         return_type: None,
-                        body: Block { statements: vec![], span: span!(12, 14) }
+                        body: Block { stmts: vec![], span: span!(12, 14) }
                     }),
                     span: span!(5, 14)
                 }
@@ -168,7 +168,7 @@ mod tests {
                         name: Ident { span: span!(3, 4), name: "a" },
                         params: vec![],
                         return_type: None,
-                        body: Block { statements: vec![], span: span!(5, 7) }
+                        body: Block { stmts: vec![], span: span!(5, 7) }
                     }),
                     span: span!(0, 7)
                 }
@@ -190,7 +190,7 @@ mod tests {
                         name: Ident { span: span!(3, 4), name: "a" },
                         params: vec![],
                         return_type: None,
-                        body: Block { statements: vec![], span: span!(7, 9) }
+                        body: Block { stmts: vec![], span: span!(7, 9) }
                     }),
                     span: span!(0, 9)
                 }
@@ -220,7 +220,7 @@ mod tests {
                         name: Ident { span: span!(8, 9), name: "a" },
                         params: vec![],
                         return_type: None,
-                        body: Block { statements: vec![], span: span!(12, 14) }
+                        body: Block { stmts: vec![], span: span!(12, 14) }
                     }),
                     span: span!(5, 14)
                 },
@@ -229,7 +229,7 @@ mod tests {
                         name: Ident { span: span!(23, 24), name: "b" },
                         params: vec![],
                         return_type: None,
-                        body: Block { statements: vec![], span: span!(27, 29) }
+                        body: Block { stmts: vec![], span: span!(27, 29) }
                     }),
                     span: span!(20, 29)
                 }

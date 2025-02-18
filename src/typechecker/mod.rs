@@ -4,7 +4,7 @@ use error::TypecheckerError;
 use crate::{
     ast::{
         Ast, Block, Expr, ExprKind, Fn, Ident, InfixOp, Item, ItemKind, LiteralKind, Module,
-        PrefixOp, Statement, StatementKind,
+        PrefixOp, Stmt, StmtKind,
     },
     source::{Span, Spanned},
     span,
@@ -126,12 +126,12 @@ impl<'src> Typechecker<'src> {
 
         let mut has_return = false;
 
-        for statement in &block.statements {
-            if let StatementKind::Return { .. } = &statement.kind {
+        for stmt in &block.stmts {
+            if let StmtKind::Return { .. } = &stmt.kind {
                 has_return = true;
             }
 
-            self.check_statement(statement, return_type_span);
+            self.check_stmt(stmt, return_type_span);
         }
 
         if !has_return {
@@ -143,13 +143,13 @@ impl<'src> Typechecker<'src> {
         self.exit_scope();
     }
 
-    pub fn check_statement(&mut self, statement: &'src Statement<'src>, return_type_span: Span) {
-        self.current_span = statement.span;
-        match &statement.kind {
-            StatementKind::Expr(expr) => {
+    pub fn check_stmt(&mut self, stmt: &'src Stmt<'src>, return_type_span: Span) {
+        self.current_span = stmt.span;
+        match &stmt.kind {
+            StmtKind::Expr(expr) => {
                 self.check_expr_type(expr).map_err(|err| self.errors.push(err)).ok();
             }
-            StatementKind::Let { name, value } => {
+            StmtKind::Let { name, value } => {
                 let ty = match self.check_expr_type(value) {
                     Ok(ty) => ty,
                     Err(err) => {
@@ -159,7 +159,7 @@ impl<'src> Typechecker<'src> {
                 };
                 self.locals.push(Local { name: name.clone(), ty, depth: self.depth });
             }
-            StatementKind::Return { value } => match (self.expected_return_type, value) {
+            StmtKind::Return { value } => match (self.expected_return_type, value) {
                 (Some(expected), Some(value)) => {
                     let ty = match self.check_expr_type(value) {
                         Ok(ty) => ty,
@@ -175,7 +175,7 @@ impl<'src> Typechecker<'src> {
                     }
                 }
                 (Some(expected), _) => {
-                    self.error(TypecheckerError::MissingReturnValue { expected }, statement.span);
+                    self.error(TypecheckerError::MissingReturnValue { expected }, stmt.span);
                 }
                 (_, Some(value)) => {
                     let span = value.span;
@@ -183,7 +183,7 @@ impl<'src> Typechecker<'src> {
                 }
                 (_, _) => {}
             },
-            StatementKind::IfElse { condition, then_block, else_block } => {
+            StmtKind::IfElse { condition, then_block, else_block } => {
                 let condition_ty = match self.check_expr_type(condition) {
                     Ok(ty) => ty,
                     Err(err) => {
@@ -206,13 +206,13 @@ impl<'src> Typechecker<'src> {
                     self.check_block(else_block, return_type_span);
                 }
             }
-            StatementKind::Print { value } => {
+            StmtKind::Print { value } => {
                 self.check_expr_type(value).map_err(|err| self.errors.push(err)).ok();
             }
-            StatementKind::Loop { body } => {
+            StmtKind::Loop { body } => {
                 self.check_block(body, return_type_span);
             }
-            StatementKind::While { condition, body } => {
+            StmtKind::While { condition, body } => {
                 let condition_ty = match self.check_expr_type(condition) {
                     Ok(ty) => ty,
                     Err(err) => {

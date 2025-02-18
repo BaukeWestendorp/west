@@ -79,7 +79,7 @@ mod tests {
                     name: Ident { name: "a", span: span!(3, 4) },
                     params: vec![],
                     return_type: None,
-                    body: Block { statements: vec![], span: span!(7, 9) } }
+                    body: Block { stmts: vec![], span: span!(7, 9) } }
                 ),
                 span: span!(0, 9)
             }),
@@ -97,7 +97,7 @@ mod tests {
                     name: Ident { name: "a", span: span!(3, 4) },
                     params: vec![],
                     return_type: None,
-                    body: Block { statements: vec![], span: span!(5, 7) } }
+                    body: Block { stmts: vec![], span: span!(5, 7) } }
                 ),
                 span: span!(0, 7)
             }),
@@ -115,7 +115,7 @@ mod tests {
                     name: Ident { name: "a_very_long_name_here", span: span!(3, 24) },
                     params: vec![],
                     return_type: None,
-                    body: Block { statements: vec![], span: span!(27, 29) } }
+                    body: Block { stmts: vec![], span: span!(27, 29) } }
                 ),
                 span: span!(0, 29),
             }),
@@ -133,7 +133,7 @@ mod tests {
                     name: Ident { name: "a", span: span!(3, 4) },
                     params: vec![],
                     return_type: Some(Ident { name: "int", span: span!(8, 11) }),
-                    body: Block { statements: vec![], span: span!(12, 14) } }
+                    body: Block { stmts: vec![], span: span!(12, 14) } }
                 ),
                 span: span!(0, 14),
             }),
@@ -171,7 +171,7 @@ mod tests {
                     name: Ident { name: "a", span: span!(3, 4) },
                     params: vec![FnParam { name: Ident { name: "x", span: span!(5, 6) }, ty: Ident { name: "int", span: span!(8, 11) }}],
                     return_type: None,
-                    body: Block { statements: vec![], span: span!(13, 15) } }
+                    body: Block { stmts: vec![], span: span!(13, 15) } }
                 ),
                 span: span!(0, 15)
             }),
@@ -192,7 +192,7 @@ mod tests {
                         FnParam { name: Ident { name: "y", span: span!(13, 14) }, ty: Ident { name: "str", span: span!(16, 19) }}
                     ],
                     return_type: None,
-                    body: Block { statements: vec![], span: span!(21, 23) } }
+                    body: Block { stmts: vec![], span: span!(21, 23) } }
                 ),
                 span: span!(0, 23)
             }),

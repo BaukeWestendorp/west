@@ -25,7 +25,7 @@ pub enum TypecheckerError {
     UnknownType { ident: String },
 
     #[error("expected return statement")]
-    ExpectedReturnStatement,
+    ExpectedReturnStmt,
 
     #[error("invalid return type: expected {expected}, got {ty}")]
     InvalidReturnValue { expected: Ty, ty: Ty },
@@ -53,7 +53,7 @@ impl TypecheckerError {
             }
             TypecheckerError::UnknownVariable { .. } => "unknown-variable",
             TypecheckerError::UnknownType { .. } => "unknown-type",
-            TypecheckerError::ExpectedReturnStatement => "expected-return-statement",
+            TypecheckerError::ExpectedReturnStmt => "expected-return-stmt",
             TypecheckerError::InvalidReturnValue { .. } => "invalid-return-value",
             TypecheckerError::MissingReturnValue { .. } => "missing-return-value",
             TypecheckerError::UnexpectedReturnValue => "unexpected-return-value",

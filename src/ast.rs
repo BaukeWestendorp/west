@@ -50,13 +50,13 @@ pub struct FnParam<'src> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Block<'src> {
-    pub statements: Vec<Statement<'src>>,
+    pub stmts: Vec<Stmt<'src>>,
 
     pub span: Span,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum StatementKind<'src> {
+pub enum StmtKind<'src> {
     Expr(Expr<'src>),
 
     Let { name: Ident<'src>, value: Expr<'src> },
@@ -69,8 +69,8 @@ pub enum StatementKind<'src> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Statement<'src> {
-    pub kind: StatementKind<'src>,
+pub struct Stmt<'src> {
+    pub kind: StmtKind<'src>,
 
     pub span: Span,
 }

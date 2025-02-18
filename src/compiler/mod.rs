@@ -1,6 +1,6 @@
 use crate::ast::{
-    Ast, Block, Expr, ExprKind, Fn, InfixOp, ItemKind, LiteralKind, Module, PrefixOp, Statement,
-    StatementKind,
+    Ast, Block, Expr, ExprKind, Fn, InfixOp, ItemKind, LiteralKind, Module, PrefixOp, Stmt,
+    StmtKind,
 };
 use crate::bytecode::module::{BytecodeModule, Label};
 use crate::bytecode::opcode::Opcode;
@@ -106,8 +106,8 @@ impl<'src> ModuleCompiler<'src> {
 
     fn compile_block(&mut self, block: &Block<'src>) {
         self.enter_scope();
-        for statement in &block.statements {
-            self.compile_statement(statement);
+        for stmt in &block.stmts {
+            self.compile_stat(stmt);
             if !self.can_return_on_other_path && self.has_return {
                 break;
             }
@@ -115,21 +115,21 @@ impl<'src> ModuleCompiler<'src> {
         self.exit_scope();
     }
 
-    fn compile_statement(&mut self, statement: &Statement<'src>) {
-        match &statement.kind {
-            StatementKind::Expr(expr) => {
+    fn compile_stat(&mut self, stmt: &Stmt<'src>) {
+        match &stmt.kind {
+            StmtKind::Expr(expr) => {
                 self.compile_expr(expr);
             }
-            StatementKind::Print { value } => {
+            StmtKind::Print { value } => {
                 let value_reg = self.compile_expr(value);
                 self.push(Opcode::Print { value: value_reg.into() });
             }
-            StatementKind::Return { value } => {
+            StmtKind::Return { value } => {
                 let value_reg = value.as_ref().map(|v| RegOrImm::from(self.compile_expr(&v)));
                 self.push(Opcode::Return { value: value_reg });
                 self.has_return = true;
             }
-            StatementKind::IfElse { condition, then_block, else_block } => {
+            StmtKind::IfElse { condition, then_block, else_block } => {
                 let condition_reg = self.compile_expr(condition);
                 let else_label = self.add_label();
                 let end_label = self.add_label();
@@ -153,16 +153,16 @@ impl<'src> ModuleCompiler<'src> {
                 // Set the address of the end of the statement.
                 self.bc_module.set_label_address(end_label, self.ip);
             }
-            StatementKind::Let { name, value } => {
+            StmtKind::Let { name, value } => {
                 let value_reg = self.compile_expr(value);
                 self.locals.push(Local { depth: self.depth, name: name.as_str(), reg: value_reg });
             }
-            StatementKind::Loop { body } => {
+            StmtKind::Loop { body } => {
                 let loop_label = self.add_label();
                 self.compile_block(body);
                 self.push(Opcode::Jump { label: loop_label });
             }
-            StatementKind::While { condition, body } => {
+            StmtKind::While { condition, body } => {
                 let start_label = self.add_label();
                 let end_label = self.add_label();
 

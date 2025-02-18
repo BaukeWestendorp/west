@@ -11,13 +11,13 @@ impl<'src> Parser<'src> {
         self.scope_depth += 1;
         let span_start = self.span_start();
         self.eat_expected(TokenKind::BraceOpen)?;
-        let mut statements = Vec::new();
-        while let Some(statement) = self.parse_statement()? {
-            statements.push(statement);
+        let mut stmts = Vec::new();
+        while let Some(stmt) = self.parse_stmts()? {
+            stmts.push(stmt);
         }
         self.eat_expected(TokenKind::BraceClose)?;
         self.scope_depth -= 1;
-        Ok(Block { statements, span: self.end_span(span_start) })
+        Ok(Block { stmts, span: self.end_span(span_start) })
     }
 }
 
@@ -26,7 +26,7 @@ mod tests {
     use test_log::test;
 
     use crate::{
-        ast::{Block, Expr, ExprKind, Ident, Literal, LiteralKind, Statement, StatementKind},
+        ast::{Block, Expr, ExprKind, Ident, Literal, LiteralKind, Stmt, StmtKind},
         check_parser,
         parser::error::ParserError,
         source::Spanned,
@@ -38,7 +38,7 @@ mod tests {
         check_parser! {
             source: r#"{   }"#,
             fn: parse_block,
-            expected: Ok(Block{ statements:vec![], span: span!(0, 5) }),
+            expected: Ok(Block{ stmts:vec![], span: span!(0, 5) }),
             expected_errors: vec![]
         }
     }
@@ -54,13 +54,13 @@ mod tests {
     }
 
     #[test]
-    fn block_single_statement() {
+    fn block_single_stmt() {
         check_parser! {
             source: r#"{ let x = 1; }"#,
             fn: parse_block,
             expected: Ok(Block {
-                statements: vec![Statement {
-                    kind: StatementKind::Let {
+                stmts: vec![Stmt {
+                    kind: StmtKind::Let {
                         name: Ident { name: "x", span: span!(6, 7) },
                         value: Expr {
                             kind: ExprKind::Literal(Literal {
@@ -79,14 +79,14 @@ mod tests {
     }
 
     #[test]
-    fn block_multiple_statements() {
+    fn block_multiple_stmts() {
         check_parser! {
             source: r#"{ let xx = 1; let yyy = 2; }"#,
             fn: parse_block,
             expected: Ok(Block {
-                statements: vec![
-                    Statement {
-                        kind: StatementKind::Let {
+                stmts: vec![
+                    Stmt {
+                        kind: StmtKind::Let {
                             name: Ident { name: "xx", span: span!(6, 8) },
                             value: Expr {
                                 kind: ExprKind::Literal(Literal {
@@ -98,8 +98,8 @@ mod tests {
                         },
                         span: span!(2, 13)
                     },
-                    Statement {
-                        kind: StatementKind::Let {
+                    Stmt {
+                        kind: StmtKind::Let {
                             name: Ident { name: "yyy", span: span!(18, 21) },
                             value: Expr {
                                 kind: ExprKind::Literal(Literal {
