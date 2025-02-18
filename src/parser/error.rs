@@ -33,6 +33,9 @@ pub enum ParserError {
 
     #[error("unexpected EOF")]
     UnexpectedEof,
+
+    #[error("expected assignment target")]
+    InvalidAssignmentTarget,
 }
 
 impl ParserError {
@@ -42,6 +45,7 @@ impl ParserError {
                 LexerError::InvalidCharacter(_) => "invalid-character",
                 LexerError::UnknownKeyword(_) => "unknown-keyword",
             },
+
             Self::ExpectedBlock => "expected-block",
             Self::ExpectedExpr => "expected-expr",
             Self::ExpectedToken { .. } => "expected-token",
@@ -50,6 +54,8 @@ impl ParserError {
             Self::ExpectedEof => "expected-eof",
             Self::ExpectedItem => "expected-item",
             Self::UnexpectedEof => "unexpected-eof",
+
+            Self::InvalidAssignmentTarget => "invalid-assignment-target",
         }
     }
 }

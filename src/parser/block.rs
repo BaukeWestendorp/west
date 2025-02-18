@@ -12,7 +12,7 @@ impl<'src> Parser<'src> {
         let span_start = self.span_start();
         self.eat_expected(TokenKind::BraceOpen)?;
         let mut stmts = Vec::new();
-        while let Some(stmt) = self.parse_stmts()? {
+        while let Some(stmt) = self.parse_stmt()? {
             stmts.push(stmt);
         }
         self.eat_expected(TokenKind::BraceClose)?;

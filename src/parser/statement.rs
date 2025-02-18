@@ -1,4 +1,4 @@
-use crate::ast::{Stmt, StmtKind};
+use crate::ast::{Expr, ExprKind, Stmt, StmtKind};
 use crate::lexer::token::{Keyword, TokenKind};
 use crate::source::Spanned;
 
@@ -7,10 +7,22 @@ use super::error::ParserError;
 
 impl<'src> Parser<'src> {
     #[tracing::instrument(level = "trace", skip(self))]
-    pub fn parse_stmts(&mut self) -> Result<Option<Stmt<'src>>, Spanned<ParserError>> {
-        if let Some(expr_stmt) = self.parse_stmt_expr()? {
-            Ok(Some(expr_stmt))
-        } else if let Some(let_stmt) = self.parse_stmt_let()? {
+    pub fn parse_stmt(&mut self) -> Result<Option<Stmt<'src>>, Spanned<ParserError>> {
+        let span_start = self.span_start();
+
+        if let Some(expr) = self.parse_expr()? {
+            if let Some(assignment_stmt) = self.parse_stmt_assignment(&expr, span_start)? {
+                return Ok(Some(assignment_stmt));
+            } else {
+                self.eat_expected(TokenKind::Semi)?;
+                return Ok(Some(Stmt {
+                    kind: StmtKind::Expr(expr),
+                    span: self.end_span(span_start),
+                }));
+            }
+        }
+
+        if let Some(let_stmt) = self.parse_stmt_let()? {
             Ok(Some(let_stmt))
         } else if let Some(if_else_stmt) = self.parse_stmt_if_else()? {
             Ok(Some(if_else_stmt))
@@ -27,15 +39,29 @@ impl<'src> Parser<'src> {
         }
     }
 
-    pub fn parse_stmt_expr(&mut self) -> Result<Option<Stmt<'src>>, Spanned<ParserError>> {
-        let span_start = self.span_start();
-        let expr = self.parse_expr()?;
-        if let Some(expr) = expr {
-            self.eat_expected(TokenKind::Semi)?;
-            Ok(Some(Stmt { kind: StmtKind::Expr(expr), span: self.end_span(span_start) }))
-        } else {
-            Ok(None)
+    pub fn parse_stmt_assignment(
+        &mut self,
+        target: &Expr<'src>,
+        span_start: usize,
+    ) -> Result<Option<Stmt<'src>>, Spanned<ParserError>> {
+        if !self.try_eat_expected(TokenKind::Eq) {
+            return Ok(None);
         }
+
+        if !is_valid_assignment_target(&target) {
+            return Err(Spanned::new(ParserError::InvalidAssignmentTarget, target.span));
+        }
+
+        let value = self
+            .parse_expr()?
+            .ok_or(Spanned::new(ParserError::ExpectedExpr, self.current_span()))?;
+
+        self.eat_expected(TokenKind::Semi)?;
+
+        Ok(Some(Stmt {
+            kind: StmtKind::Assignment { target: target.clone(), value },
+            span: self.end_span(span_start),
+        }))
     }
 
     pub fn parse_stmt_let(&mut self) -> Result<Option<Stmt<'src>>, Spanned<ParserError>> {
@@ -135,19 +161,25 @@ impl<'src> Parser<'src> {
     }
 }
 
+fn is_valid_assignment_target(expr: &Expr) -> bool {
+    matches!(&expr.kind, ExprKind::Ident(_))
+}
+
 #[cfg(test)]
 mod tests {
     use test_log::test;
 
     use crate::ast::{Block, Expr, ExprKind, Ident, Literal, LiteralKind, Stmt, StmtKind};
 
+    use crate::parser::error::ParserError;
+    use crate::source::Spanned;
     use crate::{check_parser, span};
 
     #[test]
     fn semicolon_only() {
         check_parser! {
-            source: ";",
-            fn: parse_stmts,
+            source: r#";"#,
+            fn: parse_stmt,
             expected: Ok(None),
             expected_errors: vec![]
         };
@@ -156,8 +188,8 @@ mod tests {
     #[test]
     fn expr() {
         check_parser! {
-            source: "1.0;",
-            fn: parse_stmts,
+            source: r#"1.0;"#,
+            fn: parse_stmt,
             expected: Ok(Some(Stmt {
                 kind: StmtKind::Expr(Expr {
                     kind: ExprKind::Literal(Literal { kind: LiteralKind::Float(1.0), span: span!(0, 3)}),
@@ -170,10 +202,42 @@ mod tests {
     }
 
     #[test]
+    fn assignment() {
+        check_parser! {
+            source: r#"x = 1.0;"#,
+            fn: parse_stmt,
+            expected: Ok(Some(Stmt {
+                kind: StmtKind::Assignment {
+                    target: Expr {
+                        kind: ExprKind::Ident(Ident { name: "x", span: span!(0, 1) }),
+                        span: span!(0, 1),
+                    },
+                    value: Expr {
+                        kind: ExprKind::Literal(Literal { kind: LiteralKind::Float(1.0), span: span!(4, 7)}),
+                        span: span!(4, 7),
+                    },
+                },
+                span: span!(0, 8),
+            })),
+            expected_errors: vec![]
+        };
+    }
+
+    #[test]
+    fn assignment_invalid_target() {
+        check_parser! {
+            source: r#"1.0 = 1.0;"#,
+            fn: parse_stmt,
+            expected: Err(Spanned::new(ParserError::InvalidAssignmentTarget, span!(0, 3))),
+            expected_errors: vec![]
+        };
+    }
+
+    #[test]
     fn r#let() {
         check_parser! {
             source: r#"let x = 1.0;"#,
-            fn: parse_stmts,
+            fn: parse_stmt,
             expected: Ok(Some(Stmt {
                 kind: StmtKind::Let { name: Ident { name: "x", span: span!(4, 5) } , value: Expr {
                     kind: ExprKind::Literal(Literal { kind: LiteralKind::Float(1.0), span: span!(8, 11)}),
@@ -189,7 +253,7 @@ mod tests {
     fn print() {
         check_parser! {
             source: r#"print 1;"#,
-            fn: parse_stmts,
+            fn: parse_stmt,
             expected: Ok(Some(Stmt {
                 kind: StmtKind::Print { value: Expr {
                     kind: ExprKind::Literal(Literal { kind: LiteralKind::Int(1), span: span!(6, 7)}),
@@ -205,7 +269,7 @@ mod tests {
     fn return_empty() {
         check_parser! {
             source: r#"return;"#,
-            fn: parse_stmts,
+            fn: parse_stmt,
             expected: Ok(Some(Stmt {
                 kind: StmtKind::Return { value: None },
                 span: span!(0, 7),
@@ -218,7 +282,7 @@ mod tests {
     fn return_expr() {
         check_parser! {
             source: r#"return 1;"#,
-            fn: parse_stmts,
+            fn: parse_stmt,
             expected: Ok(Some(Stmt {
                 kind: StmtKind::Return { value: Some(Expr {
                     kind: ExprKind::Literal(Literal { kind: LiteralKind::Int(1), span: span!(7, 8)}),
@@ -234,7 +298,7 @@ mod tests {
     fn r#loop() {
         check_parser! {
             source: r#"loop {}"#,
-            fn: parse_stmts,
+            fn: parse_stmt,
             expected: Ok(Some(Stmt {
                 kind: StmtKind::Loop { body: Block { stmts: vec![], span: span!(5, 7) } },
                 span: span!(0, 7),
@@ -247,7 +311,7 @@ mod tests {
     fn r#while() {
         check_parser! {
             source: r#"while true {}"#,
-            fn: parse_stmts,
+            fn: parse_stmt,
             expected: Ok(Some(Stmt {
                 kind: StmtKind::While {
                     condition: Expr {
@@ -266,7 +330,7 @@ mod tests {
     fn r#if() {
         check_parser! {
             source: r#"if true {}"#,
-            fn: parse_stmts,
+            fn: parse_stmt,
             expected: Ok(Some(Stmt {
                 kind: StmtKind::IfElse {
                     condition: Expr {
@@ -286,7 +350,7 @@ mod tests {
     fn if_else() {
         check_parser! {
             source: r#"if true {} else {}"#,
-            fn: parse_stmts,
+            fn: parse_stmt,
             expected: Ok(Some(Stmt {
                 kind: StmtKind::IfElse {
                     condition: Expr {

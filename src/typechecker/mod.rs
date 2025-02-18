@@ -149,6 +149,10 @@ impl<'src> Typechecker<'src> {
             StmtKind::Expr(expr) => {
                 self.check_expr_type(expr).map_err(|err| self.errors.push(err)).ok();
             }
+            StmtKind::Assignment { target, value } => {
+                self.check_expr_type(target).map_err(|err| self.errors.push(err)).ok();
+                self.check_expr_type(value).map_err(|err| self.errors.push(err)).ok();
+            }
             StmtKind::Let { name, value } => {
                 let ty = match self.check_expr_type(value) {
                     Ok(ty) => ty,

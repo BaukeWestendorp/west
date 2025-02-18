@@ -59,6 +59,8 @@ pub struct Block<'src> {
 pub enum StmtKind<'src> {
     Expr(Expr<'src>),
 
+    Assignment { target: Expr<'src>, value: Expr<'src> },
+
     Let { name: Ident<'src>, value: Expr<'src> },
     Return { value: Option<Expr<'src>> },
     Print { value: Expr<'src> },
