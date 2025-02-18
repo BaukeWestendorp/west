@@ -12,7 +12,7 @@ use crate::{
 };
 
 mod block;
-mod expression;
+mod expr;
 mod ident;
 mod item;
 mod literal;

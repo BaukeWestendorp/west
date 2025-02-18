@@ -8,7 +8,7 @@ use super::error::ParserError;
 impl<'src> Parser<'src> {
     #[tracing::instrument(level = "trace", skip(self))]
     pub fn parse_statement(&mut self) -> Result<Option<Statement<'src>>, Spanned<ParserError>> {
-        if let Some(expr_statement) = self.parse_statement_expression()? {
+        if let Some(expr_statement) = self.parse_statement_expr()? {
             Ok(Some(expr_statement))
         } else if let Some(let_statement) = self.parse_statement_let()? {
             Ok(Some(let_statement))
@@ -27,17 +27,14 @@ impl<'src> Parser<'src> {
         }
     }
 
-    pub fn parse_statement_expression(
+    pub fn parse_statement_expr(
         &mut self,
     ) -> Result<Option<Statement<'src>>, Spanned<ParserError>> {
         let span_start = self.span_start();
-        let expression = self.parse_expression()?;
-        if let Some(expression) = expression {
+        let expr = self.parse_expr()?;
+        if let Some(expr) = expr {
             self.eat_expected(TokenKind::Semi)?;
-            Ok(Some(Statement {
-                kind: StatementKind::Expression(expression),
-                span: self.end_span(span_start),
-            }))
+            Ok(Some(Statement { kind: StatementKind::Expr(expr), span: self.end_span(span_start) }))
         } else {
             Ok(None)
         }
@@ -53,8 +50,8 @@ impl<'src> Parser<'src> {
         let name = self.parse_ident()?;
         self.eat_expected(TokenKind::Eq)?;
         let value = self
-            .parse_expression()?
-            .ok_or(Spanned::new(ParserError::ExpectedExpression, self.current_span()))?;
+            .parse_expr()?
+            .ok_or(Spanned::new(ParserError::ExpectedExpr, self.current_span()))?;
 
         self.eat_expected(TokenKind::Semi)?;
         Ok(Some(Statement {
@@ -73,8 +70,8 @@ impl<'src> Parser<'src> {
         }
 
         let condition = self
-            .parse_expression()?
-            .ok_or(Spanned::new(ParserError::ExpectedExpression, self.current_span()))?;
+            .parse_expr()?
+            .ok_or(Spanned::new(ParserError::ExpectedExpr, self.current_span()))?;
 
         let then_block = self.parse_block()?;
 
@@ -99,8 +96,8 @@ impl<'src> Parser<'src> {
         }
 
         let value = self
-            .parse_expression()?
-            .ok_or(Spanned::new(ParserError::ExpectedExpression, self.current_span()))?;
+            .parse_expr()?
+            .ok_or(Spanned::new(ParserError::ExpectedExpr, self.current_span()))?;
 
         self.eat_expected(TokenKind::Semi)?;
         Ok(Some(Statement {
@@ -118,7 +115,7 @@ impl<'src> Parser<'src> {
             return Ok(None);
         }
 
-        let value = self.parse_expression()?;
+        let value = self.parse_expr()?;
         self.eat_expected(TokenKind::Semi)?;
         Ok(Some(Statement {
             kind: StatementKind::Return { value },
@@ -149,8 +146,8 @@ impl<'src> Parser<'src> {
         }
 
         let condition = self
-            .parse_expression()?
-            .ok_or(Spanned::new(ParserError::ExpectedExpression, self.current_span()))?;
+            .parse_expr()?
+            .ok_or(Spanned::new(ParserError::ExpectedExpr, self.current_span()))?;
         let body = self.parse_block()?;
         Ok(Some(Statement {
             kind: StatementKind::While { condition, body },
@@ -164,7 +161,7 @@ mod tests {
     use test_log::test;
 
     use crate::ast::{
-        Block, Expression, ExpressionKind, Ident, Literal, LiteralKind, Statement, StatementKind,
+        Block, Expr, ExprKind, Ident, Literal, LiteralKind, Statement, StatementKind,
     };
 
     use crate::{check_parser, span};
@@ -180,13 +177,13 @@ mod tests {
     }
 
     #[test]
-    fn expression() {
+    fn expr() {
         check_parser! {
             source: "1.0;",
             fn: parse_statement,
             expected: Ok(Some(Statement {
-                kind: StatementKind::Expression(Expression {
-                    kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Float(1.0), span: span!(0, 3)}),
+                kind: StatementKind::Expr(Expr {
+                    kind: ExprKind::Literal(Literal { kind: LiteralKind::Float(1.0), span: span!(0, 3)}),
                     span: span!(0, 3),
                 }),
                 span: span!(0, 4),
@@ -201,8 +198,8 @@ mod tests {
             source: r#"let x = 1.0;"#,
             fn: parse_statement,
             expected: Ok(Some(Statement {
-                kind: StatementKind::Let { name: Ident { name: "x", span: span!(4, 5) } , value: Expression {
-                    kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Float(1.0), span: span!(8, 11)}),
+                kind: StatementKind::Let { name: Ident { name: "x", span: span!(4, 5) } , value: Expr {
+                    kind: ExprKind::Literal(Literal { kind: LiteralKind::Float(1.0), span: span!(8, 11)}),
                     span: span!(8, 11),
                 } },
                 span: span!(0, 12),
@@ -217,8 +214,8 @@ mod tests {
             source: r#"print 1;"#,
             fn: parse_statement,
             expected: Ok(Some(Statement {
-                kind: StatementKind::Print { value: Expression {
-                    kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(1), span: span!(6, 7)}),
+                kind: StatementKind::Print { value: Expr {
+                    kind: ExprKind::Literal(Literal { kind: LiteralKind::Int(1), span: span!(6, 7)}),
                     span: span!(6, 7),
                 } },
                 span: span!(0, 8),
@@ -246,8 +243,8 @@ mod tests {
             source: r#"return 1;"#,
             fn: parse_statement,
             expected: Ok(Some(Statement {
-                kind: StatementKind::Return { value: Some(Expression {
-                    kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Int(1), span: span!(7, 8)}),
+                kind: StatementKind::Return { value: Some(Expr {
+                    kind: ExprKind::Literal(Literal { kind: LiteralKind::Int(1), span: span!(7, 8)}),
                     span: span!(7, 8),
                 }) },
                 span: span!(0, 9),
@@ -276,8 +273,8 @@ mod tests {
             fn: parse_statement,
             expected: Ok(Some(Statement {
                 kind: StatementKind::While {
-                    condition: Expression {
-                        kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Bool(true), span: span!(6, 10)}),
+                    condition: Expr {
+                        kind: ExprKind::Literal(Literal { kind: LiteralKind::Bool(true), span: span!(6, 10)}),
                         span: span!(6, 10),
                     },
                     body: Block { statements: vec![], span: span!(11, 13) },
@@ -295,8 +292,8 @@ mod tests {
             fn: parse_statement,
             expected: Ok(Some(Statement {
                 kind: StatementKind::IfElse {
-                    condition: Expression {
-                        kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Bool(true), span: span!(3, 7)}),
+                    condition: Expr {
+                        kind: ExprKind::Literal(Literal { kind: LiteralKind::Bool(true), span: span!(3, 7)}),
                         span: span!(3, 7),
                     },
                     then_block: Block { statements: vec![], span: span!(8, 10) },
@@ -315,8 +312,8 @@ mod tests {
             fn: parse_statement,
             expected: Ok(Some(Statement {
                 kind: StatementKind::IfElse {
-                    condition: Expression {
-                        kind: ExpressionKind::Literal(Literal { kind: LiteralKind::Bool(true), span: span!(3, 7)}),
+                    condition: Expr {
+                        kind: ExprKind::Literal(Literal { kind: LiteralKind::Bool(true), span: span!(3, 7)}),
                         span: span!(3, 7),
                     },
                     then_block: Block { statements: vec![], span: span!(8, 10) },

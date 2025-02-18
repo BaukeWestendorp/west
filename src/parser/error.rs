@@ -14,7 +14,7 @@ pub enum ParserError {
     ExpectedBlock,
 
     #[error("expected expression")]
-    ExpectedExpression,
+    ExpectedExpr,
 
     #[error("expected '{expected}', found '{found}'")]
     ExpectedToken { expected: TokenKind, found: TokenKind },
@@ -43,7 +43,7 @@ impl ParserError {
                 LexerError::UnknownKeyword(_) => "unknown-keyword",
             },
             Self::ExpectedBlock => "expected-block",
-            Self::ExpectedExpression => "expected-expression",
+            Self::ExpectedExpr => "expected-expr",
             Self::ExpectedToken { .. } => "expected-token",
             Self::ExpectedIdent => "expected-ident",
             Self::ExpectedType => "expected-type",

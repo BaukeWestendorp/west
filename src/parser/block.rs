@@ -26,10 +26,7 @@ mod tests {
     use test_log::test;
 
     use crate::{
-        ast::{
-            Block, Expression, ExpressionKind, Ident, Literal, LiteralKind, Statement,
-            StatementKind,
-        },
+        ast::{Block, Expr, ExprKind, Ident, Literal, LiteralKind, Statement, StatementKind},
         check_parser,
         parser::error::ParserError,
         source::Spanned,
@@ -65,8 +62,8 @@ mod tests {
                 statements: vec![Statement {
                     kind: StatementKind::Let {
                         name: Ident { name: "x", span: span!(6, 7) },
-                        value: Expression {
-                            kind: ExpressionKind::Literal(Literal {
+                        value: Expr {
+                            kind: ExprKind::Literal(Literal {
                                 kind: LiteralKind::Int(1),
                                 span: span!(10, 11)
                             }),
@@ -91,8 +88,8 @@ mod tests {
                     Statement {
                         kind: StatementKind::Let {
                             name: Ident { name: "xx", span: span!(6, 8) },
-                            value: Expression {
-                                kind: ExpressionKind::Literal(Literal {
+                            value: Expr {
+                                kind: ExprKind::Literal(Literal {
                                     kind: LiteralKind::Int(1),
                                     span: span!(11, 12)
                                 }),
@@ -104,8 +101,8 @@ mod tests {
                     Statement {
                         kind: StatementKind::Let {
                             name: Ident { name: "yyy", span: span!(18, 21) },
-                            value: Expression {
-                                kind: ExpressionKind::Literal(Literal {
+                            value: Expr {
+                                kind: ExprKind::Literal(Literal {
                                     kind: LiteralKind::Int(2),
                                     span: span!(24, 25)
                                 }),

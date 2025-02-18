@@ -3,8 +3,8 @@ use error::TypecheckerError;
 
 use crate::{
     ast::{
-        Ast, Block, Expression, ExpressionKind, Fn, Ident, InfixOp, Item, ItemKind, LiteralKind,
-        Module, PrefixOp, Statement, StatementKind,
+        Ast, Block, Expr, ExprKind, Fn, Ident, InfixOp, Item, ItemKind, LiteralKind, Module,
+        PrefixOp, Statement, StatementKind,
     },
     source::{Span, Spanned},
     span,
@@ -146,11 +146,11 @@ impl<'src> Typechecker<'src> {
     pub fn check_statement(&mut self, statement: &'src Statement<'src>, return_type_span: Span) {
         self.current_span = statement.span;
         match &statement.kind {
-            StatementKind::Expression(expression) => {
-                self.check_expression_type(expression).map_err(|err| self.errors.push(err)).ok();
+            StatementKind::Expr(expr) => {
+                self.check_expr_type(expr).map_err(|err| self.errors.push(err)).ok();
             }
             StatementKind::Let { name, value } => {
-                let ty = match self.check_expression_type(value) {
+                let ty = match self.check_expr_type(value) {
                     Ok(ty) => ty,
                     Err(err) => {
                         self.errors.push(err);
@@ -161,7 +161,7 @@ impl<'src> Typechecker<'src> {
             }
             StatementKind::Return { value } => match (self.expected_return_type, value) {
                 (Some(expected), Some(value)) => {
-                    let ty = match self.check_expression_type(value) {
+                    let ty = match self.check_expr_type(value) {
                         Ok(ty) => ty,
                         Err(err) => {
                             self.errors.push(err);
@@ -184,7 +184,7 @@ impl<'src> Typechecker<'src> {
                 (_, _) => {}
             },
             StatementKind::IfElse { condition, then_block, else_block } => {
-                let condition_ty = match self.check_expression_type(condition) {
+                let condition_ty = match self.check_expr_type(condition) {
                     Ok(ty) => ty,
                     Err(err) => {
                         self.errors.push(err);
@@ -207,13 +207,13 @@ impl<'src> Typechecker<'src> {
                 }
             }
             StatementKind::Print { value } => {
-                self.check_expression_type(value).map_err(|err| self.errors.push(err)).ok();
+                self.check_expr_type(value).map_err(|err| self.errors.push(err)).ok();
             }
             StatementKind::Loop { body } => {
                 self.check_block(body, return_type_span);
             }
             StatementKind::While { condition, body } => {
-                let condition_ty = match self.check_expression_type(condition) {
+                let condition_ty = match self.check_expr_type(condition) {
                     Ok(ty) => ty,
                     Err(err) => {
                         self.errors.push(err);
@@ -234,21 +234,18 @@ impl<'src> Typechecker<'src> {
         }
     }
 
-    pub fn check_expression_type(
-        &mut self,
-        expr: &Expression,
-    ) -> Result<Ty, Spanned<TypecheckerError>> {
+    pub fn check_expr_type(&mut self, expr: &Expr) -> Result<Ty, Spanned<TypecheckerError>> {
         let expr = expr;
         self.current_span = expr.span;
 
         let ty = match &expr.kind {
-            ExpressionKind::Literal(literal) => match &literal.kind {
+            ExprKind::Literal(literal) => match &literal.kind {
                 LiteralKind::Int(_) => Ty::Int,
                 LiteralKind::Float(_) => Ty::Float,
                 LiteralKind::Str(_) => Ty::Str,
                 LiteralKind::Bool(_) => Ty::Bool,
             },
-            ExpressionKind::Ident(ident) => {
+            ExprKind::Ident(ident) => {
                 for local in self.locals.iter().rev() {
                     if local.name.name == ident.name {
                         return Ok(local.ty);
@@ -260,8 +257,8 @@ impl<'src> Typechecker<'src> {
                     ident.span,
                 ));
             }
-            ExpressionKind::UnaryOp { op, rhs } => {
-                let rhs_ty = self.check_expression_type(rhs)?;
+            ExprKind::UnaryOp { op, rhs } => {
+                let rhs_ty = self.check_expr_type(rhs)?;
 
                 match op {
                     PrefixOp::Minus => match rhs_ty {
@@ -275,9 +272,9 @@ impl<'src> Typechecker<'src> {
                     },
                 }
             }
-            ExpressionKind::BinaryOp { lhs, op, rhs } => {
-                let lhs_ty = self.check_expression_type(lhs)?;
-                let rhs_ty = self.check_expression_type(rhs)?;
+            ExprKind::BinaryOp { lhs, op, rhs } => {
+                let lhs_ty = self.check_expr_type(lhs)?;
+                let rhs_ty = self.check_expr_type(rhs)?;
 
                 match op {
                     InfixOp::Add | InfixOp::Subtract | InfixOp::Multiply | InfixOp::Divide => {
@@ -332,15 +329,15 @@ impl<'src> Typechecker<'src> {
                     _ => unreachable!(),
                 }
             }
-            ExpressionKind::FnCall { callee, args } => {
+            ExprKind::FnCall { callee, args } => {
                 assert!(
-                    matches!(callee.as_ref(), Expression { kind: ExpressionKind::Ident(_), .. }),
+                    matches!(callee.as_ref(), Expr { kind: ExprKind::Ident(_), .. }),
                     "invalid fn call. expected callee to be an ident"
                 );
 
                 let _arg_tys = args
                     .iter()
-                    .map(|arg| self.check_expression_type(arg))
+                    .map(|arg| self.check_expr_type(arg))
                     .collect::<Result<Vec<_>, _>>()?;
 
                 // FIXME: Implement return types for functions

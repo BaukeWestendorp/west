@@ -1,6 +1,6 @@
 use crate::ast::{
-    Ast, Block, Expression, ExpressionKind, Fn, InfixOp, ItemKind, LiteralKind, Module, PrefixOp,
-    Statement, StatementKind,
+    Ast, Block, Expr, ExprKind, Fn, InfixOp, ItemKind, LiteralKind, Module, PrefixOp, Statement,
+    StatementKind,
 };
 use crate::bytecode::module::{BytecodeModule, Label};
 use crate::bytecode::opcode::Opcode;
@@ -117,20 +117,20 @@ impl<'src> ModuleCompiler<'src> {
 
     fn compile_statement(&mut self, statement: &Statement<'src>) {
         match &statement.kind {
-            StatementKind::Expression(expression) => {
-                self.compile_expression(expression);
+            StatementKind::Expr(expr) => {
+                self.compile_expr(expr);
             }
             StatementKind::Print { value } => {
-                let value_reg = self.compile_expression(value);
+                let value_reg = self.compile_expr(value);
                 self.push(Opcode::Print { value: value_reg.into() });
             }
             StatementKind::Return { value } => {
-                let value_reg = value.as_ref().map(|v| RegOrImm::from(self.compile_expression(&v)));
+                let value_reg = value.as_ref().map(|v| RegOrImm::from(self.compile_expr(&v)));
                 self.push(Opcode::Return { value: value_reg });
                 self.has_return = true;
             }
             StatementKind::IfElse { condition, then_block, else_block } => {
-                let condition_reg = self.compile_expression(condition);
+                let condition_reg = self.compile_expr(condition);
                 let else_label = self.add_label();
                 let end_label = self.add_label();
 
@@ -154,7 +154,7 @@ impl<'src> ModuleCompiler<'src> {
                 self.bc_module.set_label_address(end_label, self.ip);
             }
             StatementKind::Let { name, value } => {
-                let value_reg = self.compile_expression(value);
+                let value_reg = self.compile_expr(value);
                 self.locals.push(Local { depth: self.depth, name: name.as_str(), reg: value_reg });
             }
             StatementKind::Loop { body } => {
@@ -166,7 +166,7 @@ impl<'src> ModuleCompiler<'src> {
                 let start_label = self.add_label();
                 let end_label = self.add_label();
 
-                let condition_reg = self.compile_expression(condition).into();
+                let condition_reg = self.compile_expr(condition).into();
 
                 self.push(Opcode::JumpIfFalse { condition: condition_reg, label: end_label });
 
@@ -180,9 +180,9 @@ impl<'src> ModuleCompiler<'src> {
         }
     }
 
-    fn compile_expression(&mut self, expression: &Expression) -> Register {
-        match &expression.kind {
-            ExpressionKind::Literal(literal) => {
+    fn compile_expr(&mut self, expr: &Expr) -> Register {
+        match &expr.kind {
+            ExprKind::Literal(literal) => {
                 let value = match literal.kind {
                     LiteralKind::Int(value) => Value::Int(value),
                     LiteralKind::Float(value) => Value::Float(value),
@@ -195,9 +195,9 @@ impl<'src> ModuleCompiler<'src> {
 
                 reg
             }
-            ExpressionKind::Ident(ident) => self.get_local(ident.as_str()).reg,
-            ExpressionKind::UnaryOp { op, rhs } => {
-                let rhs_reg = self.compile_expression(rhs);
+            ExprKind::Ident(ident) => self.get_local(ident.as_str()).reg,
+            ExprKind::UnaryOp { op, rhs } => {
+                let rhs_reg = self.compile_expr(rhs);
                 let dest_reg = self.add_register();
 
                 match op {
@@ -215,9 +215,9 @@ impl<'src> ModuleCompiler<'src> {
 
                 dest_reg
             }
-            ExpressionKind::BinaryOp { lhs, op, rhs } => {
-                let lhs_reg = self.compile_expression(lhs);
-                let rhs_reg = self.compile_expression(rhs);
+            ExprKind::BinaryOp { lhs, op, rhs } => {
+                let lhs_reg = self.compile_expr(lhs);
+                let rhs_reg = self.compile_expr(rhs);
                 let dest_reg = self.add_register();
 
                 match op {
@@ -271,15 +271,15 @@ impl<'src> ModuleCompiler<'src> {
 
                 dest_reg
             }
-            ExpressionKind::FnCall { callee, args } => {
-                let ExpressionKind::Ident(callee_label) = &callee.kind else {
+            ExprKind::FnCall { callee, args } => {
+                let ExprKind::Ident(callee_label) = &callee.kind else {
                     panic!("invalid fn call. expected callee to be an ident");
                 };
 
                 let fn_label = self.bc_module.get_function_label(callee_label.as_str());
 
                 for argument in args {
-                    let arg_reg = self.compile_expression(argument);
+                    let arg_reg = self.compile_expr(argument);
                     self.push(Opcode::Push { value: arg_reg.into() });
                 }
 

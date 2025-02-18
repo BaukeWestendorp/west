@@ -57,15 +57,15 @@ pub struct Block<'src> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum StatementKind<'src> {
-    Expression(Expression<'src>),
+    Expr(Expr<'src>),
 
-    Let { name: Ident<'src>, value: Expression<'src> },
-    Return { value: Option<Expression<'src>> },
-    Print { value: Expression<'src> },
+    Let { name: Ident<'src>, value: Expr<'src> },
+    Return { value: Option<Expr<'src>> },
+    Print { value: Expr<'src> },
 
     Loop { body: Block<'src> },
-    While { condition: Expression<'src>, body: Block<'src> },
-    IfElse { condition: Expression<'src>, then_block: Block<'src>, else_block: Option<Block<'src>> },
+    While { condition: Expr<'src>, body: Block<'src> },
+    IfElse { condition: Expr<'src>, then_block: Block<'src>, else_block: Option<Block<'src>> },
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -76,17 +76,17 @@ pub struct Statement<'src> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum ExpressionKind<'src> {
+pub enum ExprKind<'src> {
     Literal(Literal<'src>),
     Ident(Ident<'src>),
-    UnaryOp { op: PrefixOp, rhs: Box<Expression<'src>> },
-    BinaryOp { lhs: Box<Expression<'src>>, op: InfixOp, rhs: Box<Expression<'src>> },
-    FnCall { callee: Box<Expression<'src>>, args: Vec<Box<Expression<'src>>> },
+    UnaryOp { op: PrefixOp, rhs: Box<Expr<'src>> },
+    BinaryOp { lhs: Box<Expr<'src>>, op: InfixOp, rhs: Box<Expr<'src>> },
+    FnCall { callee: Box<Expr<'src>>, args: Vec<Box<Expr<'src>>> },
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Expression<'src> {
-    pub kind: ExpressionKind<'src>,
+pub struct Expr<'src> {
+    pub kind: ExprKind<'src>,
 
     pub span: Span,
 }
